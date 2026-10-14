@@ -17,15 +17,32 @@
         return g;
     };
 
-    L.makeCar = function (g, bodyId, parts, condition, engineCondition) {
+    L.makeCar = function (g, bodyId, parts, condition, engineCondition, partCondition) {
         return {
             id: g.nextId++,
             body: bodyId,
             parts: Object.assign({}, L.BODIES[bodyId].parts, parts || {}),
             condition: condition,               // body and paint, 0-100: sets the resale value
-            engineCondition: engineCondition    // 0-100: power, and 0 means a blown engine
+            engineCondition: engineCondition,   // 0-100: power, and 0 means a blown engine
+            partCondition: partCondition || {}  // 0-100 by slot for the other parts; missing means 100
         };
     };
+
+    // How worn a part is, 0-100. The engine's is engineCondition.
+    L.partCondition = function (car, slot) {
+        if (slot === 'engine') return car.engineCondition;
+        var c = car.partCondition && car.partCondition[slot];
+        return typeof c === 'number' ? c : 100;
+    };
+
+    // Wear on the other parts follows the engine, give or take: a tired car is tired all over
+    function wornParts(engineCondition) {
+        var worn = {};
+        L.SLOTS.forEach(function (slot) {
+            if (slot !== 'engine') worn[slot] = randInt(Math.max(5, engineCondition - 40), Math.min(100, engineCondition + 25));
+        });
+        return worn;
+    }
 
     L.activeCar = function (g) { return g.cars[g.active] || null; };
 
@@ -35,7 +52,9 @@
     L.carValue = function (car) {
         var body = L.BODIES[car.body];
         var value = body.price * (0.3 + 0.5 * car.condition / 100);
-        L.SLOTS.forEach(function (slot) { value += (L.PARTS[car.parts[slot]].price || 0) / 2; });
+        L.SLOTS.forEach(function (slot) {
+            value += (L.PARTS[car.parts[slot]].price || 0) / 2 * (slot === 'engine' ? 1 : L.partCondition(car, slot) / 100);
+        });
         value *= 0.5 + 0.5 * car.engineCondition / 100;
         return roundTo(value, 5);
     };
@@ -51,7 +70,16 @@
             var condition = randInt(10, 75);        // scrappy used cars: rust, dents and tired engines
             var engineCondition = randInt(25, 90);
             var price = roundTo(body.price * (0.35 + 0.65 * condition / 100) * (0.7 + 0.3 * engineCondition / 100) * rand(0.9, 1.15), 10);
-            g.ads.push({ body: bodyId, condition: condition, engineCondition: engineCondition, price: price, note: adNote(condition, engineCondition) });
+            g.ads.push({ body: bodyId, condition: condition, engineCondition: engineCondition, parts: wornParts(engineCondition), price: price, note: adNote(condition, engineCondition) });
+        }
+        // There is always a cheap beater, so a broke player can get back on the road
+        if (!g.ads.some(function (ad) { return ad.price <= 200; })) {
+            var beater = g.ads[4];
+            beater.condition = randInt(8, 20);
+            beater.engineCondition = randInt(25, 40);
+            beater.parts = wornParts(beater.engineCondition);
+            beater.price = roundTo(rand(120, 200), 10);
+            beater.note = adNote(beater.condition, beater.engineCondition);
         }
         g.rivals = pickRivals(g);
     };
@@ -65,7 +93,7 @@
 
     // Three rivals around the player's level: wins unlock the tougher ones
     function pickRivals(g) {
-        var maxTier = Math.min(L.RIVAL_BUILDS.length - 1, Math.floor(g.wins / 2) + 1);
+        var maxTier = Math.min(L.RIVAL_BUILDS.length - 1, Math.floor(g.wins / 2));
         var pool = L.RIVALS.filter(function (r) { return r.tier <= maxTier; });
         var chosen = [];
         while (chosen.length < 3 && pool.length) {
@@ -75,7 +103,7 @@
                 name: r.name, tier: r.tier, skill: r.skill, body: r.body, line: r.line,
                 bet: roundTo(rand(range[0], range[1]), 5),
                 pinks: r.tier >= 1 && L.random() < 0.4,
-                engineCondition: randInt(80, 100)
+                engineCondition: r.tier === 0 ? randInt(45, 75) : randInt(75, 100)   // the first rivals drive junkers too
             });
         }
         return chosen;
@@ -98,7 +126,7 @@
         if (g.cash < ad.price) return "You can't afford it.";
         if (g.cars.length >= L.MAX_CARS) return 'Your garage is full. Sell a car first.';
         g.cash -= ad.price;
-        g.cars.push(L.makeCar(g, ad.body, null, ad.condition, ad.engineCondition));
+        g.cars.push(L.makeCar(g, ad.body, null, ad.condition, ad.engineCondition, ad.parts));
         if (g.active < 0) g.active = g.cars.length - 1;
         g.ads.splice(index, 1);
         return null;
@@ -158,10 +186,13 @@
         var partId = g.inventory[invIndex];
         var part = L.PARTS[partId];
         var old = car.parts[part.slot];
+        var oldCondition = L.partCondition(car, part.slot);
         car.parts[part.slot] = partId;
         g.inventory.splice(invIndex, 1);
-        // Stock parts that came with the car are worth nothing, so they go in the bin
-        if (L.PARTS[old].price) g.inventory.push(old);
+        // Stock parts that came with the car are worth nothing, and a shot part is scrap,
+        // so they go in the bin
+        if (L.PARTS[old].price && (part.slot === 'engine' || oldCondition >= L.SHOT)) g.inventory.push(old);
+        if (part.slot !== 'engine') car.partCondition[part.slot] = 100;
         // A different engine comes with its own condition: new from the catalog
         if (part.slot === 'engine') car.engineCondition = 100;
         return null;
@@ -170,6 +201,101 @@
     L.repairCost = function (car) {
         return Math.ceil((100 - car.engineCondition) * L.REPAIR_PER_POINT * (1 + (L.PARTS[car.parts.engine].price || 300) / 1000));
     };
+
+    // ── Fixing the other parts ────────────────────────────────────────────
+
+    // What each part needs: 'ok', 'repair' (rebuild it, at cost) or 'replace' (shot, or tires,
+    // which can't be repaired). replace offers a junkyard stock part, or a new one of the same
+    // kind if it's an aftermarket part. The engine is always rebuilt, never junked.
+    L.diagnose = function (car) {
+        return L.SLOTS.map(function (slot) {
+            var c = L.partCondition(car, slot);
+            var partId = car.parts[slot];
+            var d = { slot: slot, part: partId, condition: c, action: 'ok', cost: 0, junk: 0, fresh: 0 };
+            if (slot === 'engine') {
+                d.cost = L.repairCost(car);
+                if (d.cost > 0) d.action = 'repair';
+                return d;
+            }
+            var wear = L.WEAR[slot];
+            var replace = wear.repair ? c < L.SHOT : c < 60;   // tires are fine until they're half bald
+            if (replace) {
+                d.action = 'replace';
+                d.junk = wear.junk;
+                d.fresh = L.PARTS[partId].price || 0;
+            } else if (wear.repair && c < 95) {
+                d.action = 'repair';
+                d.cost = Math.max(5, Math.ceil((100 - c) * wear.repair));
+            }
+            return d;
+        });
+    };
+
+    // Cheapest way to fix everything that needs it
+    L.fixAllCost = function (car) {
+        return L.diagnose(car).reduce(function (sum, d) {
+            if (d.action === 'repair') return sum + d.cost;
+            if (d.action === 'replace') return sum + (d.fresh && d.fresh < d.junk ? d.fresh : d.junk);
+            return sum;
+        }, 0);
+    };
+
+    function diagnosis(g, slot) {
+        var car = L.activeCar(g);
+        if (!car) return { err: 'You need a car first.' };
+        var d = L.diagnose(car).filter(function (x) { return x.slot === slot; })[0];
+        return d ? { car: car, d: d } : { err: 'No such part.' };
+    }
+
+    L.canRepairPart = function (g, slot) {
+        if (slot === 'engine') return L.canRepair(g);
+        var x = diagnosis(g, slot);
+        if (x.err) return x.err;
+        if (x.d.action === 'ok') return "It's fine as it is.";
+        if (x.d.action === 'replace') return "It's past fixing. Replace it.";
+        if (g.cash < x.d.cost) return "You can't afford the repair.";
+        return null;
+    };
+
+    L.repairPart = function (g, slot) {
+        if (slot === 'engine') return L.repair(g);
+        var err = L.canRepairPart(g, slot);
+        if (err) return err;
+        var x = diagnosis(g, slot);
+        g.cash -= x.d.cost;
+        x.car.partCondition[slot] = 100;
+        return null;
+    };
+
+    // kind: 'junk' for a used stock part, 'new' for a new one of the same aftermarket part
+    L.canReplacePart = function (g, slot, kind) {
+        var x = diagnosis(g, slot);
+        if (x.err) return x.err;
+        if (x.d.action !== 'replace') return "It doesn't need replacing.";
+        if (kind === 'new' && !x.d.fresh) return 'That part is only sold used.';
+        if (kind === 'junk' && slot === 'intake' && L.PARTS[x.car.parts.carb].needs) {
+            return 'The ' + L.PARTS[x.car.parts.carb].name + ' needs the high-rise manifold. Buy a new one.';
+        }
+        if (g.cash < (kind === 'new' ? x.d.fresh : x.d.junk)) return "You can't afford it.";
+        return null;
+    };
+
+    L.replacePart = function (g, slot, kind) {
+        var err = L.canReplacePart(g, slot, kind);
+        if (err) return err;
+        var x = diagnosis(g, slot);
+        if (kind === 'new') {
+            g.cash -= x.d.fresh;
+            x.car.partCondition[slot] = 100;
+        } else {
+            g.cash -= x.d.junk;
+            x.car.parts[slot] = L.STOCK_PARTS[slot];
+            x.car.partCondition[slot] = L.JUNK_CONDITION;
+        }
+        return null;
+    };
+
+    // ── Engine ────────────────────────────────────────────────────────────
 
     L.canRepair = function (g) {
         var car = L.activeCar(g);
@@ -191,26 +317,43 @@
 
     // ── Racing ────────────────────────────────────────────────────────────
 
-    L.canRace = function (g, rival, pinks) {
+    // stake: 'cash' for the rival's bet, 'pinks' for the cars, 'fun' for nothing at all
+    L.canRace = function (g, rival, stake) {
         var car = L.activeCar(g);
         if (!car) return 'You need a car first.';
         if (car.engineCondition <= 0) return 'Your engine is blown. Rebuild it in the garage.';
-        if (!pinks && g.cash < rival.bet) return "You can't cover the bet.";
+        if (stake === 'cash' && g.cash < rival.bet) return "You can't cover the bet.";
         return null;
     };
 
+    // Your chances against a rival, 0-1: both cars' best times, plus your launch and shifting
+    // as an average player's against the rival's skill, with a spread for luck on the night
+    L.odds = function (car, rival) {
+        var mine = L.estimate(L.spec(car)).et + 0.35 + 0.25;
+        var theirs = L.estimate(L.spec(L.rivalCar(rival))).et + 0.2 + (1 - rival.skill) * 0.4 + (1 - rival.skill) * 0.3;
+        return 1 / (1 + Math.exp((mine - theirs) / 0.6));
+    };
+
     // Settle a race. result: 'win', 'lose' or 'foul' (jumped the light, which loses).
-    // Returns a line for the results screen.
-    L.settleRace = function (g, rivalIndex, pinks, result, damage) {
+    // A race for fun moves no money and doesn't count on your record, and the rival sticks
+    // around for another go. Returns a line for the results screen.
+    L.settleRace = function (g, rivalIndex, stake, result, damage) {
+        var pinks = stake === 'pinks';
         var rival = g.rivals[rivalIndex];
         var car = L.activeCar(g);
         car.engineCondition = Math.max(0, Math.round(car.engineCondition - damage));
+        if (!car.partCondition) car.partCondition = {};
+        car.partCondition.tires = Math.max(0, L.partCondition(car, 'tires') - randInt(2, 4));   // every launch scrubs the tires
         var blown = car.engineCondition <= 0 ? ' Your engine let go on the way.' : '';
+        if (stake === 'fun') {
+            if (result === 'win') return 'You beat ' + rival.name + '. Bragging rights only.' + blown;
+            return (result === 'foul' ? 'You jumped the light. ' : '') + rival.name + ' wins this one. No money on it.' + blown;
+        }
         g.rivals.splice(rivalIndex, 1);
         if (result === 'win') {
             g.wins++;
             if (pinks) {
-                var won = L.makeCar(g, rival.body, L.RIVAL_BUILDS[rival.tier], 70, rival.engineCondition);
+                var won = L.makeCar(g, rival.body, L.RIVAL_BUILDS[rival.tier], 70, rival.engineCondition, wornParts(rival.engineCondition));
                 if (g.cars.length < L.MAX_CARS) {
                     g.cars.push(won);
                     return 'You won ' + rival.name + "'s " + L.carName(won) + '!' + blown;

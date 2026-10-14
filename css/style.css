@@ -128,3 +128,12 @@ button.danger { background: var(--bad); color: #fff; border-bottom-color: #a01f1
 
 /* Wrenching: what to do next, under the canvas */
 #wrench-line { color: var(--text); font-size: 1rem; min-height: 1.4em; }
+
+/* Fix car: one row per part, its condition and what it needs */
+.row.fix > span:first-child { line-height: 1.6; }
+.shot { color: var(--bad); font-weight: bold; }
+
+/* Burger stand: your chances against a rival, red to green */
+.odds { margin: 6px 0; }
+.odds-bar { display: inline-block; width: 120px; height: 10px; background: var(--line); vertical-align: middle; }
+.odds-bar > span { display: block; height: 100%; }

@@ -90,13 +90,13 @@ test('settling races: cash bets and pink slips', () => {
                 { name: 'B', tier: 1, skill: 0.5, body: 'merc49', bet: 100, pinks: true, engineCondition: 90 },
                 { name: 'C', tier: 1, skill: 0.5, body: 'chevy55', bet: 100, pinks: true, engineCondition: 90 }];
     const cash = g.cash;
-    L.settleRace(g, 0, false, 'win', 5);
+    L.settleRace(g, 0, 'cash', 'win', 5);
     assert.strictEqual(g.cash, cash + 100);
     assert.strictEqual(L.activeCar(g).engineCondition, 85);
-    L.settleRace(g, 0, true, 'win', 0);
+    L.settleRace(g, 0, 'pinks', 'win', 0);
     assert.strictEqual(g.cars.length, 2);
     assert.strictEqual(g.cars[1].body, 'merc49');
-    L.settleRace(g, 0, true, 'foul', 0);
+    L.settleRace(g, 0, 'pinks', 'foul', 0);
     assert.strictEqual(g.cars.length, 1);
     assert.strictEqual(g.cars[0].body, 'merc49');
     assert.strictEqual(g.wins, 2);
@@ -108,9 +108,9 @@ test('a blown engine stops you racing until it is rebuilt', () => {
     g.cars.push(L.makeCar(g, 'ford48', null, 60, 0));
     g.active = 0;
     const rival = { bet: 10 };
-    assert.match(L.canRace(g, rival, false), /blown/);
+    assert.match(L.canRace(g, rival, 'cash'), /blown/);
     assert.strictEqual(L.repair(g), null);
-    assert.strictEqual(L.canRace(g, rival, false), null);
+    assert.strictEqual(L.canRace(g, rival, 'cash'), null);
 });
 
 test('every slot and the rebuild have a wrenching job with up to 8 bolts, spaced to click', () => {
@@ -135,4 +135,72 @@ test('install and rebuild checks match what installing and rebuilding do', () =>
     assert.strictEqual(L.canRepair(g), null);
     assert.strictEqual(L.repair(g), null);
     assert.match(L.canRepair(g), /top shape/);
+});
+
+test('fixing a worn car: repair, replace a shot part, and the budget adds up', () => {
+    const g = L.newGame();
+    g.cash = 5000;
+    g.cars.push(L.makeCar(g, 'ford48', { carb: 'carb_4bbl' }, 40, 50, { carb: 10, intake: 60, cam: 100, exhaust: 96, trans: 40, rear: 70, tires: 30 }));
+    g.active = 0;
+    const d = Object.fromEntries(L.diagnose(L.activeCar(g)).map((x) => [x.slot, x]));
+    assert.strictEqual(d.engine.action, 'repair');
+    assert.strictEqual(d.carb.action, 'replace');            // shot
+    assert.strictEqual(d.carb.fresh, L.PARTS.carb_4bbl.price);
+    assert.strictEqual(d.intake.action, 'repair');
+    assert.strictEqual(d.cam.action, 'ok');
+    assert.strictEqual(d.tires.action, 'replace');            // tires are replaced, never repaired
+    const slow = L.estimate(L.spec(L.activeCar(g))).et;
+
+    const total = L.fixAllCost(L.activeCar(g));
+    const cash = g.cash;
+    assert.match(L.repairPart(g, 'carb'), /past fixing/);
+    assert.strictEqual(L.replacePart(g, 'carb', 'junk'), null);
+    assert.strictEqual(L.activeCar(g).parts.carb, 'carb_stock');
+    assert.strictEqual(L.partCondition(L.activeCar(g), 'carb'), L.JUNK_CONDITION);
+    for (const slot of ['engine', 'intake', 'trans', 'rear']) assert.strictEqual(L.repairPart(g, slot), null, slot);
+    assert.strictEqual(L.replacePart(g, 'tires', 'junk'), null);
+    assert.strictEqual(g.cash, cash - total);
+    assert.ok(L.estimate(L.spec(L.activeCar(g))).et < slow);
+    assert.ok(L.diagnose(L.activeCar(g)).every((x) => x.action === 'ok' || x.slot === 'carb'));
+});
+
+test('a junk intake will not go under dual quads', () => {
+    const g = L.newGame();
+    g.cash = 5000;
+    g.cars.push(L.makeCar(g, 'ford48', { carb: 'carb_dual', intake: 'intake_hi' }, 40, 80, { intake: 5 }));
+    g.active = 0;
+    assert.match(L.replacePart(g, 'intake', 'junk'), /high-rise/);
+    assert.strictEqual(L.replacePart(g, 'intake', 'new'), null);
+    assert.strictEqual(L.partCondition(L.activeCar(g), 'intake'), 100);
+});
+
+test('the first week has only starter rivals, and always a cheap car for sale', () => {
+    for (let i = 0; i < 200; i++) {
+        const g = L.newGame();
+        assert.ok(g.rivals.length === 3 && g.rivals.every((r) => r.tier === 0 && !r.pinks));
+        assert.ok(g.ads.some((ad) => ad.price <= 200));
+    }
+});
+
+test('a race for fun costs nothing, counts for nothing, and the rival stays', () => {
+    const g = L.newGame();
+    g.cars.push(L.makeCar(g, 'ford48', null, 60, 90));
+    g.active = 0;
+    const cash = g.cash, rivals = g.rivals.length;
+    g.cash = 0;
+    assert.strictEqual(L.canRace(g, g.rivals[0], 'fun'), null);
+    assert.match(L.settleRace(g, 0, 'fun', 'win', 0), /Bragging/);
+    L.settleRace(g, 0, 'fun', 'lose', 0);
+    assert.strictEqual(g.cash, 0);
+    assert.strictEqual(g.rivals.length, rivals);
+    assert.strictEqual(g.wins + g.losses, 0);
+});
+
+test('odds favour the quicker car', () => {
+    const g = L.newGame();
+    const rival = { tier: 2, skill: 0.5, body: 'chevy57', engineCondition: 90 };
+    const junk = L.makeCar(g, 'ford48', null, 30, 40, { tires: 30, trans: 30 });
+    const built = L.makeCar(g, 'ford48', { engine: 'v8_427', carb: 'carb_six', intake: 'intake_hi', cam: 'cam_race', exhaust: 'exhaust_open', trans: 'trans_4cr', rear: 'rear_456', tires: 'tires_cheat' }, 90, 100);
+    assert.ok(L.odds(junk, rival) < 0.1);
+    assert.ok(L.odds(built, rival) > 0.9);
 });

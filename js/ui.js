@@ -197,16 +197,17 @@
         var detail = '';
         if (car) {
             var st = carStats(car);
-            var cost = L.repairCost(car);
+            var fixCost = L.fixAllCost(car);
             detail = '<div class="panel"><h2>' + esc(L.carName(car)) + '</h2>' +
                 '<div class="dyno">' +
                 '<p><b>' + st.hp + ' hp</b> at ' + st.hpRpm + ' rpm · redline ' + st.redline + '</p>' +
                 '<p>0-60 ' + (st.zeroSixty ? st.zeroSixty.toFixed(1) + ' s' : 'n/a') + ' · quarter mile ' + st.et.toFixed(2) + ' s at ' + Math.round(st.trap) + ' mph</p>' +
-                '<p>Engine ' + bar(car.engineCondition, 'Engine condition') + ' · Body ' + car.condition + '%</p>' +
-                (cost ? '<button data-act="repair"' + (g.cash < cost ? ' disabled' : '') + '>Rebuild engine (' + money(cost) + ')</button>' : '') +
+                '<p>Body ' + car.condition + '%</p>' +
+                (fixCost ? '<button data-act="fix">Fix car (' + money(fixCost) + ' for everything)</button>' : '<p class="sub">Everything is in good shape.</p>') +
                 '</div>' +
                 L.SLOTS.map(function (slot) {
-                    return '<div class="row"><span class="slot">' + L.SLOT_NAMES[slot] + '</span><span>' + esc(L.PARTS[car.parts[slot]].name) + '</span></div>';
+                    return '<div class="row"><span><span class="slot">' + L.SLOT_NAMES[slot] + '</span>' + esc(L.PARTS[car.parts[slot]].name) + '</span>' +
+                        '<span>' + bar(L.partCondition(car, slot), 'Condition') + '</span></div>';
                 }).join('') + '</div>';
         }
 
@@ -234,25 +235,76 @@
                     if (err) return L.showGarage(err);
                     var part = L.PARTS[g.inventory[+i]];
                     wrench(part.slot, 'Installing: ' + part.name, L.PARTS[car.parts[part.slot]].name, part.name,
-                        act(L.showGarage, function () { return L.installPart(g, +i) || 'Installed the ' + part.name + '.'; }));
+                        act(L.showGarage, function () { return L.installPart(g, +i) || 'Installed the ' + part.name + '.'; }), L.showGarage);
                 },
                 sellpart: act(L.showGarage, function (i) { return L.sellPart(g, +i); }),
-                repair: function () {
-                    var err = L.canRepair(g);
-                    if (err) return L.showGarage(err);
-                    wrench('rebuild', 'Rebuilding the ' + L.PARTS[car.parts.engine].name, 'worn cylinder heads', 'rebuilt heads',
-                        act(L.showGarage, function () { return L.repair(g) || 'Engine rebuilt. Good as new.'; }));
-                },
+                fix: function () { L.showFix(); },
                 back: function () { L.showHub(); }
             }
         );
     };
 
-    // A wrenching job on the canvas; finish() runs once the new part is bolted down
-    function wrench(job, title, oldName, newName, finish) {
+    // ── Fix car: what's worn, what it costs, then the workbench ───────────
+
+    L.showFix = function (msg) {
+        var car = L.activeCar(g);
+        if (!car) return L.showGarage('You need a car first.');
+        var total = L.fixAllCost(car);
+        var rows = L.diagnose(car).map(function (d) {
+            var name = esc(L.PARTS[d.part].name);
+            var btns;
+            if (d.action === 'ok') {
+                btns = '<span class="price">Good</span>';
+            } else if (d.action === 'repair') {
+                btns = '<button data-act="repair" data-arg="' + d.slot + '"' + (g.cash < d.cost ? ' disabled' : '') + '>' +
+                    (d.slot === 'engine' ? 'Rebuild ' : 'Repair ') + money(d.cost) + '</button>';
+            } else {
+                btns = '<span class="shot">' + (d.slot === 'tires' ? 'Worn out' : 'Shot, replace it') + '</span>' +
+                    '<button data-act="junk" data-arg="' + d.slot + '"' + (g.cash < d.junk ? ' disabled' : '') + '>Used stock ' + money(d.junk) + '</button>' +
+                    (d.fresh ? '<button data-act="new" data-arg="' + d.slot + '" class="minor"' + (g.cash < d.fresh ? ' disabled' : '') + '>New ' + money(d.fresh) + '</button>' : '');
+            }
+            return '<div class="row fix"><span><span class="slot">' + L.SLOT_NAMES[d.slot] + '</span>' + name + '<br>' +
+                bar(d.condition, 'Condition') + '</span>' + btns + '</div>';
+        }).join('');
+        var budget = total
+            ? 'Fixing everything costs ' + money(total) + '. You have ' + money(g.cash) + '.' + (total > g.cash ? ' Start with what you can afford: the engine and tires matter most.' : '')
+            : 'Everything is in good shape.';
+
+        function job(slot, how) {
+            var part = L.PARTS[car.parts[slot]];
+            var err = how === 'repair' ? L.canRepairPart(g, slot) : L.canReplacePart(g, slot, how);
+            if (err) return L.showFix(err);
+            var title, oldName = 'worn ' + part.name, newName;
+            if (slot === 'engine') { title = 'Rebuilding the ' + part.name; oldName = 'worn cylinder heads'; newName = 'rebuilt heads'; }
+            else if (how === 'repair') { title = 'Repairing the ' + part.name; newName = 'rebuilt ' + part.name; }
+            else if (how === 'new') { title = 'Replacing the ' + part.name; newName = 'new ' + part.name; }
+            else { title = 'Fitting a junkyard part'; newName = 'used ' + L.PARTS[L.STOCK_PARTS[slot]].name; }
+            wrench(slot === 'engine' ? 'rebuild' : slot, title, oldName, newName, act(L.showFix, function () {
+                var e = how === 'repair' ? L.repairPart(g, slot) : L.replacePart(g, slot, how);
+                return e || (slot === 'engine' ? 'Engine rebuilt. Good as new.' : 'The ' + L.SLOT_NAMES[slot].toLowerCase() + ' is sorted.');
+            }), L.showFix);
+        }
+
+        render(
+            status() + flash(msg) +
+            '<div class="panel"><h2>Fix the ' + esc(L.carName(car)) + '</h2><p class="sub">' + budget + '</p>' + rows + '</div>' +
+            '<p class="hint">Each job opens the workbench: click the orange bolts out, then back in.</p>' +
+            '<button data-act="back">Back to the garage</button>',
+            {
+                repair: function (slot) { job(slot, 'repair'); },
+                junk: function (slot) { job(slot, 'junk'); },
+                new: function (slot) { job(slot, 'new'); },
+                back: function () { L.showGarage(); }
+            }
+        );
+    };
+
+    // A wrenching job on the canvas; finish() runs once the new part is bolted down,
+    // back(msg) if you walk away from it
+    function wrench(job, title, oldName, newName, finish, back) {
         render('<div class="race-controls"><p class="hint" id="wrench-line"></p>' +
             '<button data-act="cancel" class="minor">Leave it for now</button></div>', {
-            cancel: function () { stop(); L.showCanvas(false); L.showGarage('You put the wrenches down. Nothing changed.'); }
+            cancel: function () { stop(); L.showCanvas(false); back('You put the wrenches down. Nothing changed.'); }
         });
         L.titleScreen(false);
         L.showCanvas(true);
@@ -271,38 +323,55 @@
     L.showStand = function (msg) {
         var car = L.activeCar(g);
         var rows = g.rivals.map(function (r, i) {
-            var cashErr = L.canRace(g, r, false);
-            var pinkErr = L.canRace(g, r, true);
+            var cashErr = L.canRace(g, r, 'cash');
+            var otherErr = L.canRace(g, r, 'pinks');
             return '<div class="card rival"><h3>' + esc(r.name) + '</h3>' +
                 '<p>Drives a ' + esc(L.BODIES[r.body].name) + '. <em>"' + esc(r.line) + '"</em></p>' +
+                (car ? chances(L.odds(car, r)) : '') +
                 '<button data-act="cash" data-arg="' + i + '"' + (cashErr ? ' disabled' : '') + '>Race for ' + money(r.bet) + '</button>' +
-                (r.pinks ? '<button data-act="pinks" data-arg="' + i + '" class="danger"' + (pinkErr ? ' disabled' : '') + '>Race for pink slips</button>' : '') +
+                '<button data-act="fun" data-arg="' + i + '" class="minor"' + (otherErr ? ' disabled' : '') + '>Just for fun</button>' +
+                (r.pinks ? '<button data-act="pinks" data-arg="' + i + '" class="danger"' + (otherErr ? ' disabled' : '') + '>Race for pink slips</button>' : '') +
                 '</div>';
         }).join('') || '<p>Nobody wants to race you this week. Come back next week.</p>';
         var why = car ? (car.engineCondition <= 0 ? 'Your engine is blown. Rebuild it in the garage.' : '') : 'You need a car to race.';
         render(
             status() + flash(msg || why) +
             '<div class="panel"><h2>The Burger Stand</h2><p class="sub">Friday night. Engines idling, everybody watching.</p>' + rows + '</div>' +
-            '<p class="hint">At the race: press Space, Enter or the big button when the light turns green, then again to shift. Keep out of the red.</p>' +
+            '<p class="hint">At the race: press Space, Enter or the big button when the start light turns green, then again each time the SHIFT light goes green. Keep out of the red. A race just for fun risks nothing.</p>' +
             '<button data-act="back">Back</button>',
             {
-                cash: function (i) { race(+i, false); },
+                cash: function (i) { race(+i, 'cash'); },
+                fun: function (i) { race(+i, 'fun'); },
                 pinks: function (i) {
                     ask('Race ' + g.rivals[+i].name + ' for pink slips? If you lose, they keep your ' + L.carName(L.activeCar(g)) + '.',
-                        'Race for pinks', function () { race(+i, true); }, L.showStand);
+                        'Race for pinks', function () { race(+i, 'pinks'); }, L.showStand);
                 },
                 back: function () { L.showHub(); }
             }
         );
     };
 
-    function race(i, pinks) {
+    // Your chances as a meter from red to green
+    function chances(p) {
+        var pct = Math.round(p * 100);
+        var label = p >= 0.7 ? 'Easy money' : p >= 0.45 ? 'Even race' : p >= 0.2 ? 'Tough' : 'Long shot';
+        var hue = Math.round(p * 120);   // 0 red, 60 amber, 120 green
+        return '<p class="odds"><span class="odds-bar"><span style="width:' + Math.max(4, pct) + '%;background:hsl(' + hue + ',85%,50%)"></span></span> ' +
+            label + ' · about ' + pct + '% to win</p>';
+    }
+
+    function race(i, stake) {
         var rival = g.rivals[i];
-        var err = L.canRace(g, rival, pinks);
+        var pinks = stake === 'pinks';
+        var err = L.canRace(g, rival, stake);
         if (err) return L.showStand(err);
         var car = L.activeCar(g);
         render('<div class="race-controls"><button class="go" id="go">GO / SHIFT</button>' +
-            '<p class="hint">Racing ' + esc(rival.name) + ' for ' + (pinks ? 'pink slips' : money(rival.bet)) + '</p></div>', {});
+            '<p class="hint">Racing ' + esc(rival.name) + ' ' + (pinks ? 'for pink slips' : stake === 'fun' ? 'just for fun' : 'for ' + money(rival.bet)) +
+            '. Shift when the SHIFT light goes green.</p>' +
+            '<button data-act="sound" class="minor" id="sound">Sound: ' + (L.sound.on ? 'on' : 'off') + '</button></div>', {
+            sound: function () { document.getElementById('sound').textContent = 'Sound: ' + (L.sound.toggle() ? 'on' : 'off'); L.sound.begin(); L.sound.engineOn(); }
+        });
         L.titleScreen(false);
         L.showCanvas(true);
         var rcar = L.rivalCar(rival);
@@ -312,7 +381,7 @@
             { spec: L.spec(car), color: L.BODIES[car.body].color, condition: car.engineCondition },
             { spec: L.spec(rcar), color: '#e8e8e8', skill: rival.skill },
             function (result, damage, sum) {
-                var line = L.settleRace(g, i, pinks, result, damage);
+                var line = L.settleRace(g, i, stake, result, damage);
                 L.save(g);
                 L.showCanvas(false);
                 render(

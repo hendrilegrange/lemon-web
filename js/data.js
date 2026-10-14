@@ -99,6 +99,8 @@
     L.RIVALS = [
         { name: 'Skeeter Haines', tier: 0, skill: 0.3, body: 'merc49', line: "My old Merc'll eat you alive, kid." },
         { name: 'Donna Ruiz', tier: 0, skill: 0.5, body: 'chevy52', line: 'Loser buys the burgers.' },
+        { name: 'Wendell Pike', tier: 0, skill: 0.2, body: 'chevy60', line: "It's my granddad's car. Go easy on it." },
+        { name: 'Patsy Greer', tier: 0, skill: 0.4, body: 'ford48', line: 'Two bits says you stall it.' },
         { name: 'Bud Kowalski', tier: 1, skill: 0.4, body: 'chevy55', line: "Heard you've been running your mouth." },
         { name: 'Lefty Marsh', tier: 1, skill: 0.6, body: 'ford50', line: "Sure, I'll take your money." },
         { name: 'Ray "Gasket" Doyle', tier: 2, skill: 0.5, body: 'chevy57', line: 'Bring cash. Lots of it.' },
@@ -110,7 +112,23 @@
     // Bets by rival tier: [smallest, largest]
     L.BET_RANGE = [[25, 75], [50, 150], [100, 300], [200, 500], [400, 900]];
 
-    L.START_CASH = 500;     // enough for one scrappy car and a little to fix it
+    L.START_CASH = 600;     // enough for one scrappy car and a few repairs
     L.MAX_CARS = 3;
-    L.REPAIR_PER_POINT = 3;   // dollars per point of engine condition restored
+    L.REPAIR_PER_POINT = 2;   // dollars per point of engine condition restored
+
+    // Wear on the other parts. A part under SHOT is past fixing and must be replaced.
+    // repair: dollars per point of condition restored (tires can't be repaired, only replaced);
+    // junk: a used stock part from the junkyard, which goes on at JUNK_CONDITION.
+    L.SHOT = 20;
+    L.JUNK_CONDITION = 75;
+    L.WEAR = {
+        carb:    { repair: 0.6, junk: 25 },
+        intake:  { repair: 0.3, junk: 15 },
+        cam:     { repair: 0.8, junk: 30 },
+        exhaust: { repair: 0.5, junk: 25 },
+        trans:   { repair: 1.0, junk: 60 },
+        rear:    { repair: 0.7, junk: 40 },
+        tires:   { repair: 0, junk: 30 }
+    };
+    L.STOCK_PARTS = STOCK;
 })(window.Lemon = window.Lemon || {});

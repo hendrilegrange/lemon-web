@@ -42,6 +42,9 @@
                 shiftError: function () { return (1 - rival.skill) * (L.random() * 900 - 600); }
             },
             message: 'STAGE',
+            lastAmber: -1,
+            greenBeeped: false,
+            shiftBeeped: -1,
             foul: false,
             last: null,
             stopped: false
@@ -72,11 +75,48 @@
 
         document.addEventListener('keydown', onKey);
         button.addEventListener('pointerdown', onButton);
+        L.sound.begin();        // the click that started the race lets the audio start
+        L.sound.engineOn();
 
         function cleanup() {
             state.stopped = true;
             document.removeEventListener('keydown', onKey);
             button.removeEventListener('pointerdown', onButton);
+            L.sound.engineOff();
+        }
+
+        // The shift light: off, 'ready' just below the best shift point, 'shift' at it,
+        // 'over' past redline. Nothing in top gear but the redline warning.
+        function shiftLight() {
+            var me = state.me, spec = player.spec;
+            if (me.launchedAt === null || me.blown || me.run.done || me.run.shiftLeft > 0) return null;
+            if (me.run.rpm > spec.redline) return 'over';
+            if (me.run.gear >= spec.gears.length - 1) return null;
+            var best = L.shiftRpm(spec, me.run.gear);
+            if (me.run.rpm >= best) return 'shift';
+            if (me.run.rpm >= best - 400) return 'ready';
+            return null;
+        }
+
+        function sounds() {
+            var me = state.me;
+            // Start lights: a tick for each amber, a high beep for green
+            var ambers = Math.floor((state.clock - (state.greenAt - 1.5)) / 0.5);
+            if (state.phase === 'tree' && ambers >= 0 && ambers < 3 && ambers !== state.lastAmber) {
+                state.lastAmber = ambers;
+                L.sound.beep(440, 0.12);
+            }
+            if (!state.greenBeeped && state.clock >= state.greenAt && !state.foul) {
+                state.greenBeeped = true;
+                L.sound.beep(880, 0.3);
+            }
+            var light = shiftLight();
+            if (light === 'shift' && state.shiftBeeped !== me.run.gear) {
+                state.shiftBeeped = me.run.gear;
+                L.sound.beep(1320, 0.1);
+            }
+            var rpm = me.launchedAt === null ? 1800 + Math.sin(state.clock * 30) * 200 : me.run.rpm;
+            L.sound.engineAt(me.blown ? 0 : rpm, me.launchedAt !== null && me.run.shiftLeft <= 0 && !me.run.done ? 1 : 0.2);
         }
 
         function finish() {
@@ -149,6 +189,7 @@
             state.last = now;
             var steps = Math.round(elapsed / DT);
             for (var i = 0; i < steps && state.phase !== 'finished'; i++) tick(DT);
+            sounds();
             draw();
             requestAnimationFrame(frame);
         }
@@ -232,6 +273,14 @@
             ctx.strokeStyle = '#ff3b3b';
             ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI + Math.PI * spec.redline / max, 2 * Math.PI); ctx.stroke();
             var rpm = me.launchedAt === null ? (state.phase === 'tree' ? 1800 + Math.sin(state.clock * 30) * 200 : 900) : me.run.rpm;
+            // A green tick at the best shift point for this gear
+            if (me.run.gear < spec.gears.length - 1) {
+                var sa = Math.PI + Math.PI * L.shiftRpm(spec, me.run.gear) / max;
+                ctx.strokeStyle = '#3bff6e';
+                ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.moveTo(cx + Math.cos(sa) * (r - 6), cy + Math.sin(sa) * (r - 6));
+                ctx.lineTo(cx + Math.cos(sa) * (r + 3), cy + Math.sin(sa) * (r + 3)); ctx.stroke();
+            }
             var a = Math.PI + Math.PI * Math.min(rpm, max) / max;
             ctx.strokeStyle = '#f4e9c8';
             ctx.lineWidth = 2;
@@ -248,9 +297,19 @@
             ctx.fillText(me.run.shiftLeft > 0 ? '-' : String(me.run.gear + 1), 112, 177);
             ctx.fillText(String(Math.round(L.mph(me.run.v))), 112, 191);
 
-            if (me.run.spinning && me.run.v > 0) { ctx.fillStyle = '#ff3b3b'; ctx.fillText('SPIN', 150, 177); }
-            if (me.run.rpm > spec.redline && me.launchedAt !== null) { ctx.fillStyle = '#ff3b3b'; ctx.fillText('SHIFT!', 150, 191); }
-            if (me.blown) { ctx.fillStyle = '#ff3b3b'; ctx.fillText('BLOWN!', 150, 163); }
+            // Shift light: amber when it's nearly time, green to shift now, flashing red past redline
+            var light = shiftLight();
+            var lamp = { ready: '#ffb000', shift: '#3bff6e', over: Math.floor(state.clock * 8) % 2 ? '#ff3b3b' : '#5a1010' }[light] || '#2a2a2a';
+            ctx.fillStyle = lamp;
+            ctx.fillRect(148, 153, 46, 14);
+            ctx.fillStyle = light ? '#111' : '#555';
+            ctx.font = 'bold 10px "Courier New", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText('SHIFT', 171, 163);
+            ctx.textAlign = 'left';
+            ctx.font = 'bold 12px "Courier New", monospace';
+            if (me.run.spinning && me.run.v > 0) { ctx.fillStyle = '#ff3b3b'; ctx.fillText('SPIN', 150, 181); }
+            if (me.blown) { ctx.fillStyle = '#ff3b3b'; ctx.fillText('BLOWN!', 150, 195); }
 
             // Progress: both cars along the quarter mile
             var px = 200, pw = 112;
