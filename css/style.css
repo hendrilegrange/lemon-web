@@ -32,7 +32,7 @@ main {
 
 /* 320x200, the VGA mode the original ran in, scaled up with hard pixel edges */
 canvas {
-    width: min(100%, 960px);
+    width: min(100%, 968px);   /* 960 inside the border: three times 320 */
     aspect-ratio: 320 / 200;
     image-rendering: pixelated;
     border: 4px solid var(--line);
