@@ -1,4 +1,4 @@
-// Game state and rules: money, cars, parts, the classifieds and street race bets.
+// Game state and rules: money, cars, parts, the classifieds and street races.
 // No drawing here, so it runs in Node for tests.
 (function (L) {
     'use strict';
@@ -91,21 +91,21 @@
         return pick(['Good driver.', 'Runs and drives.', 'Daily driver, must sell.', 'Moving, must sell!']);
     }
 
-    // Three rivals around the player's level: wins unlock the tougher ones
+    // Three rivals around the player's level: wins unlock the tougher ones. The King joins
+    // them once you've won enough races, until you beat him.
     function pickRivals(g) {
-        var maxTier = Math.min(L.RIVAL_BUILDS.length - 1, Math.floor(g.wins / 2));
+        var maxTier = Math.min(4, Math.floor(g.wins / 2));
         var pool = L.RIVALS.filter(function (r) { return r.tier <= maxTier; });
         var chosen = [];
-        while (chosen.length < 3 && pool.length) {
-            var r = pool.splice(Math.floor(L.random() * pool.length), 1)[0];
-            var range = L.BET_RANGE[r.tier];
+        function add(r) {
             chosen.push({
                 name: r.name, tier: r.tier, skill: r.skill, body: r.body, line: r.line,
-                bet: roundTo(rand(range[0], range[1]), 5),
-                pinks: r.tier >= 1 && L.random() < 0.4,
+                king: r === L.KING, funDone: false,
                 engineCondition: r.tier === 0 ? randInt(45, 75) : randInt(75, 100)   // the first rivals drive junkers too
             });
         }
+        while (chosen.length < 3 && pool.length) add(pool.splice(Math.floor(L.random() * pool.length), 1)[0]);
+        if (g.wins >= L.KING_WINS && !g.kingBeaten) add(L.KING);
         return chosen;
     }
 
@@ -317,14 +317,18 @@
 
     // ── Racing ────────────────────────────────────────────────────────────
 
-    // stake: 'cash' for the rival's bet, 'pinks' for the cars, 'fun' for nothing at all
+    // stake: 'cash' for RIVAL_PRIZE, 'pinks' for the cars, 'fun' for a small prize and no risk
     L.canRace = function (g, rival, stake) {
         var car = L.activeCar(g);
         if (!car) return 'You need a car first.';
         if (car.engineCondition <= 0) return 'Your engine is blown. Rebuild it in the garage.';
-        if (stake === 'cash' && g.cash < rival.bet) return "You can't cover the bet.";
+        if (rival.king && stake !== 'pinks') return 'The King only races for pink slips.';
+        if (stake === 'cash' && g.cash < L.RIVAL_PRIZE) return 'You need $' + L.RIVAL_PRIZE.toLocaleString('en-US') + ' to put up.';
+        if (stake === 'fun' && rival.funDone) return rival.name + ' has had enough fun for this week.';
         return null;
     };
+
+    L.funPrize = function (rival) { return L.FUN_PRIZE[rival.tier] || 0; };
 
     // Your chances against a rival, 0-1: both cars' best times, plus your launch and shifting
     // as an average player's against the rival's skill, with a spread for luck on the night
@@ -335,46 +339,55 @@
     };
 
     // Settle a race. result: 'win', 'lose' or 'foul' (jumped the light, which loses).
-    // A race for fun moves no money and doesn't count on your record, and the rival sticks
-    // around for another go. Returns a line for the results screen.
+    // A race for fun pays a small prize for a win and costs nothing to lose; the rival stays
+    // at the stand for a real race but won't race for fun again this week. Every race counts
+    // on your record. Returns a line for the results screen.
     L.settleRace = function (g, rivalIndex, stake, result, damage) {
-        var pinks = stake === 'pinks';
         var rival = g.rivals[rivalIndex];
         var car = L.activeCar(g);
         car.engineCondition = Math.max(0, Math.round(car.engineCondition - damage));
         if (!car.partCondition) car.partCondition = {};
         car.partCondition.tires = Math.max(0, L.partCondition(car, 'tires') - randInt(2, 4));   // every launch scrubs the tires
         var blown = car.engineCondition <= 0 ? ' Your engine let go on the way.' : '';
+        var why = result === 'foul' ? 'You jumped the light. ' : '';
+        if (result === 'win') g.wins++; else g.losses++;
+
         if (stake === 'fun') {
-            if (result === 'win') return 'You beat ' + rival.name + '. Bragging rights only.' + blown;
-            return (result === 'foul' ? 'You jumped the light. ' : '') + rival.name + ' wins this one. No money on it.' + blown;
+            rival.funDone = true;
+            if (result !== 'win') return why + rival.name + ' wins this one. No money on it.' + blown;
+            var prize = L.funPrize(rival);
+            g.cash += prize;
+            return 'You beat ' + rival.name + ' and won the $' + prize + ' side bet.' + blown;
         }
+
         g.rivals.splice(rivalIndex, 1);
+        var cash = rival.king ? L.KING_PRIZE : L.RIVAL_PRIZE;
+        var cashText = '$' + cash.toLocaleString('en-US');
         if (result === 'win') {
-            g.wins++;
-            if (pinks) {
+            if (rival.king) g.kingBeaten = true;
+            if (stake === 'pinks') {
+                g.cash += cash;
                 var won = L.makeCar(g, rival.body, L.RIVAL_BUILDS[rival.tier], 70, rival.engineCondition, wornParts(rival.engineCondition));
+                var crown = rival.king ? ' You are the new King of the strip!' : '';
                 if (g.cars.length < L.MAX_CARS) {
                     g.cars.push(won);
-                    return 'You won ' + rival.name + "'s " + L.carName(won) + '!' + blown;
+                    return 'You won ' + cashText + ' and ' + rival.name + "'s " + L.carName(won) + '!' + crown + blown;
                 }
                 var value = L.carValue(won);
                 g.cash += value;
-                return 'You won ' + rival.name + "'s " + L.carName(won) + ". Your garage is full, so you sold it for $" + value + '.' + blown;
+                return 'You won ' + cashText + ' and ' + rival.name + "'s " + L.carName(won) + ". Your garage is full, so you sold it for $" + value + '.' + crown + blown;
             }
-            g.cash += rival.bet;
-            return 'You won $' + rival.bet + ' from ' + rival.name + '.' + blown;
+            g.cash += cash;
+            return 'You won ' + cashText + ' from ' + rival.name + '.' + blown;
         }
-        g.losses++;
-        var why = result === 'foul' ? 'You jumped the light. ' : '';
-        if (pinks) {
+        if (stake === 'pinks') {
             var lost = L.carName(car);
             g.cars.splice(g.active, 1);
             g.active = g.cars.length ? 0 : -1;
             return why + rival.name + ' drives off in your ' + lost + '.';
         }
-        g.cash -= rival.bet;
-        return why + 'You lost $' + rival.bet + ' to ' + rival.name + '.' + blown;
+        g.cash -= cash;
+        return why + 'You lost ' + cashText + ' to ' + rival.name + '.' + blown;
     };
 
     // ── Saving ────────────────────────────────────────────────────────────

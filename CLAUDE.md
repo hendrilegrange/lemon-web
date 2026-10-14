@@ -17,7 +17,7 @@ server code or database.
 | File | Purpose |
 |------|---------|
 | `index.html` | Shell: loads `css/style.css` and the `js/` files. Bump the `?v=` on any file that changes |
-| `js/data.js` | Car bodies (scrappy late-40s to early-60s used cars; newer cars may unlock after beating The King, later), parts (by slot), rivals, bets and starting cash |
+| `js/data.js` | Car bodies (scrappy late-40s to early-60s used cars; newer cars may unlock after beating The King, later), parts (by slot), rivals and The King, race prizes (fun $50-$200 by tier, rival races $1,000 or pinks, The King $10,000 and his car) and starting cash |
 | `js/physics.js` | Turns a car's parts into a spec (`L.spec`), torque curve, and steps a drag race in time (`L.step`); `L.estimate` is the garage's time slip |
 | `js/game.js` | Game state and rules: classifieds, buying/selling, installing parts, wear per part (`partCondition`), diagnosing, repairing and replacing parts (`L.diagnose`), race odds (`L.odds`), settling races for cash, pink slips or fun, saving to localStorage. No drawing, so Node tests load it |
 | `js/sound.js` | Web Audio: engine note that follows the rpm, start-light and shift-light beeps; on/off kept in localStorage |

@@ -92,7 +92,8 @@
         { carb: 'carb_4bbl', exhaust: 'exhaust_hdr' },
         { engine: 'v8_283', carb: 'carb_4bbl', intake: 'intake_alu', exhaust: 'exhaust_hdr', rear: 'rear_373', tires: 'tires_wide' },
         { engine: 'v8_327', carb: 'carb_dual', intake: 'intake_hi', cam: 'cam_hot', exhaust: 'exhaust_hdr', trans: 'trans_4wide', rear: 'rear_411', tires: 'tires_wide' },
-        { engine: 'v8_409', carb: 'carb_dual', intake: 'intake_hi', cam: 'cam_hot', exhaust: 'exhaust_open', trans: 'trans_4cr', rear: 'rear_411', tires: 'tires_cheat' }
+        { engine: 'v8_409', carb: 'carb_dual', intake: 'intake_hi', cam: 'cam_hot', exhaust: 'exhaust_open', trans: 'trans_4cr', rear: 'rear_411', tires: 'tires_cheat' },
+        { engine: 'v8_427', carb: 'carb_six', intake: 'intake_hi', cam: 'cam_race', exhaust: 'exhaust_open', trans: 'trans_4cr', rear: 'rear_456', tires: 'tires_cheat' }
     ];
 
     // Rivals hang around the strip. Tier sets their build, skill their launch and shifting.
@@ -109,8 +110,16 @@
         { name: 'Earl "Big Block" Pruett', tier: 4, skill: 0.85, body: 'ford50', line: "Nobody's beaten this car in two summers." }
     ];
 
-    // Bets by rival tier: [smallest, largest]
-    L.BET_RANGE = [[25, 75], [50, 150], [100, 300], [200, 500], [400, 900]];
+    // The King of the strip: shows up once you've won KING_WINS races, and only races for pinks
+    L.KING = { name: 'The King', tier: 5, skill: 0.9, body: 'chevy57', line: 'You want my crown? Put up your car.' };
+    L.KING_WINS = 10;
+
+    // Prizes. A race just for fun costs nothing and pays by the rival's tier. A rival race
+    // stakes RIVAL_PRIZE in cash, or both cars' pink slips (winner also takes the cash).
+    // The King pays KING_PRIZE and his car.
+    L.FUN_PRIZE = [50, 100, 100, 200, 200, 200];
+    L.RIVAL_PRIZE = 1000;
+    L.KING_PRIZE = 10000;
 
     L.START_CASH = 600;     // enough for one scrappy car and a few repairs
     L.MAX_CARS = 3;

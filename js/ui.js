@@ -323,27 +323,33 @@
     L.showStand = function (msg) {
         var car = L.activeCar(g);
         var rows = g.rivals.map(function (r, i) {
+            var funErr = L.canRace(g, r, 'fun');
             var cashErr = L.canRace(g, r, 'cash');
-            var otherErr = L.canRace(g, r, 'pinks');
-            return '<div class="card rival"><h3>' + esc(r.name) + '</h3>' +
+            var pinkErr = L.canRace(g, r, 'pinks');
+            var buttons = r.king
+                ? '<button data-act="pinks" data-arg="' + i + '" class="danger"' + (pinkErr ? ' disabled' : '') + '>Race for his crown: pinks and ' + money(L.KING_PRIZE) + '</button>'
+                : '<button data-act="fun" data-arg="' + i + '" class="minor"' + (funErr ? ' disabled' : '') + '>' +
+                    (r.funDone ? 'Raced for fun this week' : 'Just for fun (win ' + money(L.funPrize(r)) + ')') + '</button>' +
+                  '<button data-act="cash" data-arg="' + i + '"' + (cashErr ? ' disabled title="You need ' + money(L.RIVAL_PRIZE) + ' to put up"' : '') + '>Race for ' + money(L.RIVAL_PRIZE) + '</button>' +
+                  '<button data-act="pinks" data-arg="' + i + '" class="danger"' + (pinkErr ? ' disabled' : '') + '>Pink slips and ' + money(L.RIVAL_PRIZE) + '</button>';
+            return '<div class="card rival' + (r.king ? ' king' : '') + '"><h3>' + esc(r.name) + '</h3>' +
                 '<p>Drives a ' + esc(L.BODIES[r.body].name) + '. <em>"' + esc(r.line) + '"</em></p>' +
-                (car ? chances(L.odds(car, r)) : '') +
-                '<button data-act="cash" data-arg="' + i + '"' + (cashErr ? ' disabled' : '') + '>Race for ' + money(r.bet) + '</button>' +
-                '<button data-act="fun" data-arg="' + i + '" class="minor"' + (otherErr ? ' disabled' : '') + '>Just for fun</button>' +
-                (r.pinks ? '<button data-act="pinks" data-arg="' + i + '" class="danger"' + (otherErr ? ' disabled' : '') + '>Race for pink slips</button>' : '') +
+                (car ? chances(L.odds(car, r)) : '') + buttons +
                 '</div>';
         }).join('') || '<p>Nobody wants to race you this week. Come back next week.</p>';
         var why = car ? (car.engineCondition <= 0 ? 'Your engine is blown. Rebuild it in the garage.' : '') : 'You need a car to race.';
         render(
             status() + flash(msg || why) +
             '<div class="panel"><h2>The Burger Stand</h2><p class="sub">Friday night. Engines idling, everybody watching.</p>' + rows + '</div>' +
-            '<p class="hint">At the race: press Space, Enter or the big button when the start light turns green, then again each time the SHIFT light goes green. Keep out of the red. A race just for fun risks nothing.</p>' +
+            '<p class="hint">At the race: press Space, Enter or the big button when the start light turns green, then again each time the SHIFT light goes green. Keep out of the red. A race just for fun risks nothing and pays a little; a real race is ' + money(L.RIVAL_PRIZE) + ' or pink slips.</p>' +
             '<button data-act="back">Back</button>',
             {
                 cash: function (i) { race(+i, 'cash'); },
                 fun: function (i) { race(+i, 'fun'); },
                 pinks: function (i) {
-                    ask('Race ' + g.rivals[+i].name + ' for pink slips? If you lose, they keep your ' + L.carName(L.activeCar(g)) + '.',
+                    var r = g.rivals[+i];
+                    ask('Race ' + r.name + ' for pink slips? Win and you take their car and ' + money(r.king ? L.KING_PRIZE : L.RIVAL_PRIZE) +
+                        '. Lose and they keep your ' + L.carName(L.activeCar(g)) + '.',
                         'Race for pinks', function () { race(+i, 'pinks'); }, L.showStand);
                 },
                 back: function () { L.showHub(); }
@@ -367,7 +373,7 @@
         if (err) return L.showStand(err);
         var car = L.activeCar(g);
         render('<div class="race-controls"><button class="go" id="go">GO / SHIFT</button>' +
-            '<p class="hint">Racing ' + esc(rival.name) + ' ' + (pinks ? 'for pink slips' : stake === 'fun' ? 'just for fun' : 'for ' + money(rival.bet)) +
+            '<p class="hint">Racing ' + esc(rival.name) + ' ' + (pinks ? 'for pink slips' : stake === 'fun' ? 'just for fun' : 'for ' + money(L.RIVAL_PRIZE)) +
             '. Shift when the SHIFT light goes green.</p>' +
             '<button data-act="sound" class="minor" id="sound">Sound: ' + (L.sound.on ? 'on' : 'off') + '</button></div>', {
             sound: function () { document.getElementById('sound').textContent = 'Sound: ' + (L.sound.toggle() ? 'on' : 'off'); L.sound.begin(); L.sound.engineOn(); }

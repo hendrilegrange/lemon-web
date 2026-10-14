@@ -137,3 +137,6 @@ button.danger { background: var(--bad); color: #fff; border-bottom-color: #a01f1
 .odds { margin: 6px 0; }
 .odds-bar { display: inline-block; width: 120px; height: 10px; background: var(--line); vertical-align: middle; }
 .odds-bar > span { display: block; height: 100%; }
+
+/* The King's card stands out */
+.card.rival.king { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
