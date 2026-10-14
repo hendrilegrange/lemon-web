@@ -9,6 +9,10 @@ concurrency:
   group: deploy-production
   cancel-in-progress: false
 
+# The workflow token only needs to read the code
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest

@@ -5,6 +5,10 @@ on:
   push:
     branches-ignore: [main]
 
+# The workflow token only needs to read the code
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
