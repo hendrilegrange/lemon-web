@@ -19,12 +19,16 @@
         return t.content;
     }
 
-    // Wires every [data-act] button in the screen to a handler by name
+    // Wires every [data-act] button in the screen to a handler by name. Menus play the
+    // jukebox; the race and the workbench pick their own sound after rendering.
     function render(html, actions) {
         app.innerHTML = '';
         app.appendChild(el(html));
+        L.sound.scene('menu');
         app.querySelectorAll('[data-act]').forEach(function (b) {
             b.addEventListener('click', function () {
+                L.sound.begin();
+                L.sound.click();
                 var fn = actions[b.getAttribute('data-act')];
                 if (fn) fn(b.getAttribute('data-arg'));
             });
@@ -58,7 +62,9 @@
     // Do something, save, and redraw the screen with its result or error
     function act(screen, fn) {
         return function (arg) {
+            var cash = g.cash;
             var err = fn(arg);
+            if (g.cash !== cash) L.sound.cash();
             L.save(g);
             screen(err || null);
         };
@@ -128,8 +134,12 @@
             '<button data-act="stand">' + (g.friday ? 'Back to the burger stand' : 'Friday night: burger stand') + '</button>' +
             '<button data-act="week">Next week</button>' +
             '<button data-act="quit" class="minor">Title screen</button>' +
-            '</nav>',
+            '</nav>' +
+            '<div class="toggles"><button data-act="sound" class="minor" id="sound">Sound: ' + (L.sound.on ? 'on' : 'off') + '</button>' +
+            '<button data-act="music" class="minor" id="music">Music: ' + (L.sound.music ? 'on' : 'off') + '</button></div>',
             {
+                sound: function () { document.getElementById('sound').textContent = 'Sound: ' + (L.sound.toggle() ? 'on' : 'off'); },
+                music: function () { document.getElementById('music').textContent = 'Music: ' + (L.sound.toggleMusic() ? 'on' : 'off'); },
                 ads: function () { L.showAds(); },
                 parts: function () { L.showParts(); },
                 garage: function () { L.showGarage(); },
@@ -366,6 +376,7 @@
         });
         L.titleScreen(false);
         L.showCanvas(true);
+        L.sound.scene('garage');
         var lineEl = document.getElementById('wrench-line');
         var stop = start(L.canvas, function (text) { lineEl.textContent = text; }, function () {
             L.showCanvas(false);
@@ -451,6 +462,7 @@
         });
         L.titleScreen(false);
         L.showCanvas(true);
+        L.sound.scene('race');
         var rcar = L.rivalCar(rival);
         L.startRace(
             L.canvas,

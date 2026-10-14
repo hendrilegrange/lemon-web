@@ -104,6 +104,15 @@
         }
     };
 
+    // The first click or key press anywhere lets the jukebox start
+    function wake() {
+        L.sound.begin();
+        document.removeEventListener('pointerdown', wake);
+        document.removeEventListener('keydown', wake);
+    }
+    document.addEventListener('pointerdown', wake);
+    document.addEventListener('keydown', wake);
+
     L.initUi(document.getElementById('app'));
     L.showTitle();
 })(window.Lemon = window.Lemon || {});
