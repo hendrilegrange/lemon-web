@@ -1,8 +1,14 @@
 :root {
     --bg: #0b0b1a;
+    --panel: #15152b;
+    --line: #2a2a4a;
     --text: #f4e9c8;
     --accent: #ffd23f;
     --muted: #8a8aa8;
+    --good: #3bff6e;
+    --bad: #ff3b3b;
+    --paper: #efe6cf;
+    --ink: #1d1a14;
 }
 
 * { box-sizing: border-box; }
@@ -19,10 +25,9 @@ main {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
     min-height: 100vh;
     padding: 16px;
-    text-align: center;
+    gap: 12px;
 }
 
 /* 320x200, the VGA mode the original ran in, scaled up with hard pixel edges */
@@ -30,8 +35,96 @@ canvas {
     width: min(100%, 960px);
     aspect-ratio: 320 / 200;
     image-rendering: pixelated;
-    border: 4px solid #2a2a4a;
+    border: 4px solid var(--line);
+}
+canvas[hidden] { display: none; }
+
+#app { width: min(100%, 720px); }
+
+h2, h3 { color: var(--accent); margin: 0 0 8px; }
+h2 { font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
+h3 { font-size: 1rem; }
+p { margin: 4px 0; }
+em { color: var(--muted); font-style: normal; }
+
+button {
+    font: inherit;
+    font-weight: bold;
+    color: var(--bg);
+    background: var(--accent);
+    border: 0;
+    border-bottom: 3px solid #b38f1d;
+    padding: 8px 14px;
+    margin: 4px 4px 4px 0;
+    cursor: pointer;
+}
+button:hover:not([disabled]) { filter: brightness(1.1); }
+button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+button[disabled] { opacity: 0.4; cursor: not-allowed; }
+button.minor { background: var(--line); color: var(--text); border-bottom-color: #15152b; }
+button.danger { background: var(--bad); color: #fff; border-bottom-color: #a01f1f; }
+
+.status {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--panel);
+    border: 2px solid var(--line);
+    margin-bottom: 12px;
+    color: var(--accent);
+    font-weight: bold;
 }
 
-.tag { color: var(--accent); font-size: 1.1rem; margin: 1.25rem 0 0.25rem; }
-.soon { color: var(--muted); margin: 0; }
+.flash { background: #2b2410; border-left: 4px solid var(--accent); padding: 8px 12px; margin-bottom: 12px; }
+
+.card, .panel { background: var(--panel); border: 2px solid var(--line); padding: 12px; margin-bottom: 12px; }
+.panel .card { background: var(--bg); }
+.sub, .hint { color: var(--muted); }
+.hint { font-size: 0.9rem; margin: 8px 0; }
+
+.menu { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.menu button { margin: 0; padding: 12px; }
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--line);
+}
+.row > span:first-child { flex: 1 1 200px; }
+.row.active > span:first-child { color: var(--accent); }
+.row button { margin: 0; padding: 4px 10px; }
+.slot { display: inline-block; min-width: 110px; color: var(--muted); }
+.price { color: var(--accent); font-weight: bold; }
+
+.meter { display: inline-block; width: 80px; height: 8px; background: var(--line); vertical-align: middle; }
+.meter > span { display: block; height: 100%; }
+.meter.good > span { background: var(--good); }
+.meter.ok > span { background: var(--accent); }
+.meter.bad > span { background: var(--bad); }
+
+.dyno { border: 1px dashed var(--line); padding: 8px; margin-bottom: 8px; }
+
+/* The classifieds look like newsprint */
+.paper { background: var(--paper); color: var(--ink); padding: 16px; margin-bottom: 12px; border: 2px solid #c9bc98; }
+.paper h2 { color: var(--ink); text-align: center; font-family: Georgia, "Times New Roman", serif; font-size: 1.8rem; border-bottom: 3px double var(--ink); }
+.paper .sub { color: #5d5340; text-align: center; }
+.paper .ad { border-bottom: 1px solid #c9bc98; padding: 8px 0; }
+.paper h3 { color: var(--ink); }
+.paper .price { color: var(--ink); }
+
+.title-menu { text-align: center; }
+.title-menu .tag { color: var(--accent); font-size: 1.1rem; margin: 0 0 12px; }
+
+.race-controls { text-align: center; }
+.go { width: 100%; padding: 18px; font-size: 1.3rem; touch-action: manipulation; user-select: none; }
+
+.result.win h2 { color: var(--good); }
+.result.lose h2, .result.foul h2 { color: var(--bad); }
+
+/* Wrenching: what to do next, under the canvas */
+#wrench-line { color: var(--text); font-size: 1rem; min-height: 1.4em; }
