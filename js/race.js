@@ -238,10 +238,10 @@
             drawDash();
 
             if (state.message) {
-                ctx.fillStyle = state.message === 'GO!' || state.message === 'YOU WIN!' ? '#3bff6e' : state.message === 'STAGE' ? '#ffd23f' : '#ff3b3b';
-                ctx.font = 'bold 20px "Courier New", monospace';
-                ctx.textAlign = 'center';
-                ctx.fillText(state.message, W / 2, 40);
+                L.text(ctx, state.message, W / 2, 40, {
+                    color: state.message === 'GO!' || state.message === 'YOU WIN!' ? '#3bff6e' : state.message === 'STAGE' ? '#ffd23f' : '#ff3b3b',
+                    scale: 3, align: 'center'
+                });
             }
         }
 
@@ -286,16 +286,13 @@
             ctx.lineWidth = 2;
             ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * (r - 4), cy + Math.sin(a) * (r - 4)); ctx.stroke();
 
-            ctx.textAlign = 'left';
-            ctx.font = '9px "Courier New", monospace';
             ctx.fillStyle = '#8a8aa8';
-            ctx.fillText('RPM ' + Math.round(rpm / 100) * 100, 82, 162);
-            ctx.fillText('GEAR', 82, 176);
-            ctx.fillText('MPH', 82, 190);
+            L.text(ctx, 'RPM ' + Math.round(rpm / 100) * 100, 82, 162);
+            L.text(ctx, 'GEAR', 82, 176);
+            L.text(ctx, 'MPH', 82, 190);
             ctx.fillStyle = '#ffd23f';
-            ctx.font = 'bold 12px "Courier New", monospace';
-            ctx.fillText(me.run.shiftLeft > 0 ? '-' : String(me.run.gear + 1), 112, 177);
-            ctx.fillText(String(Math.round(L.mph(me.run.v))), 112, 191);
+            L.text(ctx, me.run.shiftLeft > 0 ? '-' : String(me.run.gear + 1), 112, 176);
+            L.text(ctx, String(Math.round(L.mph(me.run.v))), 112, 190);
 
             // Shift light: amber when it's nearly time, green to shift now, flashing red past redline
             var light = shiftLight();
@@ -303,13 +300,9 @@
             ctx.fillStyle = lamp;
             ctx.fillRect(148, 153, 46, 14);
             ctx.fillStyle = light ? '#111' : '#555';
-            ctx.font = 'bold 10px "Courier New", monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText('SHIFT', 171, 163);
-            ctx.textAlign = 'left';
-            ctx.font = 'bold 12px "Courier New", monospace';
-            if (me.run.spinning && me.run.v > 0) { ctx.fillStyle = '#ff3b3b'; ctx.fillText('SPIN', 150, 181); }
-            if (me.blown) { ctx.fillStyle = '#ff3b3b'; ctx.fillText('BLOWN!', 150, 195); }
+            L.text(ctx, 'SHIFT', 171, 164, { align: 'center' });
+            if (me.run.spinning && me.run.v > 0) L.text(ctx, 'SPIN', 150, 181, { color: '#ff3b3b' });
+            if (me.blown) L.text(ctx, 'BLOWN!', 150, 195, { color: '#ff3b3b' });
 
             // Progress: both cars along the quarter mile
             var px = 200, pw = 112;
@@ -321,9 +314,8 @@
             ctx.fillStyle = player.color;
             ctx.fillRect(px + Math.min(1, me.run.x / L.QUARTER_MILE) * (pw - 4), 181, 4, 8);
             ctx.fillStyle = '#8a8aa8';
-            ctx.font = '8px "Courier New", monospace';
-            ctx.fillText('THEM', px, 162);
-            ctx.fillText('YOU', px, 197);
+            L.text(ctx, 'THEM', px, 162);
+            L.text(ctx, 'YOU', px, 197);
         }
 
         draw();

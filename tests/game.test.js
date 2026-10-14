@@ -346,3 +346,15 @@ test('bodywork rust spots stay on the body and far enough apart to click', () =>
         });
     }
 });
+
+test('the pixel font has every character the canvas draws', () => {
+    const names = [].concat(
+        Object.values(L.PARTS).map((p) => p.name),
+        Object.values(L.BODIES).map((b) => b.name),
+        Object.values(L.WRENCH).map((j) => j.title || ''),
+        ['RPM 1800', 'GEAR', 'MPH', 'SHIFT', 'SPIN', 'BLOWN!', 'THEM', 'YOU', 'GO!', 'YOU WIN!', 'STAGE', 'DONE', 'Installing: ', 'Bodywork: ']);
+    for (const s of names) {
+        for (const ch of s.toUpperCase()) assert.ok(L.FONT_CHARS.includes(ch), 'no glyph for "' + ch + '" in ' + s);
+    }
+    assert.strictEqual(L.textWidth('AB', 2), 22);
+});

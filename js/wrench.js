@@ -130,12 +130,9 @@
             ctx.fillStyle = '#3a3a3a';
             ctx.fillRect(0, 160, W, 40);
             ctx.fillStyle = '#2c2c2c';                    // oil stains
-            ctx.fillRect(40, 172, 30, 4);
-            ctx.fillRect(230, 182, 22, 3);
-            ctx.fillStyle = '#ffd23f';
-            ctx.font = 'bold 9px "Courier New", monospace';
-            ctx.textAlign = 'left';
-            ctx.fillText(opts.title.toUpperCase(), 8, 14);
+            ctx.fillRect(40, 186, 30, 4);
+            ctx.fillRect(230, 192, 22, 3);
+            L.text(ctx, opts.title, 8, 16, { color: '#ffd23f', scale: fit(opts.title, W - 16) });
         }
 
         // The part, shifted up by dy while it lifts out or drops in
@@ -213,16 +210,9 @@
                 if (st.phase === 'swap' && !b.reason) return;
                 bolt(b);
             });
-            ctx.fillStyle = '#f4e9c8';
-            ctx.font = '8px "Courier New", monospace';
-            ctx.textAlign = 'center';
             var label = st.phase === 'off' || (st.phase === 'swap' && color === OLD) ? opts.oldName : opts.newName;
-            ctx.fillText(label, W / 2, 178);
-            if (st.phase === 'done') {
-                ctx.fillStyle = '#3bff6e';
-                ctx.font = 'bold 14px "Courier New", monospace';
-                ctx.fillText('DONE', W / 2, 192);
-            }
+            L.text(ctx, label, W / 2, 178, { color: '#f4e9c8', scale: fit(label, W - 16), align: 'center' });
+            if (st.phase === 'done') L.text(ctx, 'DONE', W / 2, 196, { color: '#3bff6e', scale: 2, align: 'center' });
         }
 
         function frame(now) {
@@ -250,6 +240,9 @@
     };
 
     // Where a click landed on the canvas, in its 320x200 pixels (the border doesn't count)
+    // Text at double size when it fits in the width, else single
+    function fit(str, width) { return L.textWidth(str, 2) <= width ? 2 : 1; }
+
     function canvasPoint(canvas, e) {
         var r = canvas.getBoundingClientRect();
         return {
@@ -330,10 +323,7 @@
             ctx.fillRect(0, 0, W, 160);
             ctx.fillStyle = '#3a3a3a';
             ctx.fillRect(0, 160, W, 40);
-            ctx.fillStyle = '#ffd23f';
-            ctx.font = 'bold 9px "Courier New", monospace';
-            ctx.textAlign = 'left';
-            ctx.fillText(opts.title.toUpperCase(), 8, 14);
+            L.text(ctx, opts.title, 8, 16, { color: '#ffd23f', scale: fit(opts.title, W - 16) });
 
             // Faded old paint, then the new paint sweeping across once the panels are ready
             car('#5f5a52', W);
@@ -377,10 +367,7 @@
                 ctx.fillRect(paintX - 4, CAB.y - 6, 8, BODY.y + BODY.h - CAB.y + 12);
             }
             if (st.phase === 'done') {
-                ctx.fillStyle = '#3bff6e';
-                ctx.font = 'bold 14px "Courier New", monospace';
-                ctx.textAlign = 'center';
-                ctx.fillText('DONE', W / 2, 188);
+                L.text(ctx, 'DONE', W / 2, 190, { color: '#3bff6e', scale: 2, align: 'center' });
             }
         }
 

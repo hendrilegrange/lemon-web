@@ -10,7 +10,21 @@
 
     L.canvas = canvas;
 
-    L.showCanvas = function (on) { canvas.hidden = !on; };
+    L.showCanvas = function (on) { canvas.hidden = !on; fitCanvas(); };
+
+    // Scale the canvas by a whole number of screen pixels when that costs little size, so
+    // every game pixel (and every pixel of the font) comes out the same width
+    var BORDER = 8;
+    function fitCanvas() {
+        canvas.style.width = '';
+        var room = canvas.getBoundingClientRect().width - BORDER;
+        if (!room) return;
+        var dpr = window.devicePixelRatio || 1;
+        var x = room * dpr / W;
+        var k = Math.floor(x);
+        if (k >= 1 && (x - k) / x <= 0.25) canvas.style.width = (k * W / dpr + BORDER) + 'px';
+    }
+    window.addEventListener('resize', fitCanvas);
 
     // Title screen: a hot rod revving at a drag strip light that cycles red, amber, green,
     // then launches
@@ -20,7 +34,11 @@
         ctx.fillStyle = '#0b0b1a';
         ctx.fillRect(0, 0, W, H);
         ctx.fillStyle = '#f4e9c8';
-        for (var i = 0; i < 40; i++) ctx.fillRect((i * 73) % W, (i * 37) % 90, 1, 1);
+        for (var i = 0; i < 40; i++) {
+            var sx = (i * 73) % W, sy = (i * 37) % 90;
+            if (sy > 8 && sy < 58 && sx > 90 && sx < 230) continue;   // keep the title clear
+            ctx.fillRect(sx, sy, 1, 1);
+        }
         // Burger stand on the horizon
         ctx.fillStyle = '#1c1c38';
         ctx.fillRect(220, 112, 70, 38);
@@ -42,13 +60,8 @@
     }
 
     function title() {
-        ctx.fillStyle = '#ffd23f';
-        ctx.font = 'bold 28px "Courier New", monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('LEMON', W / 2, 40);
-        ctx.fillStyle = '#8a8aa8';
-        ctx.font = '9px "Courier New", monospace';
-        ctx.fillText('A STREET ROD REMAKE', W / 2, 54);
+        L.text(ctx, 'LEMON', W / 2, 40, { color: '#ffd23f', scale: 4, align: 'center' });
+        L.text(ctx, 'A STREET ROD REMAKE', W / 2, 54, { color: '#8a8aa8', align: 'center' });
     }
 
     function lights(t) {
