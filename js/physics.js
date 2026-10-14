@@ -22,9 +22,10 @@
         var p = car.parts;
         var engine = L.PARTS[p.engine];
         var tqMul = 1, rpmAdd = 0, redAdd = 0;
+        function cond(slot) { return L.partCondition(car, slot) / 100; }
         ['carb', 'intake', 'cam', 'exhaust'].forEach(function (slot) {
             var part = L.PARTS[p[slot]];
-            tqMul *= part.tq || 1;
+            tqMul *= (part.tq || 1) * (0.96 + 0.04 * cond(slot));   // a worn part costs up to 4%
             rpmAdd += part.rpm || 0;
             redAdd += part.redline || 0;
         });
@@ -39,7 +40,9 @@
             cdA: body.cdA,
             gears: L.PARTS[p.trans].gears,
             final: L.PARTS[p.rear].final,
-            mu: L.PARTS[p.tires].mu
+            mu: L.PARTS[p.tires].mu * (0.88 + 0.12 * cond('tires')),        // bald tires slip
+            shiftTime: SHIFT_TIME * (L.PARTS[p.trans].shift || 1) + 0.2 * (1 - cond('trans')),   // a tired gearbox is slow to shift
+            driveline: DRIVELINE * (0.92 + 0.08 * cond('rear'))              // a worn rear end eats power
         };
     };
 
@@ -95,7 +98,7 @@
             // Clutch slips in first gear until the wheels catch up with the launch rpm
             if (run.gear === 0 && rpm < LAUNCH_RPM) rpm = LAUNCH_RPM;
             run.rpm = rpm;
-            drive = L.torqueAt(s, rpm) * ratio * DRIVELINE / TIRE_RADIUS;
+            drive = L.torqueAt(s, rpm) * ratio * (s.driveline || DRIVELINE) / TIRE_RADIUS;
         }
 
         // More force than the tires can hold spins them, and a spinning tire grips less
@@ -123,7 +126,7 @@
     L.shift = function (s, run) {
         if (run.shiftLeft > 0 || run.gear >= s.gears.length - 1) return false;
         run.gear++;
-        run.shiftLeft = SHIFT_TIME;
+        run.shiftLeft = s.shiftTime || SHIFT_TIME;
         return true;
     };
 
