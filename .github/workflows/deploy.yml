@@ -1,0 +1,62 @@
+name: Deploy to live site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: JavaScript syntax check
+        run: |
+          for f in $(git ls-files 'js/*.js'); do node --check "$f" || exit 1; done
+
+      - name: Install lftp
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+
+      # lftp instead of FTP-Deploy-Action: the IIS FTP server drops that action's
+      # encrypted data connections. Uploads the site files and never deletes them; the
+      # only thing it removes is a stray .git folder, which never belongs on the server.
+      # Directory excludes need the trailing slash. --no-perms: IIS has no SITE CHMOD.
+      - name: Upload over FTPS
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR }}
+        run: |
+          lftp -c "
+            set ftp:ssl-force true;
+            set ftp:ssl-protect-data true;
+            set ftp:passive-mode true;
+            set net:max-retries 2;
+            set net:timeout 30;
+            open -u \"$FTP_USERNAME\",\"$FTP_PASSWORD\" \"$FTP_SERVER\";
+            rm -r -f \"${FTP_SERVER_DIR}.git\";
+            mirror --reverse --verbose --parallel=2 --no-perms \
+              --exclude-glob .git/ \
+              --exclude-glob .github/ \
+              --exclude-glob .gitignore \
+              --exclude-glob CLAUDE.md \
+              --exclude-glob README.md \
+              --exclude-glob docs/ \
+              --exclude-glob *.bak \
+              ./ \"$FTP_SERVER_DIR\"
+          "
+
+  smoke-test:
+    needs: deploy
+    uses: ./.github/workflows/smoke-test.yml
+    with:
+      check_files: true
+    secrets: inherit
