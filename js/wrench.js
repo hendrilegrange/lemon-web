@@ -9,7 +9,7 @@
     var SPIN = 0.35;        // seconds a bolt takes to spin out or in
     var SWAP = 0.7;         // seconds for the old part to lift out, and again for the new one to drop in
     var HIT = 12;           // how close a click must land to a bolt, in screen pixels
-    var OLD = '#7a5c44', NEW = '#b8c4cc';
+    var OLD = 'old', NEW = 'new';   // which part is on the bench
 
     // Each job: the shapes of the part ([x, y, w, h] rects and [x, y, r] circles) and its
     // bolts ([x, y] must come out, [x, y, 'reason'] holds something else). At most 8 bolts.
@@ -123,77 +123,27 @@
         // ── Drawing ───────────────────────────────────────────────────────
 
         function background() {
-            ctx.fillStyle = '#1a1a2e';
-            ctx.fillRect(0, 0, W, 160);
-            ctx.fillStyle = '#24243f';                    // pegboard
-            for (var x = 8; x < W; x += 12) for (var y = 8; y < 150; y += 12) ctx.fillRect(x, y, 1, 1);
-            ctx.fillStyle = '#3a3a3a';
-            ctx.fillRect(0, 160, W, 40);
-            ctx.fillStyle = '#2c2c2c';                    // oil stains
-            ctx.fillRect(40, 186, 30, 4);
-            ctx.fillRect(230, 192, 22, 3);
-            L.text(ctx, opts.title, 8, 16, { color: '#ffd23f', scale: fit(opts.title, W - 16) });
-        }
-
-        // The part, shifted up by dy while it lifts out or drops in
-        function part(color, dy) {
-            ctx.fillStyle = color;
-            (job.rects || []).forEach(function (r) { ctx.fillRect(r[0], r[1] + dy, r[2], r[3]); });
-            (job.circles || []).forEach(function (c, i) {
-                ctx.beginPath();
-                ctx.arc(c[0], c[1] + dy, c[2], 0, Math.PI * 2);
-                ctx.fillStyle = i ? shade(color) : color;
-                ctx.fill();
-            });
-            ctx.fillStyle = shade(color);                 // a highlight edge to give it some depth
-            (job.rects || []).forEach(function (r) { ctx.fillRect(r[0], r[1] + dy + r[3] - 3, r[2], 3); });
-        }
-
-        function shade(color) { return color === OLD ? '#5a4232' : '#8a96a0'; }
-
-        function hex(x, y, r, fill, angle) {
-            ctx.beginPath();
-            for (var i = 0; i < 6; i++) {
-                var a = angle + i * Math.PI / 3;
-                ctx[i ? 'lineTo' : 'moveTo'](x + Math.cos(a) * r, y + Math.sin(a) * r);
-            }
-            ctx.closePath();
-            ctx.fillStyle = fill;
-            ctx.fill();
+            L.drawGarage(ctx, W, H);
+            bolts.forEach(function (b) { if (b.reason) L.drawBracket(ctx, b.x, b.y); });
         }
 
         function bolt(b) {
-            var pulse = 0.5 + 0.5 * Math.sin(st.clock * 8);
             var holding = st.phase === 'off' ? !b.out : b.out;
-            var lift = 0, angle = 0, show = b.reason || !b.out;
+            var lift = 0, turn = 0, show = b.reason || !b.out;
             if (b.anim) {
                 var p = Math.min(1, (st.clock - b.anim.at) / SPIN);
                 if (b.anim.dir === 'in') p = 1 - p;
-                angle = p * Math.PI * 4;
-                lift = p * 8;
+                turn = Math.floor(p * 12);
+                lift = Math.round(p * 8);
                 show = true;
             }
-            if (!b.reason && b.out && !b.anim) {        // an empty hole
-                ctx.fillStyle = '#0d0d0d';
-                ctx.beginPath();
-                ctx.arc(b.x, b.y, 2.5, 0, Math.PI * 2);
-                ctx.fill();
-            }
+            if (!b.reason && (b.out || b.anim)) L.drawHole(ctx, b.x, b.y);
             // Orange ring on the bolts that still need doing
-            if (!b.reason && !b.anim && holding && (st.phase === 'off' || st.phase === 'on')) {
-                ctx.strokeStyle = 'rgba(255,140,0,' + (0.5 + 0.5 * pulse) + ')';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(b.x, b.y, 8, 0, Math.PI * 2);
-                ctx.stroke();
-            }
+            if (!b.reason && !b.anim && holding && (st.phase === 'off' || st.phase === 'on')) L.drawTarget(ctx, b.x, b.y, 8, st.clock);
             if (!show) return;
             var wrong = b.wrong !== null && st.clock - b.wrong < 0.5;
             var dx = wrong ? Math.round(Math.sin(st.clock * 60) * 2) : 0;
-            var fill = wrong ? '#ff3b3b' : b.reason ? '#6e6e78' : '#d0d0d8';
-            hex(b.x + dx, b.y - lift, 5, fill, angle);
-            ctx.fillStyle = b.reason ? '#4a4a52' : '#8a8a94';
-            ctx.fillRect(b.x + dx - 1, b.y - lift - 1, 2, 2);
+            L.drawBolt(ctx, b.x + dx, b.y - lift, wrong ? 'wrong' : b.reason ? 'other' : 'steel', turn);
         }
 
         function draw() {
@@ -204,12 +154,13 @@
                 if (t < 1) { color = OLD; dy = -t * t * 170; }
                 else { color = NEW; dy = -(1 - (t - 1)) * (1 - (t - 1)) * 170; }
             }
-            part(color, Math.round(dy));
+            L.drawPart(ctx, opts.job, color === NEW, dy, st.clock);
             bolts.forEach(function (b) {
                 // The part's own bolts are out while it moves; ones holding something else stay
                 if (st.phase === 'swap' && !b.reason) return;
                 bolt(b);
             });
+            L.text(ctx, opts.title, 8, 16, { color: '#ffd23f', scale: fit(opts.title, W - 16) });
             var label = st.phase === 'off' || (st.phase === 'swap' && color === OLD) ? opts.oldName : opts.newName;
             L.text(ctx, label, W / 2, 178, { color: '#f4e9c8', scale: fit(label, W - 16), align: 'center' });
             if (st.phase === 'done') L.text(ctx, 'DONE', W / 2, 196, { color: '#3bff6e', scale: 2, align: 'center' });
@@ -256,6 +207,12 @@
     // The car side-on, five times the size it is on the strip
     var BODY = { x: 50, y: 95, w: 220, h: 40 }, CAB = { x: 100, y: 60, w: 100, h: 35 };
     var GRIND = 0.3, PAINT = 1.2;
+    // A spot's look by stage: rust, ground to bare metal, filled with body filler
+    var SPOT = [
+        ['#2a1206', '#5c2e0e', '#8b4513', '#a8642e', '#c48450'],
+        ['#3a4048', '#7a8490', '#b0bac4', '#d8e0e8', '#ffffff'],
+        ['#4a4030', '#8a7a5a', '#c8b890', '#ddd0b0', '#f4ead0']
+    ];
 
     // Rust spots spread over the body panels, far enough apart to click on a phone: a row
     // along the doors and a few low down between the wheels, picked at random
@@ -307,64 +264,42 @@
             }
         }
 
-        function car(color, clipX) {
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(0, 0, clipX, H);
-            ctx.clip();
-            ctx.fillStyle = color;
-            ctx.fillRect(BODY.x, BODY.y, BODY.w, BODY.h);
-            ctx.fillRect(CAB.x, CAB.y, CAB.w, CAB.h);
-            ctx.restore();
+        // The car five times the size it is on the strip, filling BODY and CAB; clip is
+        // how far across the new paint has reached
+        function car(color, clip) {
+            L.drawCar(ctx, BODY.x, CAB.y, color, { scale: 5, clip: clip });
         }
 
         function draw() {
-            ctx.fillStyle = '#1a1a2e';
-            ctx.fillRect(0, 0, W, 160);
-            ctx.fillStyle = '#3a3a3a';
-            ctx.fillRect(0, 160, W, 40);
+            L.drawGarage(ctx, W, H);
             L.text(ctx, opts.title, 8, 16, { color: '#ffd23f', scale: fit(opts.title, W - 16) });
 
             // Faded old paint, then the new paint sweeping across once the panels are ready
-            car('#5f5a52', W);
+            car('#6a645a');
             var sweep = st.phase === 'work' ? 0 : Math.min(1, (st.clock - st.paintAt) / PAINT);
             var paintX = BODY.x - 10 + sweep * (BODY.w + 20);
             if (sweep > 0) car(opts.color, paintX);
-            ctx.fillStyle = '#9ad1ff';                     // windows
-            ctx.fillRect(CAB.x + 15, CAB.y + 10, 30, 20);
-            ctx.fillRect(CAB.x + 55, CAB.y + 10, 30, 20);
-            ctx.fillStyle = '#111';                        // tires
-            ctx.fillRect(70, 125, 50, 40);
-            ctx.fillRect(210, 135, 35, 30);
 
-            var pulse = 0.5 + 0.5 * Math.sin(st.clock * 8);
             spots.forEach(function (p) {
                 if (sweep > 0 && p.x < paintX) return;     // painted over
                 var fresh = st.clock - p.at < GRIND;
-                ctx.fillStyle = p.stage === 0 ? '#8b4513' : p.stage === 1 ? '#b8bcc4' : '#d8c8a0';
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
-                ctx.fill();
+                L.art.ball(ctx, p.x, p.y, 7, SPOT[p.stage]);
                 if (p.stage === 0) {                       // flaky rust
-                    ctx.fillStyle = '#5c2e0e';
-                    ctx.fillRect(p.x - 3, p.y - 2, 2, 2);
-                    ctx.fillRect(p.x + 2, p.y + 1, 2, 2);
+                    L.art.speckle(ctx, p.x - 5, p.y - 5, 11, 11, p.x * 7 + p.y, ['#3a1a06', '#c06a30'], 0.25,
+                        function (x, y) { return Math.hypot(x - p.x, y - p.y) < 6; });
                 }
                 if (fresh && p.stage === 1) {              // grinder sparks
                     ctx.fillStyle = '#ffd23f';
                     for (var i = 0; i < 6; i++) ctx.fillRect(p.x + 8 + i * 3, p.y - 6 - ((i * 7 + Math.floor(st.clock * 40)) % 9), 1, 1);
                 }
-                if (p.stage < 2 && st.phase === 'work') {
-                    ctx.strokeStyle = 'rgba(255,140,0,' + (0.5 + 0.5 * pulse) + ')';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
+                if (p.stage < 2 && st.phase === 'work') L.drawTarget(ctx, p.x, p.y, 10, st.clock);
             });
             if (sweep > 0 && sweep < 1) {                  // the spray gun's mist
-                ctx.fillStyle = 'rgba(255,255,255,0.25)';
-                ctx.fillRect(paintX - 4, CAB.y - 6, 8, BODY.y + BODY.h - CAB.y + 12);
+                ctx.fillStyle = '#e8e8f0';
+                for (var my = CAB.y - 6; my < BODY.y + BODY.h + 6; my += 2) {
+                    ctx.fillRect(Math.round(paintX) - 4 + (my / 2) % 2, my, 1, 1);
+                    ctx.fillRect(Math.round(paintX) + (my / 2) % 3, my + 1, 1, 1);
+                }
             }
             if (st.phase === 'done') {
                 L.text(ctx, 'DONE', W / 2, 190, { color: '#3bff6e', scale: 2, align: 'center' });

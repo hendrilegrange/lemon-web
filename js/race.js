@@ -8,25 +8,6 @@
     var PX_PER_M = 2.2;
     var LANE_Y = [96, 122];      // rival lane, player lane (screen y of the car's roof)
 
-    L.drawCar = function (ctx, x, y, color, opts) {
-        opts = opts || {};
-        ctx.fillStyle = color;
-        ctx.fillRect(x, y + 7, 44, 8);            // body
-        ctx.fillRect(x + 10, y, 20, 7);           // cab
-        ctx.fillStyle = '#9ad1ff';
-        ctx.fillRect(x + 13, y + 2, 6, 4);        // windows
-        ctx.fillRect(x + 21, y + 2, 6, 4);
-        ctx.fillStyle = '#c0c0c0';
-        ctx.fillRect(x + 32, y + 4, 6, 3);        // air cleaner poking out of the hood
-        ctx.fillStyle = '#111';
-        ctx.fillRect(x + 4, y + 13, 10, 8);       // fat rear tire
-        ctx.fillRect(x + 32, y + 15, 7, 6);
-        if (opts.smoke) {
-            ctx.fillStyle = 'rgba(200,200,200,0.8)';
-            for (var i = 0; i < 4; i++) ctx.fillRect(x - 6 - i * 7, y + 15 - (i % 2) * 3, 6, 5);
-        }
-    };
-
     // Starts a race on the canvas. player/rival: { spec, color, condition, skill (rival only) }.
     // done(result, damage) gets 'win', 'lose' or 'foul' and the engine damage the player did.
     L.startRace = function (canvas, button, player, rival, done) {
@@ -202,11 +183,23 @@
             // Sky and horizon
             ctx.fillStyle = '#0b0b1a';
             ctx.fillRect(0, 0, W, H);
-            ctx.fillStyle = '#1c1c38';
-            for (var b = 0; b < 8; b++) {
-                var bx = ((b * 97 - camX * 0.4) % 400 + 400) % 400 - 40;
-                ctx.fillRect(bx, 70 - (b % 3) * 8, 34, 20 + (b % 3) * 8);
+            ctx.fillStyle = '#f4e9c8';                      // stars
+            for (var si = 0; si < 30; si++) ctx.fillRect((si * 73 + 11) % W, (si * 29 + 5) % 60, 1, 1);
+            for (var b = 0; b < 8; b++) {                   // the town behind the strip, lights on
+                var bx = Math.round(((b * 97 - camX * 0.4) % 400 + 400) % 400 - 40);
+                var by = 70 - (b % 3) * 8, bh = 20 + (b % 3) * 8;
+                ctx.fillStyle = '#1c1c38';
+                ctx.fillRect(bx, by, 34, bh);
+                ctx.fillStyle = '#2a2a50';
+                ctx.fillRect(bx, by, 34, 1);
+                for (var wy = by + 4; wy < 86; wy += 6) {
+                    for (var wx = bx + 4; wx < bx + 31; wx += 7) {
+                        if ((wx * 7 + wy * 13 + b * 5) % 5 < 2) { ctx.fillStyle = '#ffd23f'; ctx.fillRect(wx, wy, 3, 2); }
+                    }
+                }
             }
+            ctx.fillStyle = '#121226';                      // grass verge
+            ctx.fillRect(0, 86, W, 4);
 
             // Road, lane lines moving past
             ctx.fillStyle = '#2a2a2a';
