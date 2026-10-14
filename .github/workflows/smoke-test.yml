@@ -1,0 +1,30 @@
+name: Check live site
+
+# Runs after every deploy (called from deploy.yml), by hand from the Actions tab, and on pull
+# requests that change the check itself.
+on:
+  pull_request:
+    paths:
+      - .github/scripts/smoke-test.sh
+      - .github/workflows/smoke-test.yml
+  workflow_call:
+    inputs:
+      check_files:
+        description: Also check the live files match this commit
+        type: boolean
+        default: false
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Check the live site
+        env:
+          SITE_URL: https://lemon.dontbeone.co.za
+          CHECK_FILES: ${{ inputs.check_files && '1' || '' }}
+        run: .github/scripts/smoke-test.sh

@@ -1,0 +1,13 @@
+# Secrets: the real config lives only on the server
+config.php
+.env
+*.local.php
+
+# Backups, logs, editor and OS junk
+*.bak
+*.log
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+node_modules/
