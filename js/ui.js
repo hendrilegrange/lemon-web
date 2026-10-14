@@ -38,6 +38,17 @@
             '</span><span>Wins ' + g.wins + ' · Losses ' + g.losses + '</span></div>';
     }
 
+    // Ask before something that can't be undone. Shows the question in place of the screen;
+    // Cancel goes back to the screen it came from.
+    function ask(question, yesLabel, onYes, back) {
+        render(
+            status() + '<div class="panel ask"><h2>Are you sure?</h2><p>' + esc(question) + '</p>' +
+            '<button data-act="yes" class="danger">' + esc(yesLabel) + '</button>' +
+            '<button data-act="no" class="minor">Cancel</button></div>',
+            { yes: onYes, no: function () { back(); } }
+        );
+    }
+
     function flash(msg) {
         if (!msg) return '';
         return '<p class="flash">' + esc(msg) + '</p>';
@@ -78,10 +89,14 @@
             {
                 cont: function () { g = saved; L.showHub(); },
                 new: function () {
-                    if (saved && !confirm('Start over? Your saved game will be lost.')) return;
-                    g = L.newGame();
-                    L.save(g);
-                    L.showHub('Welcome to town. Check the classifieds for your first car.');
+                    function start() {
+                        g = L.newGame();
+                        L.save(g);
+                        L.showHub('Welcome to town. Check the classifieds for your first car.');
+                    }
+                    if (!saved) return start();
+                    g = saved;   // so the question's status bar has something to show
+                    ask('Start a new game? Your saved game (week ' + saved.week + ', ' + money(saved.cash) + ') will be lost.', 'Start over', start, L.showTitle);
                 }
             }
         );
@@ -211,8 +226,8 @@
                 drive: act(L.showGarage, function (i) { g.active = +i; }),
                 sell: function (i) {
                     var c = g.cars[+i];
-                    if (!confirm('Sell your ' + L.carName(c) + ' for ' + money(L.carValue(c)) + '?')) return;
-                    act(L.showGarage, function () { return L.sellCar(g, +i) || 'Sold.'; })();
+                    ask('Sell your ' + L.carName(c) + ' to the dealer for ' + money(L.carValue(c)) + '?', 'Sell it',
+                        act(L.showGarage, function () { return L.sellCar(g, +i) || 'Sold.'; }), L.showGarage);
                 },
                 install: act(L.showGarage, function (i) { return L.installPart(g, +i) || 'Installed.'; }),
                 sellpart: act(L.showGarage, function (i) { return L.sellPart(g, +i); }),
@@ -244,8 +259,8 @@
             {
                 cash: function (i) { race(+i, false); },
                 pinks: function (i) {
-                    if (!confirm('Race for pink slips? If you lose, they keep your ' + L.carName(L.activeCar(g)) + '.')) return;
-                    race(+i, true);
+                    ask('Race ' + g.rivals[+i].name + ' for pink slips? If you lose, they keep your ' + L.carName(L.activeCar(g)) + '.',
+                        'Race for pinks', function () { race(+i, true); }, L.showStand);
                 },
                 back: function () { L.showHub(); }
             }
