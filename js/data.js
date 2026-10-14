@@ -183,12 +183,18 @@
     L.KING = { name: 'The King', tier: 5, skill: 0.9, body: 'chevy57', line: 'You want my crown? Put up your car.' };
     L.KING_WINS = 10;
 
-    // Prizes. A race just for fun costs nothing and pays by the rival's tier. A rival race
-    // stakes RIVAL_PRIZE in cash, or both cars' pink slips (winner also takes the cash).
-    // The King pays KING_PRIZE and his car.
+    // Prizes. A race just for fun costs nothing and pays by the rival's tier. A cash race
+    // bets all your cash up to RIVAL_PRIZE (at least MIN_BET); a pink slip race is for the
+    // cars only. The King races for pinks only and pays KING_PRIZE with his car.
     L.FUN_PRIZE = [50, 100, 100, 200, 200, 200];
     L.RIVAL_PRIZE = 1000;
+    L.MIN_BET = 50;
     L.KING_PRIZE = 10000;
+
+    // What a car fetches, times its body's price: a wreck is worth `junk`, and a car in shape
+    // all over up to junk + restored (see L.carValue). Stripped, the shell goes for `scrap`.
+    L.RESALE = { junk: 0.25, restored: 1.2, scrap: 0.12 };
+    L.STRIP_HOURS = 6;
 
     L.START_CASH = 600;     // enough for one scrappy car and a few repairs
     L.MAX_CARS = 3;

@@ -48,15 +48,32 @@
 
     L.carName = function (car) { return L.BODIES[car.body].name; };
 
-    // What a dealer pays: the body by condition, plus half of what the parts cost new
+    // How good a car is all over, 0-1: half the body, a third the engine, the rest the other parts
+    L.carShape = function (car) {
+        var others = L.SLOTS.filter(function (slot) { return slot !== 'engine'; });
+        var parts = others.reduce(function (sum, slot) { return sum + L.partCondition(car, slot); }, 0) / others.length;
+        return (0.5 * car.condition + 0.3 * car.engineCondition + 0.2 * parts) / 100;
+    };
+
+    // What a buyer pays: the body counts for little until the whole car is in shape, then a
+    // restored car fetches well over its book price (so buying, restoring and selling pays),
+    // plus half of what its speed parts cost new, by their condition
     L.carValue = function (car) {
         var body = L.BODIES[car.body];
-        var value = body.price * (0.3 + 0.5 * car.condition / 100);
+        var value = body.price * (L.RESALE.junk + L.RESALE.restored * Math.pow(L.carShape(car), 3));
         L.SLOTS.forEach(function (slot) {
-            value += (L.PARTS[car.parts[slot]].price || 0) / 2 * (slot === 'engine' ? 1 : L.partCondition(car, slot) / 100);
+            value += (L.PARTS[car.parts[slot]].price || 0) / 2 * L.partCondition(car, slot) / 100;
         });
-        value *= 0.5 + 0.5 * car.engineCondition / 100;
         return roundTo(value, 5);
+    };
+
+    // What the car would fetch with everything fixed
+    L.restoredValue = function (car) {
+        var fixed = JSON.parse(JSON.stringify(car));
+        fixed.condition = 100;
+        fixed.engineCondition = 100;
+        fixed.partCondition = {};
+        return L.carValue(fixed);
     };
 
     // A new week: fresh classified ads, a restocked speed shop, a week of garage hours and
@@ -139,13 +156,47 @@
         return null;
     };
 
+    // Strip a car for parts: the speed parts and any engine worth keeping go on the shelf as
+    // they are, worn or not; stock and shot parts go in the bin and the shell goes for scrap
+    L.stripValue = function (car) { return roundTo(L.BODIES[car.body].price * L.RESALE.scrap, 5); };
+
+    L.canStrip = function (g, index) {
+        if (!g.cars[index]) return 'No such car.';
+        return L.needHours(g, L.STRIP_HOURS);
+    };
+
+    L.stripCar = function (g, index) {
+        var err = L.canStrip(g, index);
+        if (err) return err;
+        var car = g.cars[index];
+        var kept = [];
+        L.SLOTS.forEach(function (slot) {
+            var id = car.parts[slot];
+            var cond = L.partCondition(car, slot);
+            if (L.PARTS[id].price && cond >= L.SHOT) {
+                shelve(g, id, cond);
+                kept.push(L.PARTS[id].name);
+            }
+        });
+        var scrap = L.stripValue(car);
+        g.cash += scrap;
+        g.hours -= L.STRIP_HOURS;
+        dropCar(g, index);
+        return (kept.length ? 'On the shelf: ' + kept.join(', ') + '. ' : 'Nothing worth keeping, it was all stock or shot. ') +
+            'The shell went for $' + scrap + ' scrap.';
+    };
+
+    function dropCar(g, index) {
+        g.cars.splice(index, 1);
+        if (g.active === index) g.active = g.cars.length ? 0 : -1;
+        else if (g.active > index) g.active--;
+    }
+
     L.sellCar = function (g, index) {
         var car = g.cars[index];
         if (!car) return 'No such car.';
         g.cash += L.carValue(car);
-        g.cars.splice(index, 1);
-        if (g.active === index) g.active = g.cars.length ? 0 : -1;
-        else if (g.active > index) g.active--;
+        dropCar(g, index);
         return null;
     };
 
@@ -166,6 +217,31 @@
 
     // ── Parts ─────────────────────────────────────────────────────────────
 
+    // The shelf: part ids in g.inventory, and each one's condition in g.shelfCond at the same
+    // index (missing means new)
+    function shelve(g, partId, cond) {
+        if (!g.shelfCond) g.shelfCond = [];
+        g.inventory.push(partId);
+        g.shelfCond[g.inventory.length - 1] = cond;
+    }
+
+    function unshelve(g, invIndex) {
+        var cond = L.shelfCondition(g, invIndex);
+        g.inventory.splice(invIndex, 1);
+        if (g.shelfCond) g.shelfCond.splice(invIndex, 1);
+        return cond;
+    }
+
+    L.shelfCondition = function (g, invIndex) {
+        var c = g.shelfCond && g.shelfCond[invIndex];
+        return typeof c === 'number' ? c : 100;
+    };
+
+    // Half what it costs new, by its condition
+    L.partValue = function (g, invIndex) {
+        return Math.floor((L.PARTS[g.inventory[invIndex]].price || 0) / 2 * L.shelfCondition(g, invIndex) / 100);
+    };
+
     L.inStock = function (g, partId) { return (g.shopStock || []).indexOf(partId) >= 0; };
 
     // What the speed shop sells that fits a car (everything for sale if there's no car),
@@ -185,15 +261,15 @@
         if (g.cash < part.price) return "You can't afford it.";
         g.cash -= part.price;
         g.shopStock.splice(g.shopStock.indexOf(partId), 1);   // one of each on the shelf
-        g.inventory.push(partId);
+        shelve(g, partId, 100);
         return null;
     };
 
     L.sellPart = function (g, invIndex) {
         var partId = g.inventory[invIndex];
         if (!partId) return 'No such part.';
-        g.cash += Math.floor((L.PARTS[partId].price || 0) / 2);
-        g.inventory.splice(invIndex, 1);
+        g.cash += L.partValue(g, invIndex);
+        unshelve(g, invIndex);
         return null;
     };
 
@@ -219,12 +295,14 @@
         var car = L.activeCar(g);
         var partId = g.inventory[invIndex];
         var part = L.PARTS[partId];
-        g.inventory.splice(invIndex, 1);
+        var cond = unshelve(g, invIndex);
         g.hours -= L.JOB_HOURS[part.slot];
+        if (!car.partCondition) car.partCondition = {};
         function takeOff(slot) {
             var old = car.parts[slot];
+            var oldCond = L.partCondition(car, slot);
             // Stock parts are worth nothing, and a shot part is scrap, so they go in the bin
-            if (L.PARTS[old].price && (slot === 'engine' || L.partCondition(car, slot) >= L.SHOT)) g.inventory.push(old);
+            if (L.PARTS[old].price && (slot === 'engine' ? oldCond > 0 : oldCond >= L.SHOT)) shelve(g, old, oldCond);
         }
         takeOff(part.slot);
         if (part.slot === 'engine') {
@@ -235,9 +313,9 @@
                     car.partCondition[slot] = 100;
                 });
             }
-            car.engineCondition = 100;   // a different engine comes with its own condition: new
+            car.engineCondition = cond;   // a different engine comes with its own condition
         } else {
-            car.partCondition[part.slot] = 100;
+            car.partCondition[part.slot] = cond;
         }
         car.parts[part.slot] = partId;
         return null;
@@ -406,14 +484,18 @@
 
     // ── Racing ────────────────────────────────────────────────────────────
 
-    // stake: 'cash' for RIVAL_PRIZE, 'pinks' for the cars, 'fun' for a small prize and no risk
+    // A cash race is all your cash, up to RIVAL_PRIZE, against the same from the rival
+    L.cashBet = function (g) { return Math.min(Math.max(0, g.cash), L.RIVAL_PRIZE); };
+
+    // stake: 'cash' for cashBet, 'pinks' for the cars only (The King adds KING_PRIZE),
+    // 'fun' for a small prize and no risk
     L.canRace = function (g, rival, stake) {
         var car = L.activeCar(g);
         if (!car) return 'You need a car first.';
         if (car.engineCondition <= 0) return 'Your engine is blown. Rebuild it in the garage.';
         if (car.condition < L.MIN_BODY) return 'Nobody races a rust bucket. Get the body to ' + L.MIN_BODY + '% first.';
         if (rival.king && stake !== 'pinks') return 'The King only races for pink slips.';
-        if (stake === 'cash' && g.cash < L.RIVAL_PRIZE) return 'You need $' + L.RIVAL_PRIZE.toLocaleString('en-US') + ' to put up.';
+        if (stake === 'cash' && L.cashBet(g) < L.MIN_BET) return 'You need at least $' + L.MIN_BET + ' to bet.';
         if (stake === 'fun' && rival.funDone) return rival.name + ' has had enough fun for this week.';
         return null;
     };
@@ -455,29 +537,29 @@
         }
 
         g.rivals.splice(rivalIndex, 1);
-        var cash = rival.king ? L.KING_PRIZE : L.RIVAL_PRIZE;
+        var cash = stake === 'pinks' ? (rival.king ? L.KING_PRIZE : 0) : L.cashBet(g);
         var cashText = '$' + cash.toLocaleString('en-US');
         if (result === 'win') {
             if (rival.king) g.kingBeaten = true;
             if (stake === 'pinks') {
                 g.cash += cash;
+                var prize = cash ? cashText + ' and ' : '';
                 var won = L.makeCar(g, rival.body, L.rivalParts(rival.body, rival.tier), 80, rival.engineCondition, wornParts(rival.engineCondition));
                 var crown = rival.king ? ' You are the new King of the strip!' : '';
                 if (g.cars.length < L.MAX_CARS) {
                     g.cars.push(won);
-                    return 'You won ' + cashText + ' and ' + rival.name + "'s " + L.carName(won) + '!' + crown + blown;
+                    return 'You won ' + prize + rival.name + "'s " + L.carName(won) + '!' + crown + blown;
                 }
                 var value = L.carValue(won);
                 g.cash += value;
-                return 'You won ' + cashText + ' and ' + rival.name + "'s " + L.carName(won) + ". Your garage is full, so you sold it for $" + value + '.' + crown + blown;
+                return 'You won ' + prize + rival.name + "'s " + L.carName(won) + ". Your garage is full, so you sold it for $" + value + '.' + crown + blown;
             }
             g.cash += cash;
             return 'You won ' + cashText + ' from ' + rival.name + '.' + blown;
         }
         if (stake === 'pinks') {
             var lost = L.carName(car);
-            g.cars.splice(g.active, 1);
-            g.active = g.cars.length ? 0 : -1;
+            dropCar(g, g.active);
             return why + rival.name + ' drives off in your ' + lost + '.';
         }
         g.cash -= cash;
