@@ -204,9 +204,10 @@
         var car = L.activeCar(g);
         var cars = g.cars.map(function (c, i) {
             return '<div class="row' + (i === g.active ? ' active' : '') + '"><span>' + esc(L.carName(c)) +
-                ' · worth ' + money(L.carValue(c)) + '</span>' +
+                ' · sells for ' + money(L.carValue(c)) + '</span>' +
                 (i === g.active ? '<span class="price">Driving</span>' : '<button data-act="drive" data-arg="' + i + '">Drive</button>') +
-                '<button data-act="sell" data-arg="' + i + '" class="minor">Sell</button></div>';
+                '<button data-act="sell" data-arg="' + i + '" class="minor">Sell</button>' +
+                '<button data-act="strip" data-arg="' + i + '" class="minor">Strip</button></div>';
         }).join('') || '<p>No cars. Check the classifieds.</p>';
 
         var detail = '';
@@ -218,6 +219,7 @@
                 '<p><b>' + st.hp + ' hp</b> at ' + st.hpRpm + ' rpm · redline ' + st.redline + '</p>' +
                 '<p>0-60 ' + (st.zeroSixty ? st.zeroSixty.toFixed(1) + ' s' : 'n/a') + ' · quarter mile ' + st.et.toFixed(2) + ' s at ' + Math.round(st.trap) + ' mph</p>' +
                 '<p>Body ' + bar(car.condition, 'Body condition') + (car.condition < L.MIN_BODY ? ' <span class="shot">needs ' + L.MIN_BODY + '% to race</span>' : '') + '</p>' +
+                '<p class="sub">Sells for ' + money(L.carValue(car)) + (fix.cost ? '. Restored, it would fetch about ' + money(L.restoredValue(car)) : '') + '.</p>' +
                 (fix.cost ? '<button data-act="fix">Fix car (' + money(fix.cost) + ', ' + fix.hours + ' h for everything)</button>' : '<p class="sub">Everything is in good shape.</p>') +
                 '</div>' +
                 L.SLOTS.map(function (slot) {
@@ -228,9 +230,10 @@
 
         var shelf = g.inventory.map(function (id, i) {
             var p = L.PARTS[id];
-            return '<div class="row"><span><span class="slot">' + L.SLOT_NAMES[p.slot] + '</span> ' + esc(p.name) + '</span>' +
+            var cond = L.shelfCondition(g, i);
+            return '<div class="row"><span><span class="slot">' + L.SLOT_NAMES[p.slot] + '</span> ' + esc(p.name) + (cond < 100 ? ' ' + bar(cond, 'Condition') : '') + '</span>' +
                 (car ? '<button data-act="install" data-arg="' + i + '">Install (' + L.JOB_HOURS[p.slot] + ' h)</button>' : '') +
-                '<button data-act="sellpart" data-arg="' + i + '" class="minor">Sell ' + money(Math.floor(p.price / 2)) + '</button></div>';
+                '<button data-act="sellpart" data-arg="' + i + '" class="minor">Sell ' + money(L.partValue(g, i)) + '</button></div>';
         }).join('') || '<p>Nothing on the shelf. Parts you buy and parts you take off land here.</p>';
 
         render(
@@ -242,8 +245,17 @@
                 drive: act(L.showGarage, function (i) { g.active = +i; }),
                 sell: function (i) {
                     var c = g.cars[+i];
-                    ask('Sell your ' + L.carName(c) + ' to the dealer for ' + money(L.carValue(c)) + '?', 'Sell it',
+                    ask('Sell your ' + L.carName(c) + ' for ' + money(L.carValue(c)) + '?' +
+                        (L.restoredValue(c) > L.carValue(c) ? ' Restored, it would fetch about ' + money(L.restoredValue(c)) + '.' : ''), 'Sell it',
                         act(L.showGarage, function () { return L.sellCar(g, +i) || 'Sold.'; }), L.showGarage);
+                },
+                strip: function (i) {
+                    var c = g.cars[+i];
+                    var err = L.canStrip(g, +i);
+                    if (err) return L.showGarage(err);
+                    ask('Strip your ' + L.carName(c) + ' for parts? It takes ' + L.STRIP_HOURS + ' hours. Speed parts and the engine go on your shelf as they are, stock parts go in the bin, and the shell goes for ' +
+                        money(L.stripValue(c)) + ' scrap.', 'Strip it',
+                        act(L.showGarage, function () { return L.stripCar(g, +i); }), L.showGarage);
                 },
                 install: function (i) {
                     var err = L.canInstall(g, +i);
@@ -372,6 +384,7 @@
 
     L.showStand = function (msg) {
         var car = L.activeCar(g);
+        var bet = L.cashBet(g);
         var rows = g.rivals.map(function (r, i) {
             var funErr = L.canRace(g, r, 'fun');
             var cashErr = L.canRace(g, r, 'cash');
@@ -380,8 +393,9 @@
                 ? '<button data-act="pinks" data-arg="' + i + '" class="danger"' + (pinkErr ? ' disabled' : '') + '>Race for his crown: pinks and ' + money(L.KING_PRIZE) + '</button>'
                 : '<button data-act="fun" data-arg="' + i + '" class="minor"' + (funErr ? ' disabled' : '') + '>' +
                     (r.funDone ? 'Raced for fun this week' : 'Just for fun (win ' + money(L.funPrize(r)) + ')') + '</button>' +
-                  '<button data-act="cash" data-arg="' + i + '"' + (cashErr ? ' disabled title="You need ' + money(L.RIVAL_PRIZE) + ' to put up"' : '') + '>Race for ' + money(L.RIVAL_PRIZE) + '</button>' +
-                  '<button data-act="pinks" data-arg="' + i + '" class="danger"' + (pinkErr ? ' disabled' : '') + '>Pink slips and ' + money(L.RIVAL_PRIZE) + '</button>';
+                  '<button data-act="cash" data-arg="' + i + '"' + (cashErr ? ' disabled title="' + esc(cashErr) + '"' : '') + '>' +
+                    (bet >= L.RIVAL_PRIZE ? 'Bet ' + money(bet) : 'Bet it all: ' + money(bet)) + '</button>' +
+                  '<button data-act="pinks" data-arg="' + i + '" class="danger"' + (pinkErr ? ' disabled' : '') + '>Pink slips</button>';
             return '<div class="card rival' + (r.king ? ' king' : '') + '"><h3>' + esc(r.name) + '</h3>' +
                 '<p>Drives a ' + esc(L.BODIES[r.body].name) + '. <em>"' + esc(r.line) + '"</em></p>' +
                 (car ? chances(L.odds(car, r)) : '') + buttons +
@@ -393,14 +407,19 @@
         render(
             status() + flash(msg || why) +
             '<div class="panel"><h2>The Burger Stand</h2><p class="sub">Friday night. Engines idling, everybody watching.</p>' + rows + '</div>' +
-            '<p class="hint">At the race: press Space, Enter or the big button when the start light turns green, then again each time the SHIFT light goes green. Keep out of the red. A race just for fun risks nothing and pays a little; a real race is ' + money(L.RIVAL_PRIZE) + ' or pink slips.</p>' +
+            '<p class="hint">At the race: press Space, Enter or the big button when the start light turns green, then again each time the SHIFT light goes green. Keep out of the red. A race just for fun risks nothing and pays a little; a cash race bets all your cash, up to ' + money(L.RIVAL_PRIZE) + ', against the same; pink slips are for the cars.</p>' +
             '<button data-act="back">Back</button>',
             {
-                cash: function (i) { race(+i, 'cash'); },
+                cash: function (i) {
+                    var r = g.rivals[+i];
+                    if (bet < g.cash) return race(+i, 'cash');
+                    ask('Bet all ' + money(bet) + ' you have on beating ' + r.name + '? Lose and you are broke.',
+                        'Bet it all', function () { race(+i, 'cash'); }, L.showStand);
+                },
                 fun: function (i) { race(+i, 'fun'); },
                 pinks: function (i) {
                     var r = g.rivals[+i];
-                    ask('Race ' + r.name + ' for pink slips? Win and you take their car and ' + money(r.king ? L.KING_PRIZE : L.RIVAL_PRIZE) +
+                    ask('Race ' + r.name + ' for pink slips? Win and you take their ' + L.BODIES[r.body].name + (r.king ? ' and ' + money(L.KING_PRIZE) : '') +
                         '. Lose and they keep your ' + L.carName(L.activeCar(g)) + '.',
                         'Race for pinks', function () { race(+i, 'pinks'); }, L.showStand);
                 },
@@ -425,7 +444,7 @@
         if (err) return L.showStand(err);
         var car = L.activeCar(g);
         render('<div class="race-controls"><button class="go" id="go">GO / SHIFT</button>' +
-            '<p class="hint">Racing ' + esc(rival.name) + ' ' + (pinks ? 'for pink slips' : stake === 'fun' ? 'just for fun' : 'for ' + money(L.RIVAL_PRIZE)) +
+            '<p class="hint">Racing ' + esc(rival.name) + ' ' + (pinks ? 'for pink slips' : stake === 'fun' ? 'just for fun' : 'for ' + money(L.cashBet(g))) +
             '. Shift when the SHIFT light goes green.</p>' +
             '<button data-act="sound" class="minor" id="sound">Sound: ' + (L.sound.on ? 'on' : 'off') + '</button></div>', {
             sound: function () { document.getElementById('sound').textContent = 'Sound: ' + (L.sound.toggle() ? 'on' : 'off'); L.sound.begin(); L.sound.engineOn(); }

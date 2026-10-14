@@ -148,13 +148,15 @@ test('buying a car from the classifieds', () => {
     assert.strictEqual(L.activeCar(g).body, 'ford48');
 });
 
-test('settling races: $1,000 cash races and pink slips, and every race wears the car', () => {
+test('settling races: cash races bet your cash up to $1,000, pink slips are for the cars, and every race wears the car', () => {
     const g = garage('ford48', null, 90, 90);
     g.cash = 2000;
     L.goFriday(g);
     g.rivals = [{ name: 'A', tier: 1, skill: 0.5, body: 'ford50', engineCondition: 90 },
                 { name: 'B', tier: 1, skill: 0.5, body: 'merc49', engineCondition: 90 },
-                { name: 'C', tier: 1, skill: 0.5, body: 'chevy55', engineCondition: 90 }];
+                { name: 'C', tier: 1, skill: 0.5, body: 'chevy55', engineCondition: 90 },
+                { name: 'D', tier: 1, skill: 0.5, body: 'chevy55', engineCondition: 90 }];
+    assert.strictEqual(L.cashBet(g), 1000);                   // capped at $1,000
     L.settleRace(g, 0, 'cash', 'win', 5);
     assert.strictEqual(g.cash, 3000);
     const c = L.activeCar(g);
@@ -162,16 +164,55 @@ test('settling races: $1,000 cash races and pink slips, and every race wears the
     assert.ok(c.condition < 90 && c.condition >= 87, 'the body wears a little');
     assert.ok(L.partCondition(c, 'tires') <= 98);
     L.settleRace(g, 0, 'pinks', 'win', 0);
-    assert.strictEqual(g.cash, 4000);                         // pinks pay the cash too
+    assert.strictEqual(g.cash, 3000);                         // pinks are for the cars only
     assert.strictEqual(g.cars.length, 2);
     assert.strictEqual(g.cars[1].body, 'merc49');
     L.settleRace(g, 0, 'pinks', 'foul', 0);
     assert.strictEqual(g.cars.length, 1);
     assert.strictEqual(g.cars[0].body, 'merc49');
-    assert.strictEqual(g.cash, 4000);
-    assert.deepStrictEqual([g.wins, g.losses], [2, 1]);
-    g.cash = 999;
-    assert.match(L.canRace(g, { tier: 1 }, 'cash'), /\$1,000/);
+    assert.strictEqual(g.cash, 3000);
+    g.cash = 400;                                             // under $1,000, you bet it all
+    assert.strictEqual(L.cashBet(g), 400);
+    L.settleRace(g, 0, 'cash', 'lose', 0);
+    assert.strictEqual(g.cash, 0);
+    assert.deepStrictEqual([g.wins, g.losses], [2, 2]);
+    g.cash = L.MIN_BET - 1;
+    assert.match(L.canRace(g, { tier: 1 }, 'cash'), /at least/);
+});
+
+test('a restored car sells for more than it cost to buy and fix, and a car bought as is sells for less', () => {
+    let profit = 0, dump = 0, n = 0;
+    for (let i = 0; i < 30; i++) {
+        const g = L.newGame();
+        g.ads.forEach((ad) => {
+            const car = L.makeCar(g, ad.body, null, ad.condition, ad.engineCondition, ad.parts);
+            profit += L.restoredValue(car) - ad.price - L.fixAll(car).cost;
+            dump += L.carValue(car) - ad.price;
+            n++;
+        });
+    }
+    assert.ok(profit / n > 100, 'restoring pays on average: ' + profit / n);
+    assert.ok(dump / n < 0, 'flipping without work loses: ' + dump / n);
+});
+
+test('stripping a car shelves its speed parts as they are, scraps the shell and takes hours', () => {
+    const g = garage('chevy57', null, 50, 70);
+    const car = L.activeCar(g);
+    car.parts.tires = 'tires_2';
+    car.partCondition.tires = 60;
+    car.partCondition.carb = 10;                              // shot: binned
+    const cash = g.cash;
+    const scrap = L.stripValue(car);
+    const line = L.stripCar(g, 0);
+    assert.match(line, /scrap/);
+    assert.strictEqual(g.cars.length, 0);
+    assert.strictEqual(g.active, -1);
+    assert.strictEqual(g.hours, L.HOURS_PER_WEEK - L.STRIP_HOURS);
+    assert.strictEqual(g.cash, cash + scrap);
+    const t = g.inventory.indexOf('tires_2');
+    assert.ok(t >= 0 && L.shelfCondition(g, t) === 60, 'worn parts keep their wear');
+    assert.ok(g.inventory.includes('v8_283'), 'the engine is kept');
+    assert.strictEqual(L.partValue(g, t), Math.floor(120 / 2 * 0.6));
 });
 
 test('the body has to be at least 75% to race, and bodywork costs money and hours', () => {
