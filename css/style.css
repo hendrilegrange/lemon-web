@@ -149,3 +149,6 @@ button.danger { background: var(--bad); color: #fff; border-bottom-color: #a01f1
 .cls3 { background: #d68cff; }
 .row.out { opacity: 0.55; }
 .soldout { color: var(--muted); font-weight: bold; }
+
+.toggles { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+.toggles button { margin: 0; padding: 4px 10px; }

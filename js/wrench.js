@@ -96,11 +96,12 @@
             if (!best || best.anim) return;
             if (best.reason) {
                 best.wrong = st.clock;
+                L.sound.clank();
                 line(best.reason);
                 return;
             }
-            if (st.phase === 'off' && !best.out) best.anim = { at: st.clock, dir: 'out' };
-            if (st.phase === 'on' && best.out) best.anim = { at: st.clock, dir: 'in' };
+            if (st.phase === 'off' && !best.out) { best.anim = { at: st.clock, dir: 'out' }; L.sound.ratchet(); }
+            if (st.phase === 'on' && best.out) { best.anim = { at: st.clock, dir: 'in' }; L.sound.ratchet(); }
         }
 
         function update() {
@@ -108,15 +109,16 @@
                 if (b.anim && st.clock - b.anim.at >= SPIN) {
                     b.out = b.anim.dir === 'out';
                     b.anim = null;
+                    if (!b.out) L.sound.clink();
                     if (left() === 0) {
-                        if (st.phase === 'off') { st.phase = 'swap'; st.swapAt = st.clock; line('Off it comes.'); }
-                        else { st.phase = 'done'; st.doneAt = st.clock; line('Done. Tight as a drum.'); }
+                        if (st.phase === 'off') { st.phase = 'swap'; st.swapAt = st.clock; line('Off it comes.'); L.sound.thunk(); }
+                        else { st.phase = 'done'; st.doneAt = st.clock; line('Done. Tight as a drum.'); L.sound.ding(); }
                     } else {
                         prompt();
                     }
                 }
             });
-            if (st.phase === 'swap' && st.clock - st.swapAt >= SWAP * 2) { st.phase = 'on'; prompt(); }
+            if (st.phase === 'swap' && st.clock - st.swapAt >= SWAP * 2) { st.phase = 'on'; prompt(); L.sound.thunk(); }
             if (st.phase === 'done' && st.clock - st.doneAt >= 0.8) { stop(); done(true); }
         }
 
@@ -255,10 +257,13 @@
             if (!best || st.clock - best.at < GRIND) return;
             best.stage++;
             best.at = st.clock;
+            if (best.stage === 1) L.sound.grind(GRIND);
+            else L.sound.smear();
             if (spots.every(function (p) { return p.stage === 2; })) {
                 st.phase = 'paint';
                 st.paintAt = st.clock + GRIND;
                 line('Laying on the paint...');
+                setTimeout(function () { if (!st.stopped) L.sound.spray(PAINT); }, GRIND * 1000);
             } else {
                 prompt();
             }
@@ -310,7 +315,7 @@
             if (st.stopped) return;
             if (st.last !== null) st.clock += Math.min(0.1, (now - st.last) / 1000);
             st.last = now;
-            if (st.phase === 'paint' && st.clock - st.paintAt >= PAINT) { st.phase = 'done'; st.doneAt = st.clock; line('Done. Looking sharp.'); }
+            if (st.phase === 'paint' && st.clock - st.paintAt >= PAINT) { st.phase = 'done'; st.doneAt = st.clock; line('Done. Looking sharp.'); L.sound.ding(); }
             if (st.phase === 'done' && st.clock - st.doneAt >= 0.8) { stop(); done(true); return; }
             draw();
             requestAnimationFrame(frame);

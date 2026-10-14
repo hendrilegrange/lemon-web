@@ -41,8 +41,9 @@
             if (me.launchedAt === null) {
                 me.launchedAt = state.clock;
                 state.phase = 'racing';
-            } else if (!me.blown) {
-                L.shift(player.spec, me.run);
+                L.sound.launch();
+            } else if (!me.blown && !me.run.done) {
+                if (L.shift(player.spec, me.run)) L.sound.shift();
             }
         }
 
@@ -96,8 +97,10 @@
                 state.shiftBeeped = me.run.gear;
                 L.sound.beep(1320, 0.1);
             }
-            var rpm = me.launchedAt === null ? 1800 + Math.sin(state.clock * 30) * 200 : me.run.rpm;
-            L.sound.engineAt(me.blown ? 0 : rpm, me.launchedAt !== null && me.run.shiftLeft <= 0 && !me.run.done ? 1 : 0.2);
+            // Waiting at the tree: a lumpy idle with a blip of the throttle now and then
+            var blip = Math.pow(Math.max(0, Math.sin(state.clock * 2.6)), 6);
+            var rpm = me.launchedAt === null ? 1500 + Math.sin(state.clock * 30) * 120 + blip * 2600 : me.run.rpm;
+            L.sound.engineAt(me.blown ? 0 : rpm, me.launchedAt === null ? 0.2 + 0.6 * blip : me.run.shiftLeft <= 0 && !me.run.done ? 1 : 0.2);
         }
 
         function finish() {
@@ -111,6 +114,7 @@
             else result = me.finishAt <= them.finishAt ? 'win' : 'lose';
             state.result = result;
             state.message = { win: 'YOU WIN!', lose: 'YOU LOSE', foul: 'RED LIGHT!' }[result];
+            L.sound[result]();
             draw();
             setTimeout(function () { cleanup(); done(result, me.damage, summary()); }, 1800);
         }
@@ -137,7 +141,7 @@
             var damage = L.step(spec, car.run, DT);
             if (!isRival) {
                 car.damage += damage;
-                if (car.damage >= condition) car.blown = true;
+                if (car.damage >= condition) { car.blown = true; L.sound.blow(); }
             }
             if (car.run.done) car.finishAt = car.launchedAt + car.run.et;
         }
