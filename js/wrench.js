@@ -1,6 +1,7 @@
-// Wrenching: swapping a part or rebuilding the engine on the canvas. Click the highlighted
-// bolts to take them out, the old part comes off and the new one goes on, then click the
-// bolts back in. Grey bolts hold something else and stay put.
+// The workbench on the canvas. Wrenching: swapping a part or rebuilding the engine. Click the
+// highlighted bolts to take them out, the old part comes off and the new one goes on, then
+// click the bolts back in. Grey bolts hold something else and stay put. Bodywork: click each
+// rust spot to grind it to bare metal, again to fill it, and then the car gets its paint.
 (function (L) {
     'use strict';
 
@@ -86,9 +87,7 @@
 
         function onPointer(e) {
             if (st.phase !== 'off' && st.phase !== 'on') return;
-            var r = canvas.getBoundingClientRect();       // includes the border, so measure inside it
-            var x = (e.clientX - r.left - canvas.clientLeft) * W / canvas.clientWidth;
-            var y = (e.clientY - r.top - canvas.clientTop) * H / canvas.clientHeight;
+            var pt = canvasPoint(canvas, e), x = pt.x, y = pt.y;
             var best = null, bestD = HIT;
             bolts.forEach(function (b) {
                 var d = Math.hypot(b.x - x, b.y - y);
@@ -249,4 +248,164 @@
         requestAnimationFrame(frame);
         return stop;
     };
+
+    // Where a click landed on the canvas, in its 320x200 pixels (the border doesn't count)
+    function canvasPoint(canvas, e) {
+        var r = canvas.getBoundingClientRect();
+        return {
+            x: (e.clientX - r.left - canvas.clientLeft) * W / canvas.clientWidth,
+            y: (e.clientY - r.top - canvas.clientTop) * H / canvas.clientHeight
+        };
+    }
+
+    // ── Bodywork ──────────────────────────────────────────────────────────
+
+    // The car side-on, five times the size it is on the strip
+    var BODY = { x: 50, y: 95, w: 220, h: 40 }, CAB = { x: 100, y: 60, w: 100, h: 35 };
+    var GRIND = 0.3, PAINT = 1.2;
+
+    // Rust spots spread over the body panels, far enough apart to click on a phone: a row
+    // along the doors and a few low down between the wheels, picked at random
+    var SPOT_SLOTS = [62, 90, 118, 146, 174, 202, 230, 258].map(function (x) { return [x, 103]; })
+        .concat([[132, 126], [160, 126], [188, 126]]);
+
+    function rustSpots(n) {
+        var free = SPOT_SLOTS.slice(), spots = [];
+        while (spots.length < n && free.length) {
+            var slot = free.splice(Math.floor(L.random() * free.length), 1)[0];
+            spots.push({ x: slot[0] + Math.round(L.random() * 6 - 3), y: slot[1], stage: 0, at: -1 });
+        }
+        return spots;
+    }
+
+    // Starts bodywork on the canvas. opts: { spots (1-8), color, title, onLine(text) }.
+    // done() once it's painted; returns a function that cancels.
+    L.startBodywork = function (canvas, opts, done) {
+        var ctx = canvas.getContext('2d');
+        var spots = rustSpots(opts.spots);
+        var st = { phase: 'work', clock: 0, paintAt: 0, last: null, stopped: false };
+
+        function line(text) { if (opts.onLine) opts.onLine(text); }
+
+        function prompt() {
+            var rust = spots.filter(function (p) { return p.stage === 0; }).length;
+            var bare = spots.filter(function (p) { return p.stage === 1; }).length;
+            if (rust) line('Click the rust spots to grind them to bare metal: ' + rust + ' to go' + (bare ? ', and ' + bare + ' to fill.' : '.'));
+            else if (bare) line('Click the bare metal to fill it: ' + bare + ' to go.');
+        }
+
+        function onPointer(e) {
+            if (st.phase !== 'work') return;
+            var pt = canvasPoint(canvas, e);
+            var best = null, bestD = HIT;
+            spots.forEach(function (p) {
+                var d = Math.hypot(p.x - pt.x, p.y - pt.y);
+                if (p.stage < 2 && d < bestD) { best = p; bestD = d; }
+            });
+            if (!best || st.clock - best.at < GRIND) return;
+            best.stage++;
+            best.at = st.clock;
+            if (spots.every(function (p) { return p.stage === 2; })) {
+                st.phase = 'paint';
+                st.paintAt = st.clock + GRIND;
+                line('Laying on the paint...');
+            } else {
+                prompt();
+            }
+        }
+
+        function car(color, clipX) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(0, 0, clipX, H);
+            ctx.clip();
+            ctx.fillStyle = color;
+            ctx.fillRect(BODY.x, BODY.y, BODY.w, BODY.h);
+            ctx.fillRect(CAB.x, CAB.y, CAB.w, CAB.h);
+            ctx.restore();
+        }
+
+        function draw() {
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, W, 160);
+            ctx.fillStyle = '#3a3a3a';
+            ctx.fillRect(0, 160, W, 40);
+            ctx.fillStyle = '#ffd23f';
+            ctx.font = 'bold 9px "Courier New", monospace';
+            ctx.textAlign = 'left';
+            ctx.fillText(opts.title.toUpperCase(), 8, 14);
+
+            // Faded old paint, then the new paint sweeping across once the panels are ready
+            car('#5f5a52', W);
+            var sweep = st.phase === 'work' ? 0 : Math.min(1, (st.clock - st.paintAt) / PAINT);
+            var paintX = BODY.x - 10 + sweep * (BODY.w + 20);
+            if (sweep > 0) car(opts.color, paintX);
+            ctx.fillStyle = '#9ad1ff';                     // windows
+            ctx.fillRect(CAB.x + 15, CAB.y + 10, 30, 20);
+            ctx.fillRect(CAB.x + 55, CAB.y + 10, 30, 20);
+            ctx.fillStyle = '#111';                        // tires
+            ctx.fillRect(70, 125, 50, 40);
+            ctx.fillRect(210, 135, 35, 30);
+
+            var pulse = 0.5 + 0.5 * Math.sin(st.clock * 8);
+            spots.forEach(function (p) {
+                if (sweep > 0 && p.x < paintX) return;     // painted over
+                var fresh = st.clock - p.at < GRIND;
+                ctx.fillStyle = p.stage === 0 ? '#8b4513' : p.stage === 1 ? '#b8bcc4' : '#d8c8a0';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
+                ctx.fill();
+                if (p.stage === 0) {                       // flaky rust
+                    ctx.fillStyle = '#5c2e0e';
+                    ctx.fillRect(p.x - 3, p.y - 2, 2, 2);
+                    ctx.fillRect(p.x + 2, p.y + 1, 2, 2);
+                }
+                if (fresh && p.stage === 1) {              // grinder sparks
+                    ctx.fillStyle = '#ffd23f';
+                    for (var i = 0; i < 6; i++) ctx.fillRect(p.x + 8 + i * 3, p.y - 6 - ((i * 7 + Math.floor(st.clock * 40)) % 9), 1, 1);
+                }
+                if (p.stage < 2 && st.phase === 'work') {
+                    ctx.strokeStyle = 'rgba(255,140,0,' + (0.5 + 0.5 * pulse) + ')';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            });
+            if (sweep > 0 && sweep < 1) {                  // the spray gun's mist
+                ctx.fillStyle = 'rgba(255,255,255,0.25)';
+                ctx.fillRect(paintX - 4, CAB.y - 6, 8, BODY.y + BODY.h - CAB.y + 12);
+            }
+            if (st.phase === 'done') {
+                ctx.fillStyle = '#3bff6e';
+                ctx.font = 'bold 14px "Courier New", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText('DONE', W / 2, 188);
+            }
+        }
+
+        function frame(now) {
+            if (st.stopped) return;
+            if (st.last !== null) st.clock += Math.min(0.1, (now - st.last) / 1000);
+            st.last = now;
+            if (st.phase === 'paint' && st.clock - st.paintAt >= PAINT) { st.phase = 'done'; st.doneAt = st.clock; line('Done. Looking sharp.'); }
+            if (st.phase === 'done' && st.clock - st.doneAt >= 0.8) { stop(); done(true); return; }
+            draw();
+            requestAnimationFrame(frame);
+        }
+
+        function stop() {
+            st.stopped = true;
+            canvas.removeEventListener('pointerdown', onPointer);
+            canvas.style.cursor = '';
+        }
+
+        canvas.addEventListener('pointerdown', onPointer);
+        canvas.style.cursor = 'pointer';
+        prompt();
+        requestAnimationFrame(frame);
+        return stop;
+    };
+
+    L.rustSpots = rustSpots;
 })(window.Lemon = window.Lemon || {});

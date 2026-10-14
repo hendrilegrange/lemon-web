@@ -17,12 +17,12 @@ server code or database.
 | File | Purpose |
 |------|---------|
 | `index.html` | Shell: loads `css/style.css` and the `js/` files. Bump the `?v=` on any file that changes |
-| `js/data.js` | Car bodies (scrappy late-40s to early-60s used cars; newer cars may unlock after beating The King, later), parts (by slot), rivals and The King, race prizes (fun $50-$200 by tier, rival races $1,000 or pinks, The King $10,000 and his car) and starting cash |
+| `js/data.js` | Car bodies (scrappy late-40s to early-60s used cars; newer cars may unlock after beating The King, later), parts (by slot, each in four classes Stock/Better/Best/Bestest; engine bolt-ons fit only their engine family, `L.fits`), weekly stock odds per class (`L.IN_STOCK`), garage hours per job (30 a week until Friday night), bodywork costs and the 75% body needed to race, rivals and The King, race prizes (fun $50-$200 by tier, rival races $1,000 or pinks, The King $10,000 and his car) and starting cash |
 | `js/physics.js` | Turns a car's parts into a spec (`L.spec`), torque curve, and steps a drag race in time (`L.step`); `L.estimate` is the garage's time slip |
 | `js/game.js` | Game state and rules: classifieds, buying/selling, installing parts, wear per part (`partCondition`), diagnosing, repairing and replacing parts (`L.diagnose`), race odds (`L.odds`), settling races for cash, pink slips or fun, saving to localStorage. No drawing, so Node tests load it |
 | `js/sound.js` | Web Audio: engine note that follows the rpm, start-light and shift-light beeps; on/off kept in localStorage |
 | `js/race.js` | The drag race on the canvas: Christmas tree start, shifting with a shift light, rival AI, dashboard |
-| `js/wrench.js` | Wrenching on the canvas: installing a part or rebuilding the engine means clicking the orange bolts out and back in (`L.WRENCH`, up to 8 bolts per job; grey bolts hold something else) |
+| `js/wrench.js` | Wrenching on the canvas: installing a part or rebuilding the engine means clicking the orange bolts out and back in (`L.WRENCH`, up to 8 bolts per job; grey bolts hold something else); bodywork (`L.startBodywork`) is grinding and filling rust spots, then a paint sweep |
 | `js/ui.js` | Menu screens built as HTML into `#app`: title, hub, classifieds, parts catalog, garage, Fix car, burger stand, results |
 | `js/main.js` | Boot and the title screen animation |
 | `tests/` | `node --test tests/*.test.js`; `tests/load.js` loads the plain scripts into Node |

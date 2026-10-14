@@ -41,7 +41,7 @@
             gears: L.PARTS[p.trans].gears,
             final: L.PARTS[p.rear].final,
             mu: L.PARTS[p.tires].mu * (0.88 + 0.12 * cond('tires')),        // bald tires slip
-            shiftTime: SHIFT_TIME + 0.2 * (1 - cond('trans')),               // a tired gearbox is slow to shift
+            shiftTime: SHIFT_TIME * (L.PARTS[p.trans].shift || 1) + 0.2 * (1 - cond('trans')),   // a tired gearbox is slow to shift
             driveline: DRIVELINE * (0.92 + 0.08 * cond('rear'))              // a worn rear end eats power
         };
     };

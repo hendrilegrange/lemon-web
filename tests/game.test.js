@@ -7,25 +7,50 @@ function car(body, extra) {
     return { body, condition: 80, engineCondition: 100, parts: Object.assign({}, L.BODIES[body].parts, extra || {}) };
 }
 
-test('every car body and rival build uses real parts in the right slots', () => {
-    for (const [id, body] of Object.entries(L.BODIES)) {
+// A full Bestest build on a big-block
+const FULL = L.stockParts('v8_427', { carb: 3, intake: 3, cam: 3, exhaust: 3, trans: 3, rear: 3, tires: 3 });
+
+// A game with one car, plenty of money, every part in stock, and a fresh week
+function garage(body, parts, condition, engineCondition, partCondition) {
+    const g = L.newGame();
+    g.cash = 5000;
+    g.shopStock = Object.keys(L.PARTS).filter((id) => L.PARTS[id].price > 0);
+    g.cars.push(L.makeCar(g, body, parts, condition, engineCondition, partCondition));
+    g.active = 0;
+    return g;
+}
+
+test('every car body and rival build uses real parts in the right slots, and they fit', () => {
+    const builds = Object.keys(L.BODIES).map((id) => [id, L.BODIES[id].parts]);
+    L.RIVAL_BUILDS.forEach((b, tier) => builds.push(['tier ' + tier, L.rivalParts('ford48', tier)]));
+    for (const [name, parts] of builds) {
         for (const slot of L.SLOTS) {
-            assert.ok(L.PARTS[body.parts[slot]], `${id} ${slot}`);
-            assert.strictEqual(L.PARTS[body.parts[slot]].slot, slot, `${id} ${slot}`);
+            assert.ok(L.PARTS[parts[slot]], `${name} ${slot}`);
+            assert.strictEqual(L.PARTS[parts[slot]].slot, slot, `${name} ${slot}`);
+            assert.ok(L.fits(parts[slot], parts.engine), `${name} ${slot} fits`);
         }
     }
-    L.RIVAL_BUILDS.forEach((build, tier) => {
-        for (const [slot, id] of Object.entries(build)) assert.strictEqual(L.PARTS[id].slot, slot, `tier ${tier} ${slot}`);
-    });
 });
 
-test('bolt-ons make a car quicker, and tougher rivals are quicker', () => {
+test('every slot has four classes, priced up from free stock', () => {
+    for (const fam of Object.keys(L.FAMILIES)) {
+        for (const slot of L.BOLT_ONS) {
+            const prices = [0, 1, 2, 3].map((c) => L.PARTS[`${slot}_${fam}_${c}`].price);
+            assert.strictEqual(prices[0], 0);
+            assert.ok(prices[1] < prices[2] && prices[2] < prices[3], `${slot} ${fam} ${prices}`);
+        }
+    }
+    for (const slot of ['trans', 'rear', 'tires']) assert.ok(L.PARTS[slot + '_3'] && L.PARTS[slot + '_0'].price === 0);
+    assert.strictEqual(L.CLASSES.join(), 'Stock,Better,Best,Bestest');
+});
+
+test('better classes make a car quicker, and tougher rivals are quicker', () => {
     const stock = L.estimate(L.spec(car('ford48'))).et;
-    const built = L.estimate(L.spec(car('ford48', { carb: 'carb_4bbl', exhaust: 'exhaust_hdr' }))).et;
+    const built = L.estimate(L.spec(car('ford48', { carb: 'carb_flat_1', exhaust: 'exhaust_flat_1' }))).et;
     assert.ok(built < stock, `${built} < ${stock}`);
     let last = Infinity;
-    L.RIVAL_BUILDS.forEach((build, tier) => {
-        const et = L.estimate(L.spec(car('ford50', build))).et;
+    L.RIVAL_BUILDS.forEach((b, tier) => {
+        const et = L.estimate(L.spec(car('ford50', L.rivalParts('ford50', tier)))).et;
         assert.ok(et < last, `tier ${tier}: ${et} < ${last}`);
         last = et;
     });
@@ -33,7 +58,7 @@ test('bolt-ons make a car quicker, and tougher rivals are quicker', () => {
 
 test('quarter-mile times stay in a believable range', () => {
     const slow = L.estimate(L.spec(car('merc49'))).et;
-    const fast = L.estimate(L.spec(car('ford48', { engine: 'v8_427', carb: 'carb_six', intake: 'intake_hi', cam: 'cam_race', exhaust: 'exhaust_open', trans: 'trans_4cr', rear: 'rear_456', tires: 'tires_cheat' }))).et;
+    const fast = L.estimate(L.spec(car('ford48', FULL))).et;
     assert.ok(slow > 18 && slow < 22, `stock Merc ${slow}`);
     assert.ok(fast > 11 && fast < 14, `full build ${fast}`);
 });
@@ -52,24 +77,57 @@ test('over-revving damages the engine', () => {
     assert.ok(run.overRev > 0 && damage > 0);
 });
 
-test('buying a car, a part, installing it and selling the old one', () => {
+test('the speed shop only shows parts that fit, and only sells what it has in stock', () => {
+    const g = garage('ford48', null, 80, 80);
+    const ids = L.catalogFor(g, L.activeCar(g)).map((x) => x.id);
+    assert.ok(ids.includes('carb_flat_2') && ids.includes('tires_3') && ids.includes('v8_327'));
+    assert.ok(!ids.includes('carb_small_2'), 'a small-block carb does not fit a flathead');
+    g.shopStock = ['carb_flat_1'];
+    assert.match(L.buyPart(g, 'carb_flat_2'), /Sold out/);
+    assert.strictEqual(L.buyPart(g, 'carb_flat_1'), null);
+    assert.match(L.buyPart(g, 'carb_flat_1'), /Sold out/);   // one on the shelf
+});
+
+test('the stock rotates weekly and the better classes are scarcer', () => {
+    const count = [0, 0, 0, 0];
     const g = L.newGame();
-    g.cash = 2000;
-    g.ads[0] = { body: 'ford48', condition: 60, engineCondition: 80, price: 500, note: '' };
-    assert.strictEqual(L.buyAd(g, 0), null);
-    assert.strictEqual(g.cash, 1500);
-    assert.strictEqual(L.activeCar(g).body, 'ford48');
+    for (let w = 0; w < 200; w++) {
+        L.newWeek(g);
+        g.shopStock.forEach((id) => count[L.PARTS[id].cls]++);
+    }
+    assert.ok(count[1] > count[2] && count[2] > count[3], count.join());
+});
 
-    assert.strictEqual(L.buyPart(g, 'carb_dual'), null);
-    assert.match(L.installPart(g, 0), /needs/);                 // dual quads need the high-rise
-    assert.strictEqual(L.buyPart(g, 'intake_hi'), null);
-    assert.strictEqual(L.installPart(g, 1), null);
+test('installing parts takes hours, and an engine swap brings its own bolt-ons', () => {
+    const g = garage('ford48', { carb: 'carb_flat_2' }, 80, 60);
+    L.buyPart(g, 'tires_2');
     assert.strictEqual(L.installPart(g, 0), null);
-    assert.strictEqual(L.activeCar(g).parts.carb, 'carb_dual');
-    assert.deepStrictEqual(g.inventory, []);                    // stock parts are binned
+    assert.strictEqual(g.hours, L.HOURS_PER_WEEK - L.JOB_HOURS.tires);
+    assert.deepStrictEqual(g.inventory, []);                  // stock tires are binned
 
-    assert.strictEqual(L.buyPart(g, 'intake_alu'), null);
-    assert.match(L.installPart(g, 0), /single carb/);           // can't pull the intake under dual quads
+    L.buyPart(g, 'carb_small_1');
+    assert.match(L.installPart(g, 0), /small-block/);          // doesn't fit the flathead
+    L.buyPart(g, 'v8_327');
+    assert.strictEqual(L.installPart(g, 1), null);
+    const c = L.activeCar(g);
+    assert.strictEqual(c.parts.engine, 'v8_327');
+    assert.strictEqual(c.parts.carb, 'carb_small_0');
+    assert.strictEqual(c.engineCondition, 100);
+    assert.ok(g.inventory.includes('carb_flat_2'), 'the old flathead dual quads go on the shelf');
+    assert.strictEqual(L.installPart(g, 0), null);             // now the small-block carb fits
+    assert.strictEqual(c.parts.carb, 'carb_small_1');
+});
+
+test('the week runs out of hours, and Friday night closes the garage', () => {
+    const g = garage('ford48', null, 80, 10);
+    g.hours = L.REBUILD_HOURS - 1;
+    assert.match(L.repair(g), /hours/);
+    g.hours = L.HOURS_PER_WEEK;
+    L.goFriday(g);
+    assert.match(L.repair(g), /Friday/);
+    L.newWeek(g);
+    assert.strictEqual(L.repair(g), null);
+    assert.strictEqual(g.hours, L.HOURS_PER_WEEK - L.REBUILD_HOURS);
 });
 
 test("can't buy what you can't afford or park", () => {
@@ -82,17 +140,27 @@ test("can't buy what you can't afford or park", () => {
     assert.match(L.buyAd(g, 0), /full/);
 });
 
-test('settling races: $1,000 cash races and pink slips', () => {
+test('buying a car from the classifieds', () => {
     const g = L.newGame();
+    g.ads[0] = { body: 'ford48', condition: 60, engineCondition: 80, price: 500, note: '' };
+    assert.strictEqual(L.buyAd(g, 0), null);
+    assert.strictEqual(g.cash, L.START_CASH - 500);
+    assert.strictEqual(L.activeCar(g).body, 'ford48');
+});
+
+test('settling races: $1,000 cash races and pink slips, and every race wears the car', () => {
+    const g = garage('ford48', null, 90, 90);
     g.cash = 2000;
-    g.cars.push(L.makeCar(g, 'ford48', null, 60, 90));
-    g.active = 0;
+    L.goFriday(g);
     g.rivals = [{ name: 'A', tier: 1, skill: 0.5, body: 'ford50', engineCondition: 90 },
                 { name: 'B', tier: 1, skill: 0.5, body: 'merc49', engineCondition: 90 },
                 { name: 'C', tier: 1, skill: 0.5, body: 'chevy55', engineCondition: 90 }];
     L.settleRace(g, 0, 'cash', 'win', 5);
     assert.strictEqual(g.cash, 3000);
-    assert.strictEqual(L.activeCar(g).engineCondition, 85);
+    const c = L.activeCar(g);
+    assert.strictEqual(c.engineCondition, 85);
+    assert.ok(c.condition < 90 && c.condition >= 87, 'the body wears a little');
+    assert.ok(L.partCondition(c, 'tires') <= 98);
     L.settleRace(g, 0, 'pinks', 'win', 0);
     assert.strictEqual(g.cash, 4000);                         // pinks pay the cash too
     assert.strictEqual(g.cars.length, 2);
@@ -101,21 +169,33 @@ test('settling races: $1,000 cash races and pink slips', () => {
     assert.strictEqual(g.cars.length, 1);
     assert.strictEqual(g.cars[0].body, 'merc49');
     assert.strictEqual(g.cash, 4000);
-    assert.strictEqual(g.wins, 2);
-    assert.strictEqual(g.losses, 1);
+    assert.deepStrictEqual([g.wins, g.losses], [2, 1]);
     g.cash = 999;
     assert.match(L.canRace(g, { tier: 1 }, 'cash'), /\$1,000/);
 });
 
+test('the body has to be at least 75% to race, and bodywork costs money and hours', () => {
+    const g = garage('ford48', null, 40, 90);
+    const rival = { tier: 0 };
+    assert.match(L.canRace(g, rival, 'fun'), /75%/);
+    const patch = L.bodyJob(L.activeCar(g), L.MIN_BODY);
+    const full = L.bodyJob(L.activeCar(g), 100);
+    assert.ok(patch.cost < full.cost && patch.hours < full.hours && patch.spots <= 8 && full.spots <= 8);
+    const cash = g.cash;
+    assert.strictEqual(L.bodywork(g, L.MIN_BODY), null);
+    assert.strictEqual(L.activeCar(g).condition, L.MIN_BODY);
+    assert.strictEqual(g.cash, cash - patch.cost);
+    assert.strictEqual(g.hours, L.HOURS_PER_WEEK - patch.hours);
+    assert.strictEqual(L.canRace(g, rival, 'fun'), null);
+});
+
 test('The King turns up after enough wins, races only for pinks, and pays $10,000 and his car', () => {
-    const g = L.newGame();
+    const g = garage('ford48', null, 90, 90);
     assert.ok(!g.rivals.some((r) => r.king));
     g.wins = L.KING_WINS;
     L.newWeek(g);
     const i = g.rivals.findIndex((r) => r.king);
     assert.ok(i >= 0);
-    g.cars.push(L.makeCar(g, 'ford48', null, 60, 90));
-    g.active = 0;
     assert.match(L.canRace(g, g.rivals[i], 'cash'), /pink/);
     assert.match(L.canRace(g, g.rivals[i], 'fun'), /pink/);
     const cash = g.cash;
@@ -128,72 +208,45 @@ test('The King turns up after enough wins, races only for pinks, and pays $10,00
 });
 
 test('a blown engine stops you racing until it is rebuilt', () => {
-    const g = L.newGame();
-    g.cars.push(L.makeCar(g, 'ford48', null, 60, 0));
-    g.active = 0;
+    const g = garage('ford48', null, 80, 0);
     const rival = { tier: 0 };
     assert.match(L.canRace(g, rival, 'fun'), /blown/);
     assert.strictEqual(L.repair(g), null);
     assert.strictEqual(L.canRace(g, rival, 'fun'), null);
 });
 
-test('every slot and the rebuild have a wrenching job with up to 8 bolts, spaced to click', () => {
-    for (const job of [...L.SLOTS, 'rebuild']) {
-        const bolts = L.WRENCH[job] && L.WRENCH[job].bolts;
-        assert.ok(bolts, job);
-        assert.ok(bolts.length <= 8, `${job} has ${bolts.length} bolts`);
-        assert.ok(bolts.some((b) => !b[2]), `${job} has a bolt to take out`);
-        bolts.forEach((a, i) => bolts.slice(i + 1).forEach((b) => {
-            assert.ok(Math.hypot(a[0] - b[0], a[1] - b[1]) >= 20, `${job}: bolts at ${a} and ${b} are too close`);
-        }));
-    }
-});
-
-test('install and rebuild checks match what installing and rebuilding do', () => {
-    const g = L.newGame();
-    g.cash = 5000;
-    g.cars.push(L.makeCar(g, 'ford48', null, 60, 40));
-    g.active = 0;
-    L.buyPart(g, 'carb_dual');
-    assert.match(L.canInstall(g, 0), /needs/);
-    assert.strictEqual(L.canRepair(g), null);
-    assert.strictEqual(L.repair(g), null);
-    assert.match(L.canRepair(g), /top shape/);
-});
-
 test('fixing a worn car: repair, replace a shot part, and the budget adds up', () => {
-    const g = L.newGame();
-    g.cash = 5000;
-    g.cars.push(L.makeCar(g, 'ford48', { carb: 'carb_4bbl' }, 40, 50, { carb: 10, intake: 60, cam: 100, exhaust: 96, trans: 40, rear: 70, tires: 30 }));
-    g.active = 0;
+    const g = garage('ford48', { carb: 'carb_flat_1' }, 40, 50, { carb: 10, intake: 60, cam: 100, exhaust: 96, trans: 40, rear: 70, tires: 30 });
+    g.hours = 100;
     const d = Object.fromEntries(L.diagnose(L.activeCar(g)).map((x) => [x.slot, x]));
     assert.strictEqual(d.engine.action, 'repair');
     assert.strictEqual(d.carb.action, 'replace');            // shot
-    assert.strictEqual(d.carb.fresh, L.PARTS.carb_4bbl.price);
+    assert.strictEqual(d.carb.fresh, L.PARTS.carb_flat_1.price);
     assert.strictEqual(d.intake.action, 'repair');
     assert.strictEqual(d.cam.action, 'ok');
     assert.strictEqual(d.tires.action, 'replace');            // tires are replaced, never repaired
     const slow = L.estimate(L.spec(L.activeCar(g))).et;
 
-    const total = L.fixAllCost(L.activeCar(g));
+    const total = L.fixAll(L.activeCar(g));
     const cash = g.cash;
     assert.match(L.repairPart(g, 'carb'), /past fixing/);
     assert.strictEqual(L.replacePart(g, 'carb', 'junk'), null);
-    assert.strictEqual(L.activeCar(g).parts.carb, 'carb_stock');
+    assert.strictEqual(L.activeCar(g).parts.carb, 'carb_flat_0');
     assert.strictEqual(L.partCondition(L.activeCar(g), 'carb'), L.JUNK_CONDITION);
     for (const slot of ['engine', 'intake', 'trans', 'rear']) assert.strictEqual(L.repairPart(g, slot), null, slot);
     assert.strictEqual(L.replacePart(g, 'tires', 'junk'), null);
-    assert.strictEqual(g.cash, cash - total);
+    assert.strictEqual(L.bodywork(g, 100), null);
+    assert.strictEqual(g.cash, cash - total.cost);
+    assert.strictEqual(g.hours, 100 - total.hours);
     assert.ok(L.estimate(L.spec(L.activeCar(g))).et < slow);
     assert.ok(L.diagnose(L.activeCar(g)).every((x) => x.action === 'ok' || x.slot === 'carb'));
 });
 
-test('a junk intake will not go under dual quads', () => {
-    const g = L.newGame();
-    g.cash = 5000;
-    g.cars.push(L.makeCar(g, 'ford48', { carb: 'carb_dual', intake: 'intake_hi' }, 40, 80, { intake: 5 }));
-    g.active = 0;
-    assert.match(L.replacePart(g, 'intake', 'junk'), /high-rise/);
+test('a new replacement has to be in stock this week', () => {
+    const g = garage('ford48', { intake: 'intake_flat_2' }, 80, 80, { intake: 5 });
+    g.shopStock = [];
+    assert.match(L.replacePart(g, 'intake', 'new'), /out of those/);
+    g.shopStock = ['intake_flat_2'];
     assert.strictEqual(L.replacePart(g, 'intake', 'new'), null);
     assert.strictEqual(L.partCondition(L.activeCar(g), 'intake'), 100);
 });
@@ -207,9 +260,7 @@ test('the first week has only starter rivals, and always a cheap car for sale', 
 });
 
 test('a race for fun costs nothing to lose, pays a prize by tier, and only once a week per rival', () => {
-    const g = L.newGame();
-    g.cars.push(L.makeCar(g, 'ford48', null, 60, 90));
-    g.active = 0;
+    const g = garage('ford48', null, 90, 90);
     g.cash = 0;
     const rivals = g.rivals.length;
     assert.strictEqual(L.canRace(g, g.rivals[0], 'fun'), null);
@@ -227,7 +278,30 @@ test('odds favour the quicker car', () => {
     const g = L.newGame();
     const rival = { tier: 2, skill: 0.5, body: 'chevy57', engineCondition: 90 };
     const junk = L.makeCar(g, 'ford48', null, 30, 40, { tires: 30, trans: 30 });
-    const built = L.makeCar(g, 'ford48', { engine: 'v8_427', carb: 'carb_six', intake: 'intake_hi', cam: 'cam_race', exhaust: 'exhaust_open', trans: 'trans_4cr', rear: 'rear_456', tires: 'tires_cheat' }, 90, 100);
+    const built = L.makeCar(g, 'ford48', FULL, 90, 100);
     assert.ok(L.odds(junk, rival) < 0.1);
     assert.ok(L.odds(built, rival) > 0.9);
+});
+
+test('every slot and the rebuild have a wrenching job with up to 8 bolts, spaced to click', () => {
+    for (const job of [...L.SLOTS, 'rebuild']) {
+        const bolts = L.WRENCH[job] && L.WRENCH[job].bolts;
+        assert.ok(bolts, job);
+        assert.ok(bolts.length <= 8, `${job} has ${bolts.length} bolts`);
+        assert.ok(bolts.some((b) => !b[2]), `${job} has a bolt to take out`);
+        bolts.forEach((a, i) => bolts.slice(i + 1).forEach((b) => {
+            assert.ok(Math.hypot(a[0] - b[0], a[1] - b[1]) >= 20, `${job}: bolts at ${a} and ${b} are too close`);
+        }));
+    }
+});
+
+test('bodywork rust spots stay on the body and far enough apart to click', () => {
+    for (let n = 1; n <= 8; n++) {
+        const spots = L.rustSpots(n);
+        assert.strictEqual(spots.length, n);
+        spots.forEach((a, i) => {
+            assert.ok(a.x >= 50 && a.x <= 270 && a.y >= 95 && a.y <= 135, `${a.x},${a.y}`);
+            spots.slice(i + 1).forEach((b) => assert.ok(Math.hypot(a.x - b.x, a.y - b.y) >= 20));
+        });
+    }
 });

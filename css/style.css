@@ -140,3 +140,12 @@ button.danger { background: var(--bad); color: #fff; border-bottom-color: #a01f1
 
 /* The King's card stands out */
 .card.rival.king { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+
+/* Speed shop: part classes, and what's sold out this week */
+.cls { display: inline-block; min-width: 64px; padding: 1px 4px; margin-right: 4px; font-size: 0.75rem; text-align: center; text-transform: uppercase; color: var(--bg); }
+.cls0 { background: var(--muted); }
+.cls1 { background: var(--good); }
+.cls2 { background: #4fc3ff; }
+.cls3 { background: #d68cff; }
+.row.out { opacity: 0.55; }
+.soldout { color: var(--muted); font-weight: bold; }

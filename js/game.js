@@ -3,7 +3,7 @@
 (function (L) {
     'use strict';
 
-    var SAVE_KEY = 'lemon.save.v2';
+    var SAVE_KEY = 'lemon.save.v3';   // v3: parts come in classes per engine family
 
     L.random = Math.random;
     function rand(min, max) { return min + L.random() * (max - min); }
@@ -59,9 +59,16 @@
         return roundTo(value, 5);
     };
 
-    // A new week: fresh classified ads and fresh rivals at the burger stand
+    // A new week: fresh classified ads, a restocked speed shop, a week of garage hours and
+    // fresh rivals at the burger stand
     L.newWeek = function (g, first) {
         if (!first) g.week++;
+        g.hours = L.HOURS_PER_WEEK;
+        g.friday = false;
+        g.shopStock = Object.keys(L.PARTS).filter(function (id) {
+            var part = L.PARTS[id];
+            return part.price > 0 && L.random() < L.IN_STOCK[part.cls];
+        });
         g.ads = [];
         var bodies = Object.keys(L.BODIES);
         for (var i = 0; i < 5; i++) {
@@ -112,7 +119,7 @@
     L.rivalCar = function (rival) {
         return {
             body: rival.body,
-            parts: Object.assign({}, L.BODIES[rival.body].parts, L.RIVAL_BUILDS[rival.tier]),
+            parts: L.rivalParts(rival.body, rival.tier),
             condition: 70,
             engineCondition: rival.engineCondition
         };
@@ -142,13 +149,42 @@
         return null;
     };
 
+    // ── Time ──────────────────────────────────────────────────────────────
+
+    // Why there isn't time for a job, or null if there is
+    L.needHours = function (g, hours) {
+        if (g.friday) return "It's Friday night. Garage work waits till next week.";
+        if (g.hours < hours) return 'That takes ' + hours + ' hours and you only have ' + g.hours + ' left before Friday.';
+        return null;
+    };
+
+    // Head to the burger stand: Friday night, and the garage is closed till next week
+    L.goFriday = function (g) {
+        g.friday = true;
+        g.hours = 0;
+    };
+
     // ── Parts ─────────────────────────────────────────────────────────────
+
+    L.inStock = function (g, partId) { return (g.shopStock || []).indexOf(partId) >= 0; };
+
+    // What the speed shop sells that fits a car (everything for sale if there's no car),
+    // slot by slot, cheapest first, with whether it's on the shelf this week
+    L.catalogFor = function (g, car) {
+        return Object.keys(L.PARTS).filter(function (id) {
+            return L.PARTS[id].price > 0 && (!car || L.fits(id, car.parts.engine));
+        }).map(function (id) {
+            return { id: id, inStock: L.inStock(g, id) };
+        });
+    };
 
     L.buyPart = function (g, partId) {
         var part = L.PARTS[partId];
         if (!part || !part.price) return 'Not for sale.';
+        if (!L.inStock(g, partId)) return 'Sold out this week.';
         if (g.cash < part.price) return "You can't afford it.";
         g.cash -= part.price;
+        g.shopStock.splice(g.shopStock.indexOf(partId), 1);   // one of each on the shelf
         g.inventory.push(partId);
         return null;
     };
@@ -168,33 +204,42 @@
         if (!car) return 'You need a car first.';
         if (!partId) return 'No such part.';
         var part = L.PARTS[partId];
-        if (part.needs && car.parts.intake !== part.needs) {
-            return part.name + ' needs a ' + L.PARTS[part.needs].name + ' first.';
+        if (!L.fits(partId, car.parts.engine)) {
+            return 'That only fits a ' + L.FAMILIES[part.fam].name.toLowerCase() + ' engine.';
         }
-        // Taking off the high-rise intake also takes off the carbs that need it
-        if (part.slot === 'intake' && L.PARTS[car.parts.carb].needs && L.PARTS[car.parts.carb].needs !== partId) {
-            return 'Swap the ' + L.PARTS[car.parts.carb].name + ' for a single carb first.';
-        }
-        return null;
+        return L.needHours(g, L.JOB_HOURS[part.slot]);
     };
 
-    // Swap a part from the shelf onto the active car; the old part goes on the shelf
+    // Swap a part from the shelf onto the active car; the old part goes on the shelf.
+    // An engine from another family comes with its own stock carb, intake, cam and exhaust,
+    // and the old ones go on the shelf too.
     L.installPart = function (g, invIndex) {
         var err = L.canInstall(g, invIndex);
         if (err) return err;
         var car = L.activeCar(g);
         var partId = g.inventory[invIndex];
         var part = L.PARTS[partId];
-        var old = car.parts[part.slot];
-        var oldCondition = L.partCondition(car, part.slot);
-        car.parts[part.slot] = partId;
         g.inventory.splice(invIndex, 1);
-        // Stock parts that came with the car are worth nothing, and a shot part is scrap,
-        // so they go in the bin
-        if (L.PARTS[old].price && (part.slot === 'engine' || oldCondition >= L.SHOT)) g.inventory.push(old);
-        if (part.slot !== 'engine') car.partCondition[part.slot] = 100;
-        // A different engine comes with its own condition: new from the catalog
-        if (part.slot === 'engine') car.engineCondition = 100;
+        g.hours -= L.JOB_HOURS[part.slot];
+        function takeOff(slot) {
+            var old = car.parts[slot];
+            // Stock parts are worth nothing, and a shot part is scrap, so they go in the bin
+            if (L.PARTS[old].price && (slot === 'engine' || L.partCondition(car, slot) >= L.SHOT)) g.inventory.push(old);
+        }
+        takeOff(part.slot);
+        if (part.slot === 'engine') {
+            if (L.PARTS[car.parts.engine].fam !== part.fam) {
+                L.BOLT_ONS.forEach(function (slot) {
+                    takeOff(slot);
+                    car.parts[slot] = L.stockPart(partId, slot);
+                    car.partCondition[slot] = 100;
+                });
+            }
+            car.engineCondition = 100;   // a different engine comes with its own condition: new
+        } else {
+            car.partCondition[part.slot] = 100;
+        }
+        car.parts[part.slot] = partId;
         return null;
     };
 
@@ -206,12 +251,14 @@
 
     // What each part needs: 'ok', 'repair' (rebuild it, at cost) or 'replace' (shot, or tires,
     // which can't be repaired). replace offers a junkyard stock part, or a new one of the same
-    // kind if it's an aftermarket part. The engine is always rebuilt, never junked.
+    // kind if it's an aftermarket part and the speed shop has one this week. The engine is
+    // always rebuilt, never junked. hours is what the job takes.
     L.diagnose = function (car) {
         return L.SLOTS.map(function (slot) {
             var c = L.partCondition(car, slot);
             var partId = car.parts[slot];
-            var d = { slot: slot, part: partId, condition: c, action: 'ok', cost: 0, junk: 0, fresh: 0 };
+            var d = { slot: slot, part: partId, condition: c, action: 'ok', cost: 0, junk: 0, fresh: 0,
+                hours: slot === 'engine' ? L.REBUILD_HOURS : L.JOB_HOURS[slot] };
             if (slot === 'engine') {
                 d.cost = L.repairCost(car);
                 if (d.cost > 0) d.action = 'repair';
@@ -231,14 +278,19 @@
         });
     };
 
-    // Cheapest way to fix everything that needs it
-    L.fixAllCost = function (car) {
-        return L.diagnose(car).reduce(function (sum, d) {
-            if (d.action === 'repair') return sum + d.cost;
-            if (d.action === 'replace') return sum + (d.fresh && d.fresh < d.junk ? d.fresh : d.junk);
+    // Cheapest way to fix everything that needs it, body included: dollars and hours
+    L.fixAll = function (car) {
+        var total = L.diagnose(car).reduce(function (sum, d) {
+            if (d.action === 'repair') { sum.cost += d.cost; sum.hours += d.hours; }
+            if (d.action === 'replace') { sum.cost += d.fresh && d.fresh < d.junk ? d.fresh : d.junk; sum.hours += d.hours; }
             return sum;
-        }, 0);
+        }, { cost: 0, hours: 0 });
+        var body = L.bodyJob(car, 100);
+        total.cost += body.cost;
+        total.hours += body.hours;
+        return total;
     };
+    L.fixAllCost = function (car) { return L.fixAll(car).cost; };
 
     function diagnosis(g, slot) {
         var car = L.activeCar(g);
@@ -254,7 +306,7 @@
         if (x.d.action === 'ok') return "It's fine as it is.";
         if (x.d.action === 'replace') return "It's past fixing. Replace it.";
         if (g.cash < x.d.cost) return "You can't afford the repair.";
-        return null;
+        return L.needHours(g, x.d.hours);
     };
 
     L.repairPart = function (g, slot) {
@@ -263,6 +315,7 @@
         if (err) return err;
         var x = diagnosis(g, slot);
         g.cash -= x.d.cost;
+        g.hours -= x.d.hours;
         x.car.partCondition[slot] = 100;
         return null;
     };
@@ -273,25 +326,60 @@
         if (x.err) return x.err;
         if (x.d.action !== 'replace') return "It doesn't need replacing.";
         if (kind === 'new' && !x.d.fresh) return 'That part is only sold used.';
-        if (kind === 'junk' && slot === 'intake' && L.PARTS[x.car.parts.carb].needs) {
-            return 'The ' + L.PARTS[x.car.parts.carb].name + ' needs the high-rise manifold. Buy a new one.';
-        }
+        if (kind === 'new' && !L.inStock(g, x.d.part)) return 'The speed shop is out of those this week.';
         if (g.cash < (kind === 'new' ? x.d.fresh : x.d.junk)) return "You can't afford it.";
-        return null;
+        return L.needHours(g, x.d.hours);
     };
 
     L.replacePart = function (g, slot, kind) {
         var err = L.canReplacePart(g, slot, kind);
         if (err) return err;
         var x = diagnosis(g, slot);
+        g.hours -= x.d.hours;
         if (kind === 'new') {
             g.cash -= x.d.fresh;
+            g.shopStock.splice(g.shopStock.indexOf(x.d.part), 1);
             x.car.partCondition[slot] = 100;
         } else {
             g.cash -= x.d.junk;
-            x.car.parts[slot] = L.STOCK_PARTS[slot];
+            x.car.parts[slot] = L.stockPart(x.car.parts.engine, slot);
             x.car.partCondition[slot] = L.JUNK_CONDITION;
         }
+        return null;
+    };
+
+    // ── Bodywork ──────────────────────────────────────────────────────────
+
+    // Bringing the body up to target (75 to race, or 100): points, dollars, hours, and how
+    // many rust spots the job shows on the bench (1-8)
+    L.bodyJob = function (car, target) {
+        var points = Math.max(0, target - car.condition);
+        return {
+            target: target,
+            points: points,
+            cost: Math.ceil(points * L.BODY_PER_POINT),
+            hours: Math.ceil(points / L.BODY_POINTS_PER_HOUR),
+            spots: Math.max(1, Math.min(8, Math.ceil(points / 10)))
+        };
+    };
+
+    L.canBodywork = function (g, target) {
+        var car = L.activeCar(g);
+        if (!car) return 'You need a car first.';
+        var job = L.bodyJob(car, target);
+        if (!job.points) return 'The body is already that good.';
+        if (g.cash < job.cost) return "You can't afford the bodywork.";
+        return L.needHours(g, job.hours);
+    };
+
+    L.bodywork = function (g, target) {
+        var err = L.canBodywork(g, target);
+        if (err) return err;
+        var car = L.activeCar(g);
+        var job = L.bodyJob(car, target);
+        g.cash -= job.cost;
+        g.hours -= job.hours;
+        car.condition = target;
         return null;
     };
 
@@ -303,7 +391,7 @@
         var cost = L.repairCost(car);
         if (cost === 0) return 'The engine is in top shape.';
         if (g.cash < cost) return "You can't afford the rebuild.";
-        return null;
+        return L.needHours(g, L.REBUILD_HOURS);
     };
 
     L.repair = function (g) {
@@ -311,6 +399,7 @@
         if (err) return err;
         var car = L.activeCar(g);
         g.cash -= L.repairCost(car);
+        g.hours -= L.REBUILD_HOURS;
         car.engineCondition = 100;
         return null;
     };
@@ -322,6 +411,7 @@
         var car = L.activeCar(g);
         if (!car) return 'You need a car first.';
         if (car.engineCondition <= 0) return 'Your engine is blown. Rebuild it in the garage.';
+        if (car.condition < L.MIN_BODY) return 'Nobody races a rust bucket. Get the body to ' + L.MIN_BODY + '% first.';
         if (rival.king && stake !== 'pinks') return 'The King only races for pink slips.';
         if (stake === 'cash' && g.cash < L.RIVAL_PRIZE) return 'You need $' + L.RIVAL_PRIZE.toLocaleString('en-US') + ' to put up.';
         if (stake === 'fun' && rival.funDone) return rival.name + ' has had enough fun for this week.';
@@ -346,8 +436,12 @@
         var rival = g.rivals[rivalIndex];
         var car = L.activeCar(g);
         car.engineCondition = Math.max(0, Math.round(car.engineCondition - damage));
+        // Every race wears the car a little: the body, each part, and the tires most of all
         if (!car.partCondition) car.partCondition = {};
-        car.partCondition.tires = Math.max(0, L.partCondition(car, 'tires') - randInt(2, 4));   // every launch scrubs the tires
+        car.condition = Math.max(0, car.condition - randInt(1, 3));
+        L.SLOTS.forEach(function (slot) {
+            if (slot !== 'engine') car.partCondition[slot] = Math.max(0, L.partCondition(car, slot) - (slot === 'tires' ? randInt(2, 4) : randInt(0, 2)));
+        });
         var blown = car.engineCondition <= 0 ? ' Your engine let go on the way.' : '';
         var why = result === 'foul' ? 'You jumped the light. ' : '';
         if (result === 'win') g.wins++; else g.losses++;
@@ -367,7 +461,7 @@
             if (rival.king) g.kingBeaten = true;
             if (stake === 'pinks') {
                 g.cash += cash;
-                var won = L.makeCar(g, rival.body, L.RIVAL_BUILDS[rival.tier], 70, rival.engineCondition, wornParts(rival.engineCondition));
+                var won = L.makeCar(g, rival.body, L.rivalParts(rival.body, rival.tier), 80, rival.engineCondition, wornParts(rival.engineCondition));
                 var crown = rival.king ? ' You are the new King of the strip!' : '';
                 if (g.cars.length < L.MAX_CARS) {
                     g.cars.push(won);

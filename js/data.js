@@ -13,66 +13,129 @@
         exhaust: 'Exhaust', trans: 'Transmission', rear: 'Rear end', tires: 'Tires'
     };
 
+    // Every part comes in four classes. Stock is what a car leaves the factory with; the
+    // speed shop sells the other three, though not every class is in stock every week.
+    L.CLASSES = ['Stock', 'Better', 'Best', 'Bestest'];
+
+    // Engines belong to a family, and carbs, intakes, cams and exhausts only fit their own
+    // family's engines. Transmissions, rear ends and tires fit anything.
+    L.FAMILIES = {
+        flat:  { name: 'Flathead', price: 0.8 },
+        six:   { name: 'Chevy six', price: 0.7 },
+        small: { name: 'Small-block', price: 1 },
+        big:   { name: 'Big-block', price: 1.4 }
+    };
+    L.BOLT_ONS = ['carb', 'intake', 'cam', 'exhaust'];
+
     L.PARTS = {
-        // Engines
-        flathead: { slot: 'engine', name: 'Ford flathead V8, 239 ci', price: 0, tqLbft: 190, tqRpm: 2000, redline: 4200, kg: 250 },
-        six235:   { slot: 'engine', name: 'Chevy 235 six', price: 0, tqLbft: 200, tqRpm: 2000, redline: 4400, kg: 260 },
-        v8_283:   { slot: 'engine', name: 'Chevy 283 V8', price: 340, tqLbft: 285, tqRpm: 2800, redline: 5200, kg: 240 },
-        v8_327:   { slot: 'engine', name: 'Chevy 327 V8', price: 520, tqLbft: 335, tqRpm: 3200, redline: 5800, kg: 245 },
-        v8_409:   { slot: 'engine', name: 'Chevy 409 V8', price: 780, tqLbft: 390, tqRpm: 3200, redline: 6000, kg: 300 },
-        v8_427:   { slot: 'engine', name: 'Ford 427 V8', price: 1150, tqLbft: 440, tqRpm: 3600, redline: 6400, kg: 310 },
-
-        // Carburetors
-        carb_stock: { slot: 'carb', name: 'Stock 2-barrel', price: 0, tq: 1 },
-        carb_4bbl:  { slot: 'carb', name: 'Single 4-barrel', price: 70, tq: 1.05, rpm: 100 },
-        carb_dual:  { slot: 'carb', name: 'Dual quads', price: 160, tq: 1.08, rpm: 250, needs: 'intake_hi' },
-        carb_six:   { slot: 'carb', name: 'Six-pack (3 x 2-barrel)', price: 190, tq: 1.09, rpm: 300, needs: 'intake_hi' },
-
-        // Intakes
-        intake_stock: { slot: 'intake', name: 'Stock cast-iron manifold', price: 0, tq: 1 },
-        intake_alu:   { slot: 'intake', name: 'Aluminum manifold', price: 55, tq: 1.03, rpm: 100 },
-        intake_hi:    { slot: 'intake', name: 'High-rise multi-carb manifold', price: 120, tq: 1.05, rpm: 250 },
-
-        // Camshafts: more top end, less bottom end
-        cam_stock: { slot: 'cam', name: 'Stock cam', price: 0, tq: 1 },
-        cam_mild:  { slot: 'cam', name: 'Mild street cam', price: 45, tq: 1.03, rpm: 150, redline: 200 },
-        cam_hot:   { slot: 'cam', name: 'Hot street cam', price: 85, tq: 1.05, rpm: 400, redline: 500 },
-        cam_race:  { slot: 'cam', name: 'Full race cam', price: 140, tq: 1.07, rpm: 700, redline: 900 },
-
-        // Exhaust
-        exhaust_stock: { slot: 'exhaust', name: 'Stock log manifolds', price: 0, tq: 1 },
-        exhaust_hdr:   { slot: 'exhaust', name: 'Tube headers', price: 90, tq: 1.04, rpm: 150 },
-        exhaust_open:  { slot: 'exhaust', name: 'Headers, open lakes pipes', price: 130, tq: 1.06, rpm: 200 },
-
-        // Transmissions
-        trans_3:     { slot: 'trans', name: '3-speed manual', price: 0, gears: [2.94, 1.68, 1.0] },
-        trans_4wide: { slot: 'trans', name: '4-speed wide ratio', price: 210, gears: [2.54, 1.80, 1.44, 1.0] },
-        trans_4cr:   { slot: 'trans', name: '4-speed close ratio', price: 260, gears: [2.20, 1.64, 1.28, 1.0] },
-
-        // Rear ends
-        rear_336: { slot: 'rear', name: '3.36 rear gears', price: 0, final: 3.36 },
-        rear_373: { slot: 'rear', name: '3.73 rear gears', price: 60, final: 3.73 },
-        rear_411: { slot: 'rear', name: '4.11 rear gears', price: 75, final: 4.11 },
-        rear_456: { slot: 'rear', name: '4.56 rear gears', price: 90, final: 4.56 },
-
-        // Tires
-        tires_bias:  { slot: 'tires', name: 'Stock bias-ply', price: 0, mu: 0.72 },
-        tires_wide:  { slot: 'tires', name: 'Wide whitewall street tires', price: 80, mu: 0.85 },
-        tires_cheat: { slot: 'tires', name: 'Cheater slicks', price: 150, mu: 1.02 }
+        // Engines: any engine bolts into any car, as long as you have the hours
+        flathead: { slot: 'engine', fam: 'flat', cls: 0, name: 'Ford flathead V8, 239 ci', price: 0, tqLbft: 190, tqRpm: 2000, redline: 4200, kg: 250 },
+        six235:   { slot: 'engine', fam: 'six', cls: 0, name: 'Chevy 235 six', price: 0, tqLbft: 200, tqRpm: 2000, redline: 4400, kg: 260 },
+        v8_283:   { slot: 'engine', fam: 'small', cls: 1, name: 'Chevy 283 V8', price: 340, tqLbft: 285, tqRpm: 2800, redline: 5200, kg: 240 },
+        v8_327:   { slot: 'engine', fam: 'small', cls: 2, name: 'Chevy 327 V8', price: 520, tqLbft: 335, tqRpm: 3200, redline: 5800, kg: 245 },
+        v8_409:   { slot: 'engine', fam: 'big', cls: 3, name: 'Chevy 409 V8', price: 780, tqLbft: 390, tqRpm: 3200, redline: 6000, kg: 300 },
+        v8_427:   { slot: 'engine', fam: 'big', cls: 3, name: 'Ford 427 V8', price: 1150, tqLbft: 440, tqRpm: 3600, redline: 6400, kg: 310 }
     };
 
-    // The parts catalog sells everything with a price
-    L.CATALOG = Object.keys(L.PARTS).filter(function (id) { return L.PARTS[id].price > 0; });
-
-    var STOCK = {
-        carb: 'carb_stock', intake: 'intake_stock', cam: 'cam_stock', exhaust: 'exhaust_stock',
-        trans: 'trans_3', rear: 'rear_336', tires: 'tires_bias'
+    // Bolt-ons by class: what each is called, torque multiplier (tq), torque peak shift (rpm),
+    // redline shift, and price before the family's price factor
+    var BOLT_ON_CLASSES = {
+        carb: [
+            { item: '2-barrel', tq: 1, price: 0 },
+            { item: 'single 4-barrel', tq: 1.05, rpm: 100, price: 70 },
+            { item: 'dual quads', tq: 1.08, rpm: 250, price: 160 },
+            { item: 'six-pack (3 x 2-barrel)', tq: 1.09, rpm: 300, price: 190 }
+        ],
+        intake: [
+            { item: 'cast-iron manifold', tq: 1, price: 0 },
+            { item: 'aluminum manifold', tq: 1.03, rpm: 100, price: 55 },
+            { item: 'high-rise manifold', tq: 1.05, rpm: 250, price: 120 },
+            { item: 'tunnel-ram manifold', tq: 1.06, rpm: 350, price: 160 }
+        ],
+        cam: [
+            { item: 'cam', tq: 1, price: 0 },
+            { item: 'mild street cam', tq: 1.03, rpm: 150, redline: 200, price: 45 },
+            { item: 'hot street cam', tq: 1.05, rpm: 400, redline: 500, price: 85 },
+            { item: 'full race cam', tq: 1.07, rpm: 700, redline: 900, price: 140 }
+        ],
+        exhaust: [
+            { item: 'log manifolds', tq: 1, price: 0 },
+            { item: 'tube headers', tq: 1.04, rpm: 150, price: 90 },
+            { item: 'headers with lakes pipes', tq: 1.06, rpm: 200, price: 130 },
+            { item: 'big-tube open headers', tq: 1.07, rpm: 250, price: 170 }
+        ]
     };
 
-    function stock(engine, extra) {
-        var parts = Object.assign({ engine: engine }, STOCK);
-        return Object.assign(parts, extra || {});
+    function round5(n) { return Math.round(n / 5) * 5; }
+
+    Object.keys(L.FAMILIES).forEach(function (fam) {
+        var family = L.FAMILIES[fam];
+        L.BOLT_ONS.forEach(function (slot) {
+            BOLT_ON_CLASSES[slot].forEach(function (c, cls) {
+                L.PARTS[slot + '_' + fam + '_' + cls] = {
+                    slot: slot, fam: fam, cls: cls,
+                    name: (cls ? family.name + ' ' : 'Stock ' + family.name.toLowerCase() + ' ') + c.item,
+                    price: round5(c.price * family.price),
+                    tq: c.tq, rpm: c.rpm || 0, redline: c.redline || 0
+                };
+            });
+        });
+    });
+
+    // Parts that fit any car
+    [
+        ['trans', [
+            { name: '3-speed manual', price: 0, gears: [2.94, 1.68, 1.0] },
+            { name: '4-speed wide ratio', price: 210, gears: [2.54, 1.80, 1.44, 1.0] },
+            { name: '4-speed close ratio', price: 260, gears: [2.20, 1.64, 1.28, 1.0] },
+            { name: '4-speed close ratio, Hurst shifter', price: 340, gears: [2.20, 1.64, 1.28, 1.0], shift: 0.7 }
+        ]],
+        ['rear', [
+            { name: '3.36 rear gears', price: 0, final: 3.36 },
+            { name: '3.73 rear gears', price: 60, final: 3.73 },
+            { name: '4.11 rear gears', price: 75, final: 4.11 },
+            { name: '4.56 rear gears', price: 90, final: 4.56 }
+        ]],
+        ['tires', [
+            { name: 'Stock bias-ply tires', price: 0, mu: 0.72 },
+            { name: 'Wide whitewall street tires', price: 80, mu: 0.85 },
+            { name: 'Wide racing tires', price: 120, mu: 0.95 },
+            { name: 'Cheater slicks', price: 150, mu: 1.02 }
+        ]]
+    ].forEach(function (row) {
+        row[1].forEach(function (part, cls) {
+            L.PARTS[row[0] + '_' + cls] = Object.assign({ slot: row[0], cls: cls }, part);
+        });
+    });
+
+    // The stock part for a slot on a car with this engine
+    L.stockPart = function (engineId, slot) {
+        if (L.BOLT_ONS.indexOf(slot) >= 0) return slot + '_' + L.PARTS[engineId].fam + '_0';
+        return slot + '_0';
+    };
+
+    // A class of part for a slot on a car with this engine
+    L.partOfClass = function (engineId, slot, cls) {
+        return L.stockPart(engineId, slot).replace(/_0$/, '_' + cls);
+    };
+
+    // Does this part fit a car with this engine?
+    L.fits = function (partId, engineId) {
+        var part = L.PARTS[partId];
+        return !part.fam || part.slot === 'engine' || part.fam === L.PARTS[engineId].fam;
+    };
+
+    // Chance a class is on the speed shop's shelf in a given week
+    L.IN_STOCK = [0, 0.8, 0.55, 0.3];
+
+    function stock(engine, classes) {
+        var parts = { engine: engine };
+        L.SLOTS.forEach(function (slot) {
+            if (slot !== 'engine') parts[slot] = L.partOfClass(engine, slot, (classes && classes[slot]) || 0);
+        });
+        return parts;
     }
+    L.stockParts = stock;
 
     // Car bodies, late-40s to early-60s used cars: mass without engine (kg), drag area (Cd x frontal m²), and the parts they
     // come with. Price is for a good one; the classifieds discount for condition.
@@ -82,19 +145,25 @@
         ford50:  { name: "'50 Ford Custom", kg: 1040, cdA: 0.76, price: 520, color: '#1b998b', parts: stock('flathead') },
         chevy52: { name: "'52 Chevy Styleline", kg: 1120, cdA: 0.74, price: 450, color: '#2e86ab', parts: stock('six235') },
         chevy55: { name: "'55 Chevy 210", kg: 1160, cdA: 0.70, price: 700, color: '#f4a259', parts: stock('six235') },
-        chevy57: { name: "'57 Chevy Bel Air", kg: 1220, cdA: 0.70, price: 1100, color: '#3bb273', parts: stock('v8_283', { carb: 'carb_4bbl' }) },
+        chevy57: { name: "'57 Chevy Bel Air", kg: 1220, cdA: 0.70, price: 1100, color: '#3bb273', parts: stock('v8_283', { carb: 1 }) },
         chevy60: { name: "'60 Chevy Biscayne", kg: 1280, cdA: 0.72, price: 900, color: '#c9c9c9', parts: stock('six235') }
     };
 
-    // Rival builds by tier: the parts beyond stock that a tier's cars carry
+    // Rival builds by tier: an engine swap (or none) and the class of each other part
     L.RIVAL_BUILDS = [
-        {},
-        { carb: 'carb_4bbl', exhaust: 'exhaust_hdr' },
-        { engine: 'v8_283', carb: 'carb_4bbl', intake: 'intake_alu', exhaust: 'exhaust_hdr', rear: 'rear_373', tires: 'tires_wide' },
-        { engine: 'v8_327', carb: 'carb_dual', intake: 'intake_hi', cam: 'cam_hot', exhaust: 'exhaust_hdr', trans: 'trans_4wide', rear: 'rear_411', tires: 'tires_wide' },
-        { engine: 'v8_409', carb: 'carb_dual', intake: 'intake_hi', cam: 'cam_hot', exhaust: 'exhaust_open', trans: 'trans_4cr', rear: 'rear_411', tires: 'tires_cheat' },
-        { engine: 'v8_427', carb: 'carb_six', intake: 'intake_hi', cam: 'cam_race', exhaust: 'exhaust_open', trans: 'trans_4cr', rear: 'rear_456', tires: 'tires_cheat' }
+        { classes: {} },
+        { classes: { carb: 1, exhaust: 1 } },
+        { engine: 'v8_283', classes: { carb: 1, intake: 1, exhaust: 1, rear: 1, tires: 1 } },
+        { engine: 'v8_327', classes: { carb: 2, intake: 2, cam: 2, exhaust: 1, trans: 1, rear: 2, tires: 1 } },
+        { engine: 'v8_409', classes: { carb: 2, intake: 2, cam: 2, exhaust: 2, trans: 2, rear: 2, tires: 3 } },
+        { engine: 'v8_427', classes: { carb: 3, intake: 2, cam: 3, exhaust: 2, trans: 3, rear: 3, tires: 3 } }
     ];
+
+    // The parts a rival of this tier runs in this body
+    L.rivalParts = function (bodyId, tier) {
+        var build = L.RIVAL_BUILDS[tier];
+        return stock(build.engine || L.BODIES[bodyId].parts.engine, build.classes);
+    };
 
     // Rivals hang around the strip. Tier sets their build, skill their launch and shifting.
     L.RIVALS = [
@@ -128,6 +197,19 @@
     // Wear on the other parts. A part under SHOT is past fixing and must be replaced.
     // repair: dollars per point of condition restored (tires can't be repaired, only replaced);
     // junk: a used stock part from the junkyard, which goes on at JUNK_CONDITION.
+    // Time: the hours you can spend in the garage each week before Friday night's races,
+    // and what each job takes. Repairing or replacing a part takes its slot's hours; an engine
+    // swap the engine's; a rebuild REBUILD_HOURS; bodywork an hour per BODY_POINTS_PER_HOUR.
+    L.HOURS_PER_WEEK = 30;
+    L.JOB_HOURS = { engine: 10, carb: 2, intake: 3, cam: 5, exhaust: 3, trans: 6, rear: 4, tires: 1 };
+    L.REBUILD_HOURS = 12;
+
+    // Bodywork: the body must be at least MIN_BODY to race. Each point restored costs
+    // BODY_PER_POINT dollars.
+    L.MIN_BODY = 75;
+    L.BODY_PER_POINT = 2.5;
+    L.BODY_POINTS_PER_HOUR = 8;
+
     L.SHOT = 20;
     L.JUNK_CONDITION = 75;
     L.WEAR = {
@@ -139,5 +221,4 @@
         rear:    { repair: 0.7, junk: 40 },
         tires:   { repair: 0, junk: 30 }
     };
-    L.STOCK_PARTS = STOCK;
 })(window.Lemon = window.Lemon || {});
