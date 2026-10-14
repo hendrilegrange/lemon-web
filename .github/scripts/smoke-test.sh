@@ -26,7 +26,8 @@ code=$(get "$SITE_URL/?smoke=$(date +%s)" "$WORK/index.html")
 if [ "$code" = 200 ] && grep -q 'js/main.js' "$WORK/index.html"; then
     pass "home page loads"
 else
-    fail "home page returned HTTP $code $(head -c 200 "$WORK/index.html" 2>/dev/null || cat "$WORK/curl.err")"
+    if [ -s "$WORK/index.html" ]; then detail=$(head -c 200 "$WORK/index.html"); else detail=$(cat "$WORK/curl.err"); fi
+    fail "home page returned HTTP $code: $detail"
     exit 1   # nothing else can work
 fi
 
