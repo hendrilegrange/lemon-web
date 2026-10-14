@@ -22,6 +22,22 @@ define('DB_PASS', 'change-me');
 
 define('SESSION_LIFETIME', 90 * 24 * 60 * 60);   // stay signed in for 90 days
 define('SESSION_COOKIE_NAME', 'lemon_session');
+define('APP_URL', 'https://lemon.dontbeone.co.za');   // reset links point here
+
+// Google sign-in: the same client ID as dnd-web works, once https://lemon.dontbeone.co.za is
+// added to its Authorized JavaScript origins (console.cloud.google.com → APIs & Services →
+// Credentials → the OAuth client). Leave empty to hide the Google button.
+define('GOOGLE_CLIENT_ID', '');
+
+// Outgoing email for password resets: the same mailbox as dnd-web's config.php works.
+// Leave SMTP_HOST empty to fall back to PHP mail().
+define('SMTP_HOST', '');            // e.g. 'mail.dontbeone.co.za', matching the mail server's certificate
+define('SMTP_PORT', 587);           // 587 with 'tls', 465 with 'ssl'
+define('SMTP_SECURE', 'tls');       // 'tls' (STARTTLS), 'ssl' or '' (local testing only)
+define('SMTP_USER', '');            // full mailbox address, e.g. 'noreply@dontbeone.co.za'
+define('SMTP_PASS', '');
+define('MAIL_FROM', '');            // usually the same as SMTP_USER
+define('MAIL_FROM_NAME', 'Lemon');
 
 function getDB(): PDO {
     static $pdo = null;

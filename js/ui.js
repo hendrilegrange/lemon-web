@@ -138,43 +138,119 @@
         return 'week ' + s.week + ', ' + money(s.cash) + (s.savedAt ? ', saved ' + new Date(s.savedAt).toLocaleString() : '');
     }
 
+    // After any way of signing in: pick a game if the account and browser differ, then the title
+    function signedIn(res, welcome, retry) {
+        if (res.error) return retry(res.error);
+        if (res.conflict) return showConflict(res.conflict);
+        L.showTitle(welcome());
+    }
+
+    // Wires a form: on submit, disables its button with busy text and calls go(form)
+    function onSubmit(id, busy, go) {
+        var form = document.getElementById(id);
+        form.querySelector('input').focus();
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var btn = form.querySelector('button[type=submit]');
+            btn.disabled = true;
+            btn.textContent = busy;
+            go(form);
+        });
+        return form;
+    }
+
+    function googleBlock() {
+        return L.account.google ? '<div class="or"><span>or</span></div><div id="google-button" class="google-button"></div>' : '';
+    }
+
+    function wireGoogle(mode) {
+        L.account.googleButton(document.getElementById('google-button'), function (credential) {
+            L.account.signIn('google', { credential: credential }).then(function (res) {
+                signedIn(res, function () { return 'Signed in with Google as ' + L.account.user.username + '.'; },
+                    function (err) { showAccount(mode, err); });
+            });
+        });
+    }
+
     // Sign in (mode 'login') or create an account ('register')
-    function showAccount(mode, msg, name) {
+    function showAccount(mode, msg, name, email) {
         var reg = mode === 'register';
         render(
             flash(msg) +
             '<div class="panel account-form"><h2>' + (reg ? 'Create an account' : 'Sign in') + '</h2>' +
             '<form id="account-form">' +
-            '<label>Name <input name="username" autocomplete="username" maxlength="20" required value="' + esc(name || '') + '"></label>' +
+            '<label>' + (reg ? 'Name' : 'Name or email') + ' <input name="username" autocomplete="username" maxlength="' + (reg ? 20 : 254) + '" required value="' + esc(name || '') + '"></label>' +
+            (reg ? '<label>Email <input name="email" type="email" autocomplete="email" maxlength="254" required value="' + esc(email || '') + '"></label>' : '') +
             '<label>Password <input name="password" type="password" autocomplete="' + (reg ? 'new-password' : 'current-password') + '"' +
             (reg ? ' minlength="8"' : '') + ' maxlength="200" required></label>' +
-            (reg ? '<p class="hint">3 to 20 letters, numbers or underscores, and a password of at least 8 characters. ' +
-                'There\'s no email on the account, so a forgotten password can\'t be reset: keep it somewhere safe.</p>' : '') +
-            '<button type="submit" id="account-go">' + (reg ? 'Create account' : 'Sign in') + '</button>' +
+            (reg ? '<p class="hint">A name of 3 to 20 letters, numbers or underscores, and a password of at least 8 characters. ' +
+                'The email is only for resetting a forgotten password.</p>' : '') +
+            '<button type="submit">' + (reg ? 'Create account' : 'Sign in') + '</button>' +
             '</form>' +
+            (reg ? '' : '<p class="sub">Forgot your password? <button data-act="forgot" class="minor">Reset it</button></p>') +
+            googleBlock() +
             '<p class="sub">' + (reg ? 'Already have an account?' : 'No account yet?') +
             ' <button data-act="other" class="minor">' + (reg ? 'Sign in' : 'Create one') + '</button></p></div>' +
             '<button data-act="back" class="minor">Back</button>',
             {
                 other: function () { showAccount(reg ? 'login' : 'register'); },
+                forgot: function () { showForgot(); },
                 back: function () { L.showTitle(); }
             }
         );
-        var form = document.getElementById('account-form');
-        form.username.focus();
-        form.addEventListener('submit', function (e) {
-            e.preventDefault();
-            var go = document.getElementById('account-go');
-            go.disabled = true;
-            go.textContent = reg ? 'Creating...' : 'Signing in...';
+        onSubmit('account-form', reg ? 'Creating...' : 'Signing in...', function (form) {
             var user = form.username.value.trim();
-            L.account.signIn(mode, user, form.password.value).then(function (res) {
-                if (res.error) return showAccount(mode, res.error, user);
-                if (res.conflict) return showConflict(res.conflict);
-                L.showTitle(reg ? 'Account created. Your game now saves to it.' : 'Signed in. Welcome back, ' + L.account.user.username + '.');
+            var fields = { username: user, password: form.password.value };
+            if (reg) fields.email = form.email.value.trim();
+            L.account.signIn(mode, fields).then(function (res) {
+                signedIn(res, function () {
+                    return reg ? 'Account created. Your game now saves to it.' : 'Signed in. Welcome back, ' + L.account.user.username + '.';
+                }, function (err) { showAccount(mode, err, user, fields.email); });
+            });
+        });
+        wireGoogle(mode);
+    }
+
+    // Ask for a reset link by email
+    function showForgot(msg) {
+        render(
+            flash(msg) +
+            '<div class="panel account-form"><h2>Reset your password</h2>' +
+            '<form id="forgot-form">' +
+            '<label>Email on your account <input name="email" type="email" autocomplete="email" maxlength="254" required></label>' +
+            '<button type="submit">Email me a reset link</button>' +
+            '</form></div>' +
+            '<button data-act="back" class="minor">Back</button>',
+            { back: function () { showAccount('login'); } }
+        );
+        onSubmit('forgot-form', 'Sending...', function (form) {
+            L.account.forgot(form.email.value.trim()).then(function (res) {
+                if (res.error) return showForgot(res.error);
+                showAccount('login', res.message);
             });
         });
     }
+
+    // The link from the reset email lands here: choose a new password, which also signs in
+    L.showReset = function (token, msg) {
+        render(
+            flash(msg) +
+            '<div class="panel account-form"><h2>Choose a new password</h2>' +
+            '<form id="reset-form">' +
+            '<label>New password <input name="password" type="password" autocomplete="new-password" minlength="8" maxlength="200" required></label>' +
+            '<button type="submit">Save password and sign in</button>' +
+            '</form></div>' +
+            '<button data-act="back" class="minor">Never mind</button>',
+            { back: function () { L.showTitle(); } }
+        );
+        onSubmit('reset-form', 'Saving...', function (form) {
+            L.account.signIn('reset', { token: token, password: form.password.value }).then(function (res) {
+                signedIn(res, function () { return 'New password saved. You\'re signed in as ' + L.account.user.username + '.'; },
+                    function (err) { L.showReset(token, err); });
+            });
+        });
+        L.titleScreen(true);
+    };
 
     // The account and this browser hold different games: the player picks one to keep
     function showConflict(c) {

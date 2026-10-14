@@ -10,6 +10,7 @@
         available: false,        // api.php answered, so accounts work on this server
         user: null,              // { username } while signed in
         remote: null,            // the server save's { savedAt, week, cash }, or null
+        google: '',              // the Google sign-in client ID, when the server has one
         error: null              // the last sync problem, shown on the title screen
     };
     var pending = null, timer = null;
@@ -99,17 +100,55 @@
             if (!A.available) return {};
             A.user = res.data.user;
             A.remote = res.data.save;
+            A.google = res.data.google || '';
             return A.user ? sync(false) : {};
         });
     };
 
-    // mode 'login' or 'register'. Resolves { error }, { conflict } or {}.
-    A.signIn = function (mode, username, password) {
-        return call(mode, { username: username, password: password }).then(function (res) {
+    // Any way in: 'login' { username, password }, 'register' { username, email, password },
+    // 'google' { credential } or 'reset' { token, password }. Resolves { error }, { conflict } or {}.
+    A.signIn = function (action, fields) {
+        return call(action, fields).then(function (res) {
             if (!res.ok) return { error: res.data.error || 'Couldn\'t reach the server.' };
             A.user = res.data.user;
             A.remote = res.data.save;
             return sync(true);
+        });
+    };
+
+    // Emails a reset link. Resolves { message } or { error }.
+    A.forgot = function (email) {
+        return call('forgot', { email: email }).then(function (res) {
+            return res.ok ? { message: res.data.message } : { error: res.data.error || 'Couldn\'t reach the server.' };
+        });
+    };
+
+    // Google's sign-in button, drawn into el once Google's script has loaded. onCredential gets
+    // the ID token to pass to signIn('google', ...).
+    var gisLoading = null;
+    A.googleButton = function (el, onCredential) {
+        if (!A.google || !el) return;
+        if (!gisLoading) {
+            gisLoading = new Promise(function (resolve, reject) {
+                var s = document.createElement('script');
+                s.src = 'https://accounts.google.com/gsi/client';
+                s.async = true;
+                s.onload = resolve;
+                s.onerror = reject;
+                document.head.appendChild(s);
+            });
+        }
+        gisLoading.then(function () {
+            if (!document.body.contains(el)) return;      // the player moved on
+            window.google.accounts.id.initialize({
+                client_id: A.google,
+                callback: function (r) { if (r.credential) onCredential(r.credential); }
+            });
+            window.google.accounts.id.renderButton(el, { theme: 'filled_black', size: 'large', text: 'continue_with', shape: 'rectangular',
+                width: Math.min(360, el.clientWidth || 360) });
+        }, function () {
+            gisLoading = null;
+            el.textContent = 'Google sign-in didn\'t load. Check your connection.';
         });
     };
 
