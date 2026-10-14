@@ -113,6 +113,9 @@
     document.addEventListener('pointerdown', wake);
     document.addEventListener('keydown', wake);
 
+    // The title waits for the account check, so a newer game saved from another device is
+    // in place before Continue is offered. Without the API that's a quick failed request.
     L.initUi(document.getElementById('app'));
-    L.showTitle();
+    L.titleScreen(true);
+    L.account.check().then(function () { L.showTitle(); });
 })(window.Lemon = window.Lemon || {});

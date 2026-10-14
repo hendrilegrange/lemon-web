@@ -84,16 +84,25 @@
 
     // ── Title ─────────────────────────────────────────────────────────────
 
-    L.showTitle = function () {
+    L.showTitle = function (msg) {
         var saved = L.load();
         render(
+            flash(msg) +
             '<div class="title-menu">' +
             '<p class="tag">Buy a junker. Build a hot rod. Beat The King.</p>' +
             (saved ? '<button data-act="cont">Continue (week ' + saved.week + ', ' + money(saved.cash) + ')</button>' : '') +
             '<button data-act="new">New game</button>' +
             '<p class="hint">Summer, 1963. You have ' + money(L.START_CASH) + ' and a driver\'s license.</p>' +
+            accountBlock() +
             '</div>',
             {
+                login: function () { showAccount('login'); },
+                register: function () { showAccount('register'); },
+                signout: function () {
+                    L.account.signOut().then(function (r) {
+                        L.showTitle(r.cleared ? 'Signed out. Your game is safe in your account.' : 'Signed out. Your game is still saved in this browser.');
+                    });
+                },
                 cont: function () { g = saved; L.showHub(); },
                 new: function () {
                     function start() {
@@ -109,6 +118,77 @@
         );
         L.titleScreen(true);
     };
+
+    // ── Accounts ──────────────────────────────────────────────────────────
+
+    function accountBlock() {
+        var A = L.account;
+        if (!A || !A.available) return '';
+        if (A.user) {
+            return '<p class="account">Signed in as <b>' + esc(A.user.username) + '</b>. Your game saves to your account.' +
+                (A.error ? '<br><span class="shot">' + esc(A.error) + '</span>' : '') + '</p>' +
+                '<button data-act="signout" class="minor">Sign out</button>';
+        }
+        return '<p class="account">Sign in to keep your game on any computer or phone.</p>' +
+            '<div class="toggles"><button data-act="login" class="minor">Sign in</button>' +
+            '<button data-act="register" class="minor">Create account</button></div>';
+    }
+
+    function savedOn(s) {
+        return 'week ' + s.week + ', ' + money(s.cash) + (s.savedAt ? ', saved ' + new Date(s.savedAt).toLocaleString() : '');
+    }
+
+    // Sign in (mode 'login') or create an account ('register')
+    function showAccount(mode, msg, name) {
+        var reg = mode === 'register';
+        render(
+            flash(msg) +
+            '<div class="panel account-form"><h2>' + (reg ? 'Create an account' : 'Sign in') + '</h2>' +
+            '<form id="account-form">' +
+            '<label>Name <input name="username" autocomplete="username" maxlength="20" required value="' + esc(name || '') + '"></label>' +
+            '<label>Password <input name="password" type="password" autocomplete="' + (reg ? 'new-password' : 'current-password') + '"' +
+            (reg ? ' minlength="8"' : '') + ' maxlength="200" required></label>' +
+            (reg ? '<p class="hint">3 to 20 letters, numbers or underscores, and a password of at least 8 characters. ' +
+                'There\'s no email on the account, so a forgotten password can\'t be reset: keep it somewhere safe.</p>' : '') +
+            '<button type="submit" id="account-go">' + (reg ? 'Create account' : 'Sign in') + '</button>' +
+            '</form>' +
+            '<p class="sub">' + (reg ? 'Already have an account?' : 'No account yet?') +
+            ' <button data-act="other" class="minor">' + (reg ? 'Sign in' : 'Create one') + '</button></p></div>' +
+            '<button data-act="back" class="minor">Back</button>',
+            {
+                other: function () { showAccount(reg ? 'login' : 'register'); },
+                back: function () { L.showTitle(); }
+            }
+        );
+        var form = document.getElementById('account-form');
+        form.username.focus();
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var go = document.getElementById('account-go');
+            go.disabled = true;
+            go.textContent = reg ? 'Creating...' : 'Signing in...';
+            var user = form.username.value.trim();
+            L.account.signIn(mode, user, form.password.value).then(function (res) {
+                if (res.error) return showAccount(mode, res.error, user);
+                if (res.conflict) return showConflict(res.conflict);
+                L.showTitle(reg ? 'Account created. Your game now saves to it.' : 'Signed in. Welcome back, ' + L.account.user.username + '.');
+            });
+        });
+    }
+
+    // The account and this browser hold different games: the player picks one to keep
+    function showConflict(c) {
+        render(
+            '<div class="panel"><h2>Which game do you keep?</h2>' +
+            '<p>Your account and this browser have different saved games. The one you don\'t pick is replaced.</p>' +
+            '<nav class="menu"><button data-act="remote">Your account\'s game: ' + esc(savedOn(c.remote)) + '</button>' +
+            '<button data-act="local" class="minor">This browser\'s game: ' + esc(savedOn(c.local)) + '</button></nav></div>',
+            {
+                remote: function () { L.account.choose('remote').then(function () { L.showTitle('Loaded your account\'s game.'); }); },
+                local: function () { L.account.choose('local').then(function () { L.showTitle('This browser\'s game is now saved to your account.'); }); }
+            }
+        );
+    }
 
     // ── Hub ───────────────────────────────────────────────────────────────
 

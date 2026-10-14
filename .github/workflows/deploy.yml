@@ -25,6 +25,10 @@ jobs:
         run: |
           for f in $(git ls-files 'js/*.js'); do node --check "$f" || exit 1; done
 
+      - name: PHP syntax check
+        run: |
+          for f in $(git ls-files '*.php'); do php -l "$f" || exit 1; done
+
       - name: Unit tests
         run: node --test tests/*.test.js
 
@@ -59,6 +63,8 @@ jobs:
               --exclude-glob docs/ \
               --exclude-glob tests/ \
               --exclude-glob *.bak \
+              --exclude-glob config.php \
+              --exclude-glob config.example.php \
               ./ \"$FTP_SERVER_DIR\"
           "
 
