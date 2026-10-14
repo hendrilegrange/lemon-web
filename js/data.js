@@ -74,15 +74,16 @@
         return Object.assign(parts, extra || {});
     }
 
-    // Car bodies: mass without engine (kg), drag area (Cd x frontal m²), and the parts they
+    // Car bodies, late-40s to early-60s used cars: mass without engine (kg), drag area (Cd x frontal m²), and the parts they
     // come with. Price is for a good one; the classifieds discount for condition.
     L.BODIES = {
-        ford32:  { name: "'32 Ford roadster", kg: 760, cdA: 0.80, price: 750, color: '#d7263d', parts: stock('flathead') },
-        ford34:  { name: "'34 Ford 3-window coupe", kg: 830, cdA: 0.78, price: 700, color: '#1b998b', parts: stock('flathead') },
-        ford40:  { name: "'40 Ford coupe", kg: 960, cdA: 0.74, price: 600, color: '#2e86ab', parts: stock('flathead') },
-        merc49:  { name: "'49 Mercury coupe", kg: 1180, cdA: 0.76, price: 550, color: '#5c415d', parts: stock('flathead') },
-        chevy55: { name: "'55 Chevy 210", kg: 1240, cdA: 0.70, price: 800, color: '#f4a259', parts: stock('six235') },
-        chevy57: { name: "'57 Chevy Bel Air", kg: 1300, cdA: 0.70, price: 1250, color: '#3bb273', parts: stock('v8_283', { carb: 'carb_4bbl' }) }
+        ford48:  { name: "'48 Ford coupe", kg: 1000, cdA: 0.78, price: 500, color: '#d7263d', parts: stock('flathead') },
+        merc49:  { name: "'49 Mercury coupe", kg: 1120, cdA: 0.76, price: 550, color: '#5c415d', parts: stock('flathead') },
+        ford50:  { name: "'50 Ford Custom", kg: 1040, cdA: 0.76, price: 520, color: '#1b998b', parts: stock('flathead') },
+        chevy52: { name: "'52 Chevy Styleline", kg: 1120, cdA: 0.74, price: 450, color: '#2e86ab', parts: stock('six235') },
+        chevy55: { name: "'55 Chevy 210", kg: 1160, cdA: 0.70, price: 700, color: '#f4a259', parts: stock('six235') },
+        chevy57: { name: "'57 Chevy Bel Air", kg: 1220, cdA: 0.70, price: 1100, color: '#3bb273', parts: stock('v8_283', { carb: 'carb_4bbl' }) },
+        chevy60: { name: "'60 Chevy Biscayne", kg: 1280, cdA: 0.72, price: 900, color: '#c9c9c9', parts: stock('six235') }
     };
 
     // Rival builds by tier: the parts beyond stock that a tier's cars carry
@@ -97,19 +98,19 @@
     // Rivals hang around the strip. Tier sets their build, skill their launch and shifting.
     L.RIVALS = [
         { name: 'Skeeter Haines', tier: 0, skill: 0.3, body: 'merc49', line: "My old Merc'll eat you alive, kid." },
-        { name: 'Donna Ruiz', tier: 0, skill: 0.5, body: 'ford40', line: 'Loser buys the burgers.' },
+        { name: 'Donna Ruiz', tier: 0, skill: 0.5, body: 'chevy52', line: 'Loser buys the burgers.' },
         { name: 'Bud Kowalski', tier: 1, skill: 0.4, body: 'chevy55', line: "Heard you've been running your mouth." },
-        { name: 'Lefty Marsh', tier: 1, skill: 0.6, body: 'ford34', line: "Sure, I'll take your money." },
+        { name: 'Lefty Marsh', tier: 1, skill: 0.6, body: 'ford50', line: "Sure, I'll take your money." },
         { name: 'Ray "Gasket" Doyle', tier: 2, skill: 0.5, body: 'chevy57', line: 'Bring cash. Lots of it.' },
-        { name: 'June Calloway', tier: 2, skill: 0.75, body: 'ford32', line: "Don't cry when I leave you at the line." },
+        { name: 'June Calloway', tier: 2, skill: 0.75, body: 'ford48', line: "Don't cry when I leave you at the line." },
         { name: 'Tommy Vance', tier: 3, skill: 0.7, body: 'chevy57', line: "You're out of your league." },
-        { name: 'Earl "Big Block" Pruett', tier: 4, skill: 0.85, body: 'ford40', line: "Nobody's beaten this car in two summers." }
+        { name: 'Earl "Big Block" Pruett', tier: 4, skill: 0.85, body: 'ford50', line: "Nobody's beaten this car in two summers." }
     ];
 
     // Bets by rival tier: [smallest, largest]
     L.BET_RANGE = [[25, 75], [50, 150], [100, 300], [200, 500], [400, 900]];
 
-    L.START_CASH = 1500;
+    L.START_CASH = 500;     // enough for one scrappy car and a little to fix it
     L.MAX_CARS = 3;
     L.REPAIR_PER_POINT = 3;   // dollars per point of engine condition restored
 })(window.Lemon = window.Lemon || {});

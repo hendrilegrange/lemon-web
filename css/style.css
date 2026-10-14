@@ -125,3 +125,6 @@ button.danger { background: var(--bad); color: #fff; border-bottom-color: #a01f1
 
 .result.win h2 { color: var(--good); }
 .result.lose h2, .result.foul h2 { color: var(--bad); }
+
+/* Wrenching: what to do next, under the canvas */
+#wrench-line { color: var(--text); font-size: 1rem; min-height: 1.4em; }

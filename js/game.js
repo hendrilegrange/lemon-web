@@ -3,7 +3,7 @@
 (function (L) {
     'use strict';
 
-    var SAVE_KEY = 'lemon.save.v1';
+    var SAVE_KEY = 'lemon.save.v2';
 
     L.random = Math.random;
     function rand(min, max) { return min + L.random() * (max - min); }
@@ -48,8 +48,8 @@
         for (var i = 0; i < 5; i++) {
             var bodyId = pick(bodies);
             var body = L.BODIES[bodyId];
-            var condition = randInt(20, 95);
-            var engineCondition = randInt(35, 100);
+            var condition = randInt(10, 75);        // scrappy used cars: rust, dents and tired engines
+            var engineCondition = randInt(25, 90);
             var price = roundTo(body.price * (0.35 + 0.65 * condition / 100) * (0.7 + 0.3 * engineCondition / 100) * rand(0.9, 1.15), 10);
             g.ads.push({ body: bodyId, condition: condition, engineCondition: engineCondition, price: price, note: adNote(condition, engineCondition) });
         }
@@ -59,7 +59,7 @@
     function adNote(condition, engine) {
         if (engine < 50) return pick(['Runs rough. Needs work.', 'Smokes a little. Make offer.', 'Mechanic special!']);
         if (condition < 40) return pick(['Rusty but solid.', 'Needs paint. Runs good.', 'Project car, priced to sell.']);
-        if (condition > 80 && engine > 80) return pick(['Cream puff! Garage kept.', 'Like new. No tire kickers.', 'Showroom shine.']);
+        if (condition > 65 && engine > 75) return pick(['Cream puff! Garage kept.', 'Clean, no rust. No tire kickers.', 'One owner, runs strong.']);
         return pick(['Good driver.', 'Runs and drives.', 'Daily driver, must sell.', 'Moving, must sell!']);
     }
 
@@ -133,8 +133,8 @@
         return null;
     };
 
-    // Swap a part from the shelf onto the active car; the old part goes on the shelf
-    L.installPart = function (g, invIndex) {
+    // Why a shelf part can't go on the active car, or null if it can
+    L.canInstall = function (g, invIndex) {
         var car = L.activeCar(g);
         var partId = g.inventory[invIndex];
         if (!car) return 'You need a car first.';
@@ -143,11 +143,21 @@
         if (part.needs && car.parts.intake !== part.needs) {
             return part.name + ' needs a ' + L.PARTS[part.needs].name + ' first.';
         }
-        var old = car.parts[part.slot];
         // Taking off the high-rise intake also takes off the carbs that need it
         if (part.slot === 'intake' && L.PARTS[car.parts.carb].needs && L.PARTS[car.parts.carb].needs !== partId) {
             return 'Swap the ' + L.PARTS[car.parts.carb].name + ' for a single carb first.';
         }
+        return null;
+    };
+
+    // Swap a part from the shelf onto the active car; the old part goes on the shelf
+    L.installPart = function (g, invIndex) {
+        var err = L.canInstall(g, invIndex);
+        if (err) return err;
+        var car = L.activeCar(g);
+        var partId = g.inventory[invIndex];
+        var part = L.PARTS[partId];
+        var old = car.parts[part.slot];
         car.parts[part.slot] = partId;
         g.inventory.splice(invIndex, 1);
         // Stock parts that came with the car are worth nothing, so they go in the bin
@@ -161,13 +171,20 @@
         return Math.ceil((100 - car.engineCondition) * L.REPAIR_PER_POINT * (1 + (L.PARTS[car.parts.engine].price || 300) / 1000));
     };
 
-    L.repair = function (g) {
+    L.canRepair = function (g) {
         var car = L.activeCar(g);
         if (!car) return 'You need a car first.';
         var cost = L.repairCost(car);
         if (cost === 0) return 'The engine is in top shape.';
         if (g.cash < cost) return "You can't afford the rebuild.";
-        g.cash -= cost;
+        return null;
+    };
+
+    L.repair = function (g) {
+        var err = L.canRepair(g);
+        if (err) return err;
+        var car = L.activeCar(g);
+        g.cash -= L.repairCost(car);
         car.engineCondition = 100;
         return null;
     };

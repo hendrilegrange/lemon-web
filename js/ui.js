@@ -229,13 +229,42 @@
                     ask('Sell your ' + L.carName(c) + ' to the dealer for ' + money(L.carValue(c)) + '?', 'Sell it',
                         act(L.showGarage, function () { return L.sellCar(g, +i) || 'Sold.'; }), L.showGarage);
                 },
-                install: act(L.showGarage, function (i) { return L.installPart(g, +i) || 'Installed.'; }),
+                install: function (i) {
+                    var err = L.canInstall(g, +i);
+                    if (err) return L.showGarage(err);
+                    var part = L.PARTS[g.inventory[+i]];
+                    wrench(part.slot, 'Installing: ' + part.name, L.PARTS[car.parts[part.slot]].name, part.name,
+                        act(L.showGarage, function () { return L.installPart(g, +i) || 'Installed the ' + part.name + '.'; }));
+                },
                 sellpart: act(L.showGarage, function (i) { return L.sellPart(g, +i); }),
-                repair: act(L.showGarage, function () { return L.repair(g) || 'Engine rebuilt. Good as new.'; }),
+                repair: function () {
+                    var err = L.canRepair(g);
+                    if (err) return L.showGarage(err);
+                    wrench('rebuild', 'Rebuilding the ' + L.PARTS[car.parts.engine].name, 'worn cylinder heads', 'rebuilt heads',
+                        act(L.showGarage, function () { return L.repair(g) || 'Engine rebuilt. Good as new.'; }));
+                },
                 back: function () { L.showHub(); }
             }
         );
     };
+
+    // A wrenching job on the canvas; finish() runs once the new part is bolted down
+    function wrench(job, title, oldName, newName, finish) {
+        render('<div class="race-controls"><p class="hint" id="wrench-line"></p>' +
+            '<button data-act="cancel" class="minor">Leave it for now</button></div>', {
+            cancel: function () { stop(); L.showCanvas(false); L.showGarage('You put the wrenches down. Nothing changed.'); }
+        });
+        L.titleScreen(false);
+        L.showCanvas(true);
+        var lineEl = document.getElementById('wrench-line');
+        var stop = L.startWrench(L.canvas, {
+            job: job, title: title, oldName: oldName, newName: newName,
+            onLine: function (text) { lineEl.textContent = text; }
+        }, function () {
+            L.showCanvas(false);
+            finish();
+        });
+    }
 
     // ── Burger stand: pick a race ─────────────────────────────────────────
 
