@@ -615,7 +615,7 @@
             var cond = L.shelfCondition(g, i);
             return '<div class="row"><span><span class="slot">' + L.SLOT_NAMES[p.slot] + '</span> ' + esc(p.name) + (cond < 100 ? ' ' + bar(cond, 'Condition') : '') + '</span>' +
                 (car ? '<button data-act="install" data-arg="' + i + '">Install (' + L.JOB_HOURS[p.slot] + ' h)</button>' : '') +
-                '<button data-act="sellpart" data-arg="' + i + '" class="minor">Sell ' + money(L.partValue(g, i)) + '</button></div>';
+                '<button data-act="sellpart" data-arg="' + i + '" class="minor">' + (L.partValue(g, i) ? 'Sell ' + money(L.partValue(g, i)) : 'Bin it') + '</button></div>';
         }).join('') || '<p>Nothing on the shelf. Parts you buy and parts you take off land here.</p>';
 
         render(
@@ -644,7 +644,12 @@
                     if (err) return L.showGarage(err);
                     var part = L.PARTS[g.inventory[+i]];
                     wrench(part.slot, 'Installing: ' + part.name, L.PARTS[car.parts[part.slot]].name, part.name,
-                        act(L.showGarage, function () { return L.installPart(g, +i) || 'Installed the ' + part.name + '.'; }), L.showGarage);
+                        act(L.showGarage, function () {
+                            var out = {};
+                            return L.installPart(g, +i, out) || 'Installed the ' + part.name + '.' +
+                                (out.shelved.length ? ' The old ' + out.shelved.join(', ') + ' went on the shelf.' : '') +
+                                (out.binned.length ? ' The old ' + out.binned.join(', ') + (out.binned.length > 1 ? ' were' : ' was') + ' shot, so ' + (out.binned.length > 1 ? 'they' : 'it') + ' went in the bin.' : '');
+                        }), L.showGarage);
                 },
                 sellpart: act(L.showGarage, function (i) { return L.sellPart(g, +i); }),
                 fix: function () { L.showFix(); },

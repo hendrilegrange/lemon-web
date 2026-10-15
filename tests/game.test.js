@@ -123,7 +123,9 @@ test('installing parts takes hours, and an engine swap brings its own bolt-ons',
     L.buyPart(g, 'tires_2');
     assert.strictEqual(L.installPart(g, 0), null);
     assert.strictEqual(g.hours, L.HOURS_PER_WEEK - L.JOB_HOURS.tires);
-    assert.deepStrictEqual(g.inventory, []);                  // stock tires are binned
+    assert.deepStrictEqual(g.inventory, ['tires_0']);         // the old stock tires go on the shelf
+    L.sellPart(g, 0);                                          // and are worth nothing: binned
+    assert.deepStrictEqual(g.inventory, []);
 
     L.buyPart(g, 'carb_small_1');
     assert.match(L.installPart(g, 0), /small-block/);          // doesn't fit the flathead
@@ -447,4 +449,20 @@ test('the paint shop changes the colour and livery for a price, and only on a so
     assert.match(L.canPaint(g, null, 'stripes', null), /colour/);
     g.cash = 10;
     assert.match(L.paintCar(g, 'black', 'none', null), /afford/);
+});
+
+test('a part taken off goes on the shelf, unless it is shot', () => {
+    const g = garage('ford48', null, 80, 60);
+    const car = L.activeCar(g);
+    car.partCondition.carb = 47;
+    car.partCondition.exhaust = 5;                             // shot
+    L.buyPart(g, 'intake_flat_1');
+    L.buyPart(g, 'exhaust_flat_1');
+    const out = {};
+    assert.strictEqual(L.installPart(g, 0, out), null);
+    assert.deepStrictEqual(out, { shelved: [L.PARTS.intake_flat_0.name], binned: [] });
+    assert.ok(g.inventory.includes('intake_flat_0'));
+    assert.strictEqual(L.installPart(g, g.inventory.indexOf('exhaust_flat_1'), out), null);
+    assert.deepStrictEqual(out.binned, [L.PARTS.exhaust_flat_0.name]);
+    assert.ok(!g.inventory.includes('exhaust_flat_0'));
 });
