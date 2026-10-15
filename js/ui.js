@@ -4,6 +4,7 @@
     'use strict';
 
     var app, g;
+    var keepScroll = false;   // true while a screen redraws itself after an action
 
     function money(n) { return '$' + n.toLocaleString('en-US'); }
 
@@ -35,6 +36,36 @@
         });
         var focus = app.querySelector('button:not([disabled])');
         if (focus) focus.focus({ preventScroll: true });
+        // A new screen starts at the top. One that redraws after a Buy or an Install stays
+        // where you were, and if its message is scrolled out of sight it pops up as a toast.
+        if (!keepScroll) window.scrollTo(0, 0);
+        else {
+            var f = app.querySelector('.flash'), bar = app.querySelector('.status');
+            var hidden = bar ? bar.getBoundingClientRect().bottom : 0;
+            if (f && f.getBoundingClientRect().bottom <= hidden + 4) toast(f.textContent);
+        }
+        keepScroll = false;
+    }
+
+    var toastTimer;
+    function toast(text) {
+        var t = document.getElementById('toast');
+        if (!t) {
+            t = document.createElement('div');
+            t.id = 'toast';
+            t.className = 'toast';
+            t.setAttribute('role', 'status');
+            document.body.appendChild(t);
+        }
+        t.textContent = text;
+        t.hidden = false;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { t.hidden = true; }, 3500);
+    }
+
+    // The way back, which stays at the bottom of the screen on a phone however long the page
+    function backBar(label, act) {
+        return '<div class="backbar"><button data-act="' + (act || 'back') + '">' + label + '</button></div>';
     }
 
     // The gauges across the top of every screen
@@ -45,7 +76,7 @@
         return '<div class="status">' +
             gauge('Cash', money(g.cash), 'cash') +
             gauge('Week', g.week) +
-            (g.friday ? gauge('Tonight', 'Friday night', 'friday') : gauge('Garage', g.hours + ' h left')) +
+            (g.friday ? gauge('Tonight', 'Racing', 'friday') : gauge('Hours', g.hours + ' h')) +
             gauge('Record', g.wins + '–' + g.losses) +
             '</div>';
     }
@@ -73,6 +104,7 @@
             var err = fn(arg);
             if (g.cash !== cash) L.sound.cash();
             L.save(g);
+            keepScroll = true;
             screen(err || null);
         };
     }
@@ -375,7 +407,7 @@
         render(
             status() + flash(msg) +
             '<div class="paper"><h2>CLASSIFIEDS</h2><p class="sub">Autos for sale · Week ' + g.week + '</p>' + rows + '</div>' +
-            '<button data-act="back">Back</button>',
+            backBar('Back'),
             {
                 buy: act(L.showAds, function (i) { return L.buyAd(g, +i) || 'Sold! It\'s in your garage.'; }),
                 back: function () { L.showHub(); }
@@ -428,7 +460,7 @@
         render(
             status() + flash(msg) + '<div class="panel"><h2>Speed Shop</h2><p class="sub">' + intro +
             ' The shelves restock every week with something for every engine, but not every part every week, and the Bestest parts sell out fast.</p>' + html + '</div>' +
-            '<button data-act="back">Back</button>',
+            backBar('Back'),
             {
                 buy: act(L.showParts, function (id) { return L.buyPart(g, id) || 'Bought. It\'s on your garage shelf.'; }),
                 back: function () { L.showHub(); }
@@ -478,7 +510,7 @@
             status() + flash(msg) +
             '<div class="panel"><h2>Your cars</h2>' + cars + '</div>' + detail +
             '<div class="panel"><h2>Shelf</h2>' + shelf + '</div>' +
-            '<button data-act="back">Back</button>',
+            backBar('Back'),
             {
                 drive: act(L.showGarage, function (i) { g.active = +i; }),
                 sell: function (i) {
@@ -584,7 +616,7 @@
             status() + flash(msg) +
             '<div class="panel"><h2>Fix the ' + esc(L.carName(car)) + '</h2><p class="sub">' + budget + '</p>' + bodyRow + rows + '</div>' +
             '<p class="hint">Each job opens the workbench: bolts out and back in for parts, grind and fill the rust for bodywork. Jobs use up your garage hours for the week.</p>' +
-            '<button data-act="back">Back to the garage</button>',
+            backBar('Back to the garage'),
             {
                 repair: function (slot) { job(slot, 'repair'); },
                 junk: function (slot) { job(slot, 'junk'); },
@@ -647,7 +679,7 @@
             status() + flash(msg || why) +
             '<div class="panel"><h2>The Burger Stand</h2><p class="sub">Friday night. Engines idling, everybody watching.</p>' + rows + '</div>' +
             '<p class="hint">At the race: press Space, Enter or the big button when the start light turns green, then again each time the SHIFT light goes green. Keep out of the red. A race just for fun risks nothing and pays a little; a cash race bets all your cash, up to ' + money(L.RIVAL_PRIZE) + ', against the same; pink slips are for the cars.</p>' +
-            '<button data-act="back">Back</button>',
+            backBar('Back'),
             {
                 cash: function (i) {
                     var r = g.rivals[+i];
@@ -707,7 +739,7 @@
                     '<p>' + esc(line) + '</p>' +
                     '<p class="sub">You: ' + esc(sum.me) + (sum.reaction !== null && result !== 'foul' ? ' (reaction ' + sum.reaction.toFixed(2) + ' s)' : '') +
                     '<br>' + esc(rival.name) + ': ' + esc(sum.them) + '</p></div>' +
-                    '<button data-act="stand">Back to the burger stand</button>',
+                    backBar('Back to the burger stand', 'stand'),
                     { stand: function () { L.showStand(); } }
                 );
             }
