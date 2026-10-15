@@ -585,15 +585,21 @@
         // Your engine's family, then what fits anything, then the other families folded away
         // for a swap
         var mine = car ? L.PARTS[car.parts.engine].fam : null;
-        var dated = mine && L.FAMILIES[mine].era !== L.eraOf(g);   // an engine from an earlier era: its parts are gone
-        if (dated) mine = null;
-        var others = Object.keys(L.FAMILIES).filter(function (fam) { return fam !== mine && L.FAMILIES[fam].era === L.eraOf(g); });
+        // Newest era first: its families and its parts that fit anything
+        var eras = [];
+        for (var e = L.eraOf(g); e >= 0; e--) eras.push(e);
+        var others = [];
+        eras.forEach(function (e) {
+            Object.keys(L.FAMILIES).forEach(function (fam) { if (fam !== mine && L.FAMILIES[fam].era === e) others.push(fam); });
+        });
         var html = (mine ? family(mine) : '') +
-            group('Fits anything', catalog.filter(function (x) { return !L.PARTS[x.id].fam; }), true) +
+            eras.map(function (e, n) {
+                return group('Fits anything' + (eras.length > 1 ? ', ' + L.ERAS[e].year : ''),
+                    catalog.filter(function (x) { return !L.PARTS[x.id].fam && L.PARTS[x.id].era === e; }), n === 0);
+            }).join('') +
             others.map(family).join('');
         var intro = car
-            ? 'Your ' + esc(L.carName(car)) + ' has the ' + esc(L.PARTS[car.parts.engine].name) + '. Carbs, intakes, cams and exhausts only fit their own engine family; engines and the rest fit anything.' +
-                (dated ? ' Nobody makes parts for that engine any more: swap in one of today\'s engines to use today\'s carbs, intakes, cams and exhausts.' : '')
+            ? 'Your ' + esc(L.carName(car)) + ' has the ' + esc(L.PARTS[car.parts.engine].name) + '. Carbs, intakes, cams and exhausts only fit their own engine family; engines and the rest fit anything.'
             : 'Everything we carry. Buy a car and we\'ll put what fits it first.';
         render(
             status() + flash(msg) + '<div class="panel"><h2>Speed Shop</h2><p class="sub">' + intro +
@@ -894,9 +900,9 @@
 
     L.showStand = function (msg) {
         var car = L.activeCar(g);
-        var bet = L.cashBet(g);
         var myEt = car ? L.estimate(L.spec(car)).et : null;
         var rows = g.rivals.map(function (r, i) {
+            var bet = L.cashBet(g, r);
             var funErr = L.canRace(g, r, 'fun');
             var cashErr = L.canRace(g, r, 'cash');
             var pinkErr = L.canRace(g, r, 'pinks');
@@ -905,12 +911,12 @@
                 : '<button data-act="fun" data-arg="' + i + '" class="minor"' + (funErr ? ' disabled' : '') + '>' +
                     (r.funDone ? 'Raced for fun this week' : 'Just for fun (win ' + money(L.funPrize(r)) + ')') + '</button>' +
                   '<button data-act="cash" data-arg="' + i + '"' + (cashErr ? ' disabled title="' + esc(cashErr) + '"' : '') + '>' +
-                    (bet >= L.rivalPrize(g) ? 'Bet ' + money(bet) : 'Bet it all: ' + money(bet)) + '</button>' +
+                    (bet >= L.rivalPrize(g, r) ? 'Bet ' + money(bet) : 'Bet it all: ' + money(bet)) + '</button>' +
                   '<button data-act="pinks" data-arg="' + i + '" class="danger"' + (pinkErr ? ' disabled' : '') + '>Pink slips</button>';
             var theirEt = L.estimate(L.spec(L.rivalCar(r))).et;
             return '<div class="rival' + (r.king ? ' king' : '') + '">' +
                 '<div class="rival-car"><canvas class="stand-car" width="96" height="48" data-rival="' + i + '" aria-hidden="true"></canvas>' +
-                '<span class="plate">' + (r.king ? 'KING' : 'TIER ' + (r.tier + 1)) + '</span></div>' +
+                '<span class="plate">' + (r.king ? 'KING' : ((r.era || 0) < L.eraOf(g) ? L.ERAS[r.era || 0].year + ' · ' : '') + 'TIER ' + (r.tier + 1)) + '</span></div>' +
                 '<div class="rival-info"><h3>' + (r.king ? '<span class="crown" aria-hidden="true">♛</span> ' : '') + esc(r.name) + '</h3>' +
                 '<p class="rival-ride">' + esc(L.BODIES[r.body].name) + '</p>' +
                 '<p class="quote">"' + esc(r.line) + '"</p>' +
@@ -932,6 +938,7 @@
             {
                 cash: function (i) {
                     var r = g.rivals[+i];
+                    var bet = L.cashBet(g, r);
                     if (bet < g.cash) return race(+i, 'cash');
                     ask('Bet all ' + money(bet) + ' you have on beating ' + r.name + '? Lose and you are broke.',
                         'Bet it all', function () { race(+i, 'cash'); }, L.showStand);
@@ -979,7 +986,7 @@
         if (err) return L.showStand(err);
         var car = L.activeCar(g);
         render('<div class="race-controls"><button class="go" id="go">GO / SHIFT</button>' +
-            '<p class="hint">Racing ' + esc(rival.name) + ' ' + (pinks ? 'for pink slips' : stake === 'fun' ? 'just for fun' : 'for ' + money(L.cashBet(g))) +
+            '<p class="hint">Racing ' + esc(rival.name) + ' ' + (pinks ? 'for pink slips' : stake === 'fun' ? 'just for fun' : 'for ' + money(L.cashBet(g, rival))) +
             '. Shift when the SHIFT light goes green.</p>' +
             '<button data-act="sound" class="minor" id="sound">Sound: ' + (L.sound.on ? 'on' : 'off') + '</button></div>', {
             sound: function () { document.getElementById('sound').textContent = 'Sound: ' + (L.sound.toggle() ? 'on' : 'off'); L.sound.begin(); L.sound.engineOn(); }

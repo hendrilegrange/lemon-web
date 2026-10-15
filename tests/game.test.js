@@ -99,15 +99,15 @@ test('every engine family has three upgrade engines', () => {
     });
 });
 
-test('every week the shop has something for every engine family of its era in every slot, but not everything', () => {
+test('every week the shop has something for every engine family so far in every slot, but not everything', () => {
     L.ERAS.forEach((e, era) => {
         const g = L.newGame();
         g.era = era;
-        const all = Object.keys(L.PARTS).filter((id) => L.PARTS[id].price > 0 && L.PARTS[id].era === era);
+        const all = Object.keys(L.PARTS).filter((id) => L.PARTS[id].price > 0 && L.PARTS[id].era <= era);
         for (let w = 0; w < 300; w++) {
             L.newWeek(g);
-            assert.ok(g.shopStock.every((id) => L.PARTS[id].era === era), 'only this era\'s parts');
-            Object.keys(L.FAMILIES).filter((fam) => L.FAMILIES[fam].era === era).forEach((fam) => ['engine'].concat(L.BOLT_ONS).forEach((slot) => {
+            assert.ok(g.shopStock.every((id) => L.PARTS[id].era <= era), 'no parts from eras still to come');
+            Object.keys(L.FAMILIES).filter((fam) => L.FAMILIES[fam].era <= era).forEach((fam) => ['engine'].concat(L.BOLT_ONS).forEach((slot) => {
                 assert.ok(g.shopStock.some((id) => L.PARTS[id].slot === slot && L.PARTS[id].fam === fam), 'week ' + w + ': no ' + fam + ' ' + slot);
             }));
             ['trans', 'rear', 'tires'].forEach((slot) => assert.ok(g.shopStock.some((id) => L.PARTS[id].slot === slot), slot));
@@ -566,7 +566,7 @@ test('a full Bestest V8 build has an even shot at The King, and Bestest+ the edg
     assert.ok(L.odds(build('ardun296', 3), king) < 0.35);      // a flathead still needs a V8 swap
 });
 
-test('1973: beating The King brings the next era the week after, with its own cars, parts and rivals', () => {
+test('1973: beating The King brings the next era the week after, its cars, parts and rivals joining 1963\'s', () => {
     const g = garage('ford48', FULL, 90, 90);
     g.wins = L.KING_WINS;
     L.newWeek(g);
@@ -579,12 +579,18 @@ test('1973: beating The King brings the next era the week after, with its own ca
     assert.ok(g.newEra);
     assert.strictEqual(L.eraWins(g), 0);
     assert.ok(g.cars.length === 2 && g.cash >= cash, 'cars and cash come along');
-    assert.ok(g.ads.every((ad) => L.BODIES[ad.body].era === 1), 'muscle cars in the paper');
-    assert.ok(g.rivals.length && g.rivals.every((r) => r.era === 1 && r.tier === 0 && !r.king), 'the easy 1973 crowd');
-    assert.ok(L.catalogFor(g, L.activeCar(g)).every((x) => L.PARTS[x.id].era === 1), '1973 parts in the shop');
+    assert.deepStrictEqual(g.ads.map((ad) => L.BODIES[ad.body].era), [1, 1, 1, 0, 0], 'mostly muscle cars in the paper');
+    const now = g.rivals.filter((r) => r.era === 1), then = g.rivals.filter((r) => r.era === 0);
+    assert.ok(now.length === 3 && now.every((r) => r.tier === 0 && !r.king), 'the easy 1973 crowd');
+    assert.strictEqual(then.length, 1, 'and one from 1963');
+    const shop = L.catalogFor(g, L.activeCar(g)).map((x) => L.PARTS[x.id].era);
+    assert.ok(shop.includes(0) && shop.includes(1), 'both eras\' parts in the shop');
     assert.strictEqual(L.rivalPrize(g), 2500);
+    assert.strictEqual(L.cashBet(g, then[0]), 1000, 'a 1963 rival bets 1963 money');
+    assert.strictEqual(L.cashBet(g, now[0]), 2500);
     assert.strictEqual(L.kingPrize(g), 25000);
-    assert.strictEqual(L.funPrize(g.rivals[0]), 125);
+    assert.strictEqual(L.funPrize(now[0]), 125);
+    assert.strictEqual(L.funPrize(then[0]), L.FUN_PRIZE[then[0].tier]);
     // Ten wins in 1973 bring its King, who pays 1973 money and his 'Cuda
     for (let w = 0; w < L.KING_WINS; w++) { L.settleRace(g, 0, 'fun', 'win', 0); g.rivals[0].funDone = false; }
     L.newWeek(g);
@@ -606,7 +612,7 @@ test('a save from before eras that already beat The King moves on to 1973', () =
     g.wins = 30;
     L.newWeek(g);
     assert.strictEqual(L.eraOf(g), 1);
-    assert.ok(g.rivals.every((r) => r.tier === 0));
+    assert.ok(g.rivals.filter((r) => r.era === 1).every((r) => r.tier === 0));
 });
 
 test('1973 needs a 1973 build: Bestest muscle has an even shot at its King, and a 1963 Bestest build a slim one', () => {

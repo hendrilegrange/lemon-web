@@ -173,8 +173,9 @@
 
     // A new week: fresh classified ads, a restocked speed shop, a week of garage hours and
     // fresh rivals at the burger stand. The week after you beat The King, the next era
-    // arrives (g.newEra says so once): its cars, its parts and its rivals, starting from the
-    // easy ones again. Your cash, cars and shelf come with you.
+    // arrives (g.newEra says so once): its cars, its parts and its rivals join the ones
+    // already here, its rivals starting from the easy ones again. Your cash, cars and shelf
+    // come with you.
     L.newWeek = function (g, first) {
         if (!first) g.week++;
         if (!first && g.kingBeaten && L.ERAS[L.eraOf(g) + 1]) {
@@ -188,11 +189,13 @@
         g.friday = false;
         g.shopStock = L.restock(era);
         g.ads = [];
-        // Five different cars, so a week's paper isn't all one kind
-        var eraBodies = Object.keys(L.BODIES).filter(function (id) { return L.BODIES[id].era === era; });
-        var bodies = eraBodies.slice();
+        // Five different cars, so a week's paper isn't all one kind: mostly this era's, and
+        // two from earlier eras once there are any
+        var now = Object.keys(L.BODIES).filter(function (id) { return L.BODIES[id].era === era; });
+        var older = Object.keys(L.BODIES).filter(function (id) { return L.BODIES[id].era < era; });
         for (var i = 0; i < 5; i++) {
-            var bodyId = bodies.length ? bodies.splice(Math.floor(L.random() * bodies.length), 1)[0] : pick(eraBodies);
+            var from = older.length && i >= 3 ? older : now;
+            var bodyId = from.splice(Math.floor(L.random() * from.length), 1)[0];
             var body = L.BODIES[bodyId];
             var condition = randInt(10, 75);        // scrappy used cars: rust, dents and tired engines
             var engineCondition = randInt(25, 90);
@@ -223,26 +226,30 @@
     // every win.
     L.eraWins = function (g) { return typeof g.eraWins === 'number' ? g.eraWins : g.wins; };
 
-    // What this era's money makes of a 1963 dollar amount
-    L.eraMoney = function (g, dollars) { return Math.round(dollars * L.ERAS[L.eraOf(g)].money / 50) * 50 || dollars; };
-    L.rivalPrize = function (g) { return L.eraMoney(g, L.RIVAL_PRIZE); };
-    L.kingPrize = function (g) { return L.eraMoney(g, L.KING_PRIZE); };
+    // What an era's money makes of a 1963 dollar amount
+    function eraMoney(era, dollars) { return Math.round(dollars * L.ERAS[era || 0].money / 50) * 50 || dollars; }
+    // The most a cash race bets: by the rival's era, or the current one
+    L.rivalPrize = function (g, rival) { return eraMoney(rival ? rival.era : L.eraOf(g), L.RIVAL_PRIZE); };
+    L.kingPrize = function (g) { return eraMoney(L.eraOf(g), L.KING_PRIZE); };
 
-    // Three of this era's rivals around the player's level: wins unlock the tougher ones. The
-    // era's King joins them once you've won enough races in it, until you beat him.
+    // Three of this era's rivals around the player's level: wins unlock the tougher ones. Once
+    // you're past 1963 one rival from an earlier era hangs around too, any of them. The era's
+    // King joins them once you've won enough races in it, until you beat him.
     function pickRivals(g) {
         var era = L.eraOf(g);
         var maxTier = Math.min(4, Math.floor(L.eraWins(g) / 2));
         var pool = L.RIVALS.filter(function (r) { return r.era === era && r.tier <= maxTier; });
+        var older = L.RIVALS.filter(function (r) { return r.era < era; });
         var chosen = [];
         function add(r) {
             chosen.push({
-                name: r.name, tier: r.tier, skill: r.skill, body: r.body, line: r.line, era: era,
+                name: r.name, tier: r.tier, skill: r.skill, body: r.body, line: r.line, era: r.era,
                 king: r.tier === 5, funDone: false,
                 engineCondition: r.tier === 0 ? randInt(45, 75) : randInt(75, 100)   // the first rivals drive junkers too
             });
         }
         while (chosen.length < 3 && pool.length) add(pool.splice(Math.floor(L.random() * pool.length), 1)[0]);
+        if (older.length) add(pick(older));
         if (L.eraWins(g) >= L.KING_WINS && !g.kingBeaten) add(L.KINGS[era]);
         return chosen;
     }
@@ -395,7 +402,7 @@
     // you drive there's an upgrade to buy
     L.restock = function (era) {
         era = era || 0;
-        var ids = Object.keys(L.PARTS).filter(function (id) { return L.PARTS[id].price > 0 && L.PARTS[id].era === era; });
+        var ids = Object.keys(L.PARTS).filter(function (id) { return L.PARTS[id].price > 0 && L.PARTS[id].era <= era; });
         var shelf = ids.filter(function (id) { return L.random() < L.IN_STOCK[L.PARTS[id].cls]; });
         var groups = {};
         ids.forEach(function (id) {
@@ -424,11 +431,11 @@
     // Everything the speed shop carries, with whether it's on the shelf this week and whether
     // it fits the car (every part fits when there's no car). Parts for other engine families
     // are for sale too, for a swap later. A Legendary part shows only the week it turns up.
-    // The shop carries this era's parts only.
+    // The shop carries the parts of every era so far.
     L.catalogFor = function (g, car) {
         var era = L.eraOf(g);
         return Object.keys(L.PARTS).filter(function (id) {
-            return L.PARTS[id].price > 0 && L.PARTS[id].era === era && (!L.PARTS[id].legend || L.inStock(g, id));
+            return L.PARTS[id].price > 0 && L.PARTS[id].era <= era && (!L.PARTS[id].legend || L.inStock(g, id));
         }).map(function (id) {
             return { id: id, inStock: L.inStock(g, id), fits: !car || L.fits(id, car.parts.engine) };
         });
@@ -674,8 +681,9 @@
 
     // ── Racing ────────────────────────────────────────────────────────────
 
-    // A cash race is all your cash, up to the era's RIVAL_PRIZE, against the same from the rival
-    L.cashBet = function (g) { return Math.min(Math.max(0, g.cash), L.rivalPrize(g)); };
+    // A cash race is all your cash, up to RIVAL_PRIZE in the rival's era's money, against the
+    // same from the rival
+    L.cashBet = function (g, rival) { return Math.min(Math.max(0, g.cash), L.rivalPrize(g, rival)); };
 
     // stake: 'cash' for cashBet, 'pinks' for the cars only (The King adds KING_PRIZE),
     // 'fun' for a small prize and no risk
@@ -685,7 +693,7 @@
         if (car.engineCondition <= 0) return 'Your engine is blown. Rebuild it in the garage.';
         if (car.condition < L.MIN_BODY) return 'Nobody races a rust bucket. Get the body to ' + L.MIN_BODY + '% first.';
         if (rival.king && stake !== 'pinks') return 'The King only races for pink slips.';
-        if (stake === 'cash' && L.cashBet(g) < L.MIN_BET) return 'You need at least $' + L.MIN_BET + ' to bet.';
+        if (stake === 'cash' && L.cashBet(g, rival) < L.MIN_BET) return 'You need at least $' + L.MIN_BET + ' to bet.';
         if (stake === 'fun' && rival.funDone) return rival.name + ' has had enough fun for this week.';
         return null;
     };
@@ -727,7 +735,7 @@
         }
 
         g.rivals.splice(rivalIndex, 1);
-        var cash = stake === 'pinks' ? (rival.king ? L.kingPrize(g) : 0) : L.cashBet(g);
+        var cash = stake === 'pinks' ? (rival.king ? L.kingPrize(g) : 0) : L.cashBet(g, rival);
         var cashText = '$' + cash.toLocaleString('en-US');
         if (result === 'win') {
             if (rival.king) g.kingBeaten = true;
