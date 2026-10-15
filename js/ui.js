@@ -553,7 +553,7 @@
 
         render(
             status() + flash(msg) +
-            '<div class="panel"><h2>Your cars</h2>' + cars + '</div>' + detail +
+            '<div class="panel"><h2>Your cars <span class="sub">' + g.cars.length + ' of ' + L.MAX_CARS + '</span></h2>' + cars + '</div>' + detail +
             '<div class="panel"><h2>Shelf</h2>' + shelf + '</div>' +
             backBar('Back'),
             {

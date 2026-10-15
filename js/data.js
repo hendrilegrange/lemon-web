@@ -218,7 +218,7 @@
     L.STRIP_HOURS = 6;
 
     L.START_CASH = 600;     // enough for one scrappy car and a few repairs
-    L.MAX_CARS = 3;
+    L.MAX_CARS = 10;
     L.REPAIR_PER_POINT = 2;   // dollars per point of engine condition restored
 
     // Wear on the other parts. A part under SHOT is past fixing and must be replaced.
