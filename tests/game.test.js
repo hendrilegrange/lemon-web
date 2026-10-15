@@ -545,3 +545,15 @@ test('Legendary parts only turn up now and then, one at a time', () => {
     }
     assert.ok(weeks > 50 && weeks < 160, `${weeks} weeks of 500`);
 });
+
+test('a full Bestest V8 build has an even shot at The King, and Bestest+ the edge', () => {
+    const king = Object.assign({}, L.KING, { engineCondition: 90 });
+    const build = (engine, c) => ({ body: 'ford48', condition: 100, engineCondition: 100, partCondition: {},
+        parts: L.stockParts(engine, { carb: c, intake: c, cam: c, exhaust: c, trans: c, rear: c, tires: c }) });
+    for (const engine of ['fuelie', 'v8_427']) {
+        const odds = L.odds(build(engine, 3), king);
+        assert.ok(odds > 0.42 && odds < 0.55, `${engine} Bestest: ${odds}`);
+        assert.ok(L.odds(build(engine + '_plus', 4), king) > 0.5);
+    }
+    assert.ok(L.odds(build('ardun296', 3), king) < 0.35);      // a flathead still needs a V8 swap
+});
