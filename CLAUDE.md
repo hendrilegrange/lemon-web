@@ -53,7 +53,8 @@ stack as dnd-web. The game works without it (offline, or before the server is se
 - Pull requests run `.github/workflows/test.yml` (syntax check and unit tests).
 - Rollback: revert the PR; the revert redeploys the previous files.
 - After uploading, `.github/workflows/smoke-test.yml` checks the page and its js/css load and
-  match the commit. A failure turns the deploy run red.
+  match the commit. With the `SMOKE_LOGIN` / `SMOKE_PASSWORD` secrets (a dedicated test account, whose
+  saved game it overwrites) it also signs in, saves, loads and signs out. A failure turns the deploy run red.
 
 ## Conventions
 
