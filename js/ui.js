@@ -431,7 +431,7 @@
                 '<dl>' +
                 '<dt>Fix it all</dt><dd>' + (p.fixCost ? money(p.fixCost) + ' · ' + p.fixHours + ' h' : 'Nothing to fix') + '</dd>' +
                 '<dt>Restored</dt><dd>sells for ' + money(p.restored) + ' (' + margin + ')</dd>' +
-                '<dt>¼ mile</dt><dd><span class="et">' + p.asIs.toFixed(1) + ' s</span> as is · <span class="et">' + p.fixedEt.toFixed(1) + ' s</span> fixed · <span class="et best">' + p.builtEt.toFixed(1) + ' s</span> built</dd>' +
+                '<dt>¼ mile</dt><dd><span class="et">' + p.asIs.toFixed(1) + ' s</span> as is · <span class="et">' + p.fixedEt.toFixed(1) + ' s</span> fixed · <span class="et best">' + p.builtEt.toFixed(2) + ' s</span> built</dd>' +
                 '</dl>' +
                 '<p class="build">Built: the Bestest ' + esc(p.family.toLowerCase()) + ' parts, about ' + money(p.buildCost) + ', ' + p.builtHp + ' hp.</p></div>' +
                 '<button data-act="buy" data-arg="' + i + '" class="ink"' + (g.cash < ad.price ? ' disabled' : '') + '>' +
