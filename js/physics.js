@@ -32,6 +32,7 @@
         // A worn engine makes less torque: 60% at worst
         var wear = 0.6 + 0.4 * (car.engineCondition / 100);
         var body = L.BODIES[car.body];
+        var legends = L.SLOTS.filter(function (slot) { return L.PARTS[p[slot]].legend; }).length;
         return {
             tqNm: engine.tqLbft * tqMul * wear * LBFT_TO_NM,
             tqRpm: engine.tqRpm + rpmAdd,
@@ -42,7 +43,8 @@
             final: L.PARTS[p.rear].final,
             mu: L.PARTS[p.tires].mu * (0.88 + 0.12 * cond('tires')),        // bald tires slip
             shiftTime: SHIFT_TIME * (L.PARTS[p.trans].shift || 1) + 0.2 * (1 - cond('trans')),   // a tired gearbox is slow to shift
-            driveline: DRIVELINE * (0.92 + 0.08 * cond('rear'))              // a worn rear end eats power
+            driveline: DRIVELINE * (L.PARTS[p.rear].drive || 1) * (0.92 + 0.08 * cond('rear')),   // a worn rear end eats power
+            legends: legends     // Legendary parts on the car: each widens the green shift zone
         };
     };
 

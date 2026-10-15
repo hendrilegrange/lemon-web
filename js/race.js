@@ -77,7 +77,7 @@
             var spec = player.spec;
             var best = Math.min(L.shiftRpm(spec, gear), spec.redline);
             var rate = Math.max(state.rpmRate, 0);
-            var green = best - Math.max(150, rate * SHIFT_LEAD);
+            var green = best - Math.max(150, rate * SHIFT_LEAD) * (1 + L.ZONE_PER_LEGEND * (spec.legends || 0));
             return { best: best, green: green, ready: green - Math.max(400, rate * READY_LEAD) };
         }
 

@@ -32,16 +32,16 @@ test('every car body and rival build uses real parts in the right slots, and the
     }
 });
 
-test('every slot has four classes, priced up from free stock', () => {
+test('every slot has six classes, priced up from free stock', () => {
     for (const fam of Object.keys(L.FAMILIES)) {
         for (const slot of L.BOLT_ONS) {
-            const prices = [0, 1, 2, 3].map((c) => L.PARTS[`${slot}_${fam}_${c}`].price);
+            const prices = [0, 1, 2, 3, 4, 5].map((c) => L.PARTS[`${slot}_${fam}_${c}`].price);
             assert.strictEqual(prices[0], 0);
-            assert.ok(prices[1] < prices[2] && prices[2] < prices[3], `${slot} ${fam} ${prices}`);
+            assert.ok(prices.every((x, i) => i === 0 || x > prices[i - 1]), `${slot} ${fam} ${prices}`);
         }
     }
-    for (const slot of ['trans', 'rear', 'tires']) assert.ok(L.PARTS[slot + '_3'] && L.PARTS[slot + '_0'].price === 0);
-    assert.strictEqual(L.CLASSES.join(), 'Stock,Better,Best,Bestest');
+    for (const slot of ['trans', 'rear', 'tires']) assert.ok(L.PARTS[slot + '_5'] && L.PARTS[slot + '_0'].price === 0);
+    assert.strictEqual(L.CLASSES.join(), 'Stock,Better,Best,Bestest,Bestest+,Legendary');
 });
 
 test('better classes make a car quicker, and tougher rivals are quicker', () => {
@@ -91,7 +91,7 @@ test('the speed shop shows every family\'s parts, marks what fits, and only sell
 test('every engine family has three upgrade engines', () => {
     Object.keys(L.FAMILIES).forEach((fam) => {
         const classes = Object.values(L.PARTS).filter((p) => p.slot === 'engine' && p.fam === fam && p.price > 0).map((p) => p.cls).sort();
-        assert.deepStrictEqual(classes, [1, 2, 3], fam);
+        assert.deepStrictEqual(classes, [1, 2, 3, 4, 5], fam);
     });
 });
 
@@ -515,4 +515,33 @@ test('records: quickest run and reaction, longest streak, most cash on hand', ()
     assert.strictEqual(L.records(g).cash, 9000);
     const old = { cash: 700 };                                                 // a save from before records
     assert.deepStrictEqual(L.records(old), { et: null, rt: null, streak: 0, cash: 700 });
+});
+
+test('Bestest+ only just beats Bestest for five times the money; Legendary matches it and widens the shift zone', () => {
+    for (const engine of ['ardun296', 'gmc302', 'fuelie', 'v8_427']) {
+        const build = (c, eng) => ({ body: 'ford48', condition: 100, engineCondition: 100, partCondition: {},
+            parts: L.stockParts(eng, { carb: c, intake: c, cam: c, exhaust: c, trans: c, rear: c, tires: c }) });
+        const bestest = L.spec(build(3, engine));
+        const plus = L.spec(build(4, engine + '_plus'));
+        const legend = L.spec(build(5, engine + '_legend'));
+        const gain = L.estimate(bestest).et - L.estimate(plus).et;
+        assert.ok(gain > 0 && gain < 0.2, `${engine} gains ${gain}`);
+        assert.strictEqual(L.estimate(legend).et, L.estimate(plus).et);
+        assert.strictEqual(legend.legends, L.SLOTS.length);
+        assert.strictEqual(plus.legends, 0);
+        assert.strictEqual(L.PARTS[engine + '_plus'].price, L.PARTS[engine].price * L.PLUS_PRICE);
+        assert.strictEqual(L.PARTS[engine + '_legend'].price, L.PARTS[engine + '_plus'].price * L.LEGEND_PRICE);
+    }
+});
+
+test('Legendary parts only turn up now and then, one at a time', () => {
+    const g = L.newGame();
+    let weeks = 0;
+    for (let w = 0; w < 500; w++) {
+        L.newWeek(g);
+        const legends = g.shopStock.filter((id) => L.PARTS[id].legend);
+        assert.ok(legends.length <= 1);
+        if (legends.length) weeks++;
+    }
+    assert.ok(weeks > 50 && weeks < 160, `${weeks} weeks of 500`);
 });
