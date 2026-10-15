@@ -165,7 +165,18 @@
         'odmmoommmmmmmmmmmmmmmmmmmmmmmmmmmmmmohhhhoo.',
         '.olllllllllllllllllldlllllllllllllllllllllo.'
     ].concat(CAR.slice(8));
-    var SHAPES = { coupe: CAR, muscle: MUSCLE };
+    // A mid-80s coupe: a flat, square roof and a long low wedge front to back
+    var EIGHTIES = [
+        '............................................',
+        '............................................',
+        '..............ooooooooooooo.................',
+        '............oolhhhhhhhhhhhoo................',
+        '..........oolwwwwgwwwwlwwwgwwwloo...........',
+        '.oooooooommwwwwwwwgwwwwlwwwwgwwwwmmoooooooo.',
+        'ommmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoo',
+        MUSCLE[7]
+    ].concat(CAR.slice(8));
+    var SHAPES = { coupe: CAR, muscle: MUSCLE, eighties: EIGHTIES };
     var GLASS = { w: '#4a7aa8', g: '#cfe8ff', c: '#d8d8e0', C: '#7a7a86', t: '#141414', T: '#3a3a3a', k: '#060606', r: '#e02020', y: '#fff3b0' };
     var PAINT = { o: 0, d: 1, m: 2, l: 3, h: 4 };
 
