@@ -214,6 +214,114 @@
         disc(ctx, 260, 194, 2, '#26262a'); rect(ctx, 252, 193, 14, 2, '#26262a');
     };
 
+    // ── The hub: your garage on a summer night, your car in the driveway ──
+
+    // A small seeded random, so the stars and bricks land in the same place every time
+    function seeded(seed) {
+        return function () { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    }
+
+    // Draws the hub's 320x120 scene. color: the parked car's paint, or null for an empty
+    // driveway. friday lights the burger stand's sign down the street.
+    L.drawHubScene = function (ctx, W, H, color, friday) {
+        var rnd = seeded(1963);
+        // Night sky in bands, dithered where they meet
+        var sky = ['#0a0a22', '#10102e', '#18183c', '#22204a', '#2e2652'];
+        for (var b = 0; b < sky.length; b++) rect(ctx, 0, b * 16, W, 16, sky[b]);
+        rect(ctx, 0, 80, W, 8, sky[4]);
+        for (b = 1; b < sky.length; b++) {
+            for (var x = (b % 2); x < W; x += 2) rect(ctx, x, b * 16 - 1, 1, 1, sky[b - 1]);
+            for (x = ((b + 1) % 2); x < W; x += 4) rect(ctx, x, b * 16, 1, 1, sky[b - 1]);
+        }
+        for (var i = 0; i < 46; i++) {
+            var sx = Math.floor(rnd() * W), sy = Math.floor(rnd() * 58);
+            rect(ctx, sx, sy, 1, 1, rnd() < 0.25 ? '#ffffff' : '#8a8ab8');
+        }
+        disc(ctx, 262, 16, 7, '#e8e2c0'); disc(ctx, 265, 14, 6, sky[0]);   // a crescent moon
+        rect(ctx, 258, 12, 1, 1, '#fff8d8');
+
+        // The town behind: rooftops, a water tower and lit windows
+        var town = '#0c0c1e';
+        [[150, 66, 30, 22], [178, 58, 22, 30], [198, 70, 40, 18], [236, 62, 18, 26], [252, 72, 70, 16]].forEach(function (r) {
+            rect(ctx, r[0], r[1], r[2], r[3], town);
+            for (var wy = r[1] + 4; wy < 84; wy += 6) {
+                for (var wx = r[0] + 3; wx < r[0] + r[2] - 3; wx += 5) {
+                    if (rnd() < 0.3) rect(ctx, wx, wy, 2, 2, rnd() < 0.5 ? '#e0b040' : '#806020');
+                }
+            }
+        });
+        rect(ctx, 210, 46, 16, 10, town); rect(ctx, 212, 56, 2, 14, town); rect(ctx, 222, 56, 2, 14, town);
+        rect(ctx, 208, 44, 20, 2, town);
+
+        // Down the street, the burger stand's sign: lit on Friday night
+        var neon = friday ? '#ff4fa0' : '#5a2a44', neon2 = friday ? '#ffd23f' : '#5a4a2a';
+        rect(ctx, 268, 52, 44, 14, '#0c0c1e'); rect(ctx, 288, 66, 3, 22, '#0c0c1e');
+        rect(ctx, 268, 52, 44, 1, neon); rect(ctx, 268, 65, 44, 1, neon);
+        rect(ctx, 268, 52, 1, 14, neon); rect(ctx, 311, 52, 1, 14, neon);
+        L.text(ctx, 'EATS', 290, 63, { color: neon2, align: 'center' });
+
+        // The ground: a sidewalk, the curb and the road with a dashed line
+        rect(ctx, 0, 88, W, 6, '#4a4a52'); rect(ctx, 0, 88, W, 1, '#5e5e68');
+        rect(ctx, 0, 94, W, 2, '#7a7a84'); rect(ctx, 0, 96, W, 1, '#2a2a30');
+        rect(ctx, 0, 97, W, H - 97, '#1e1e24');
+        for (x = 4; x < W; x += 24) rect(ctx, x, 110, 12, 2, '#c8a830');
+
+        // The garage: brick, a flat roof with trim, the sign and the open door
+        var gx = 6, gy = 28, gw = 150, gh = 60;
+        rect(ctx, gx, gy, gw, gh, '#6a2a1e');
+        for (var by = gy; by < gy + gh; by += 4) {
+            rect(ctx, gx, by, gw, 1, '#4a1a12');
+            for (var bx = gx + ((by / 4) % 2 ? 0 : 4); bx < gx + gw; bx += 8) rect(ctx, bx, by + 1, 1, 3, '#4a1a12');
+        }
+        speckle(ctx, gx, gy, gw, gh, 5, ['#7e3626', '#5a2418'], 0.06);
+        rect(ctx, gx - 3, gy - 4, gw + 6, 4, '#3a3a44'); rect(ctx, gx - 3, gy - 4, gw + 6, 1, '#5a5a66');
+        rect(ctx, gx - 3, gy, gw + 6, 1, '#1a1a20');
+        // The sign board, lit from below
+        rect(ctx, 24, 32, 114, 13, '#101018'); rect(ctx, 24, 32, 114, 1, '#2a2a3a');
+        L.text(ctx, "LEMON'S GARAGE", 81, 42, { color: '#ffd23f', align: 'center' });
+        for (x = 30; x < 136; x += 14) rect(ctx, x, 45, 3, 1, '#fff3b0');
+        // The open door: warm light, the pegboard and a workbench
+        var dx = 26, dy = 50, dw = 110, dh = 38;
+        rect(ctx, dx - 2, dy - 2, dw + 4, 2, '#3a3a44');
+        rect(ctx, dx, dy, dw, dh, '#8a6a30');
+        rect(ctx, dx, dy, dw, 6, '#5a4420');                     // the door, rolled up
+        ribs(ctx, dx, dy, dw, 6, 2, ['#2a2010', '#4a3818', '#5a4420', '#6a5428', '#7a6430']);
+        for (x = dx + 4; x < dx + dw - 2; x += 5) {
+            for (var y = dy + 9; y < dy + 24; y += 4) rect(ctx, x, y, 1, 1, '#5a4420');
+        }
+        tube(ctx, dx + 10, dy + 9, 2, 12, NEW.steel, true); ring(ctx, dx + 11, dy + 9, 2, 1, NEW.steel[3]);
+        rect(ctx, dx + 18, dy + 10, 8, 3, '#c02828'); rect(ctx, dx + 21, dy + 13, 2, 8, '#a0a8b8');
+        box(ctx, dx + 4, dy + 26, 40, 4, ['#2a1a0a', '#5a3a1a', '#8a6034', '#a87a48', '#c89a68']);   // workbench
+        rect(ctx, dx + 6, dy + 30, 2, 8, '#3a2410'); rect(ctx, dx + 40, dy + 30, 2, 8, '#3a2410');
+        box(ctx, dx + 10, dy + 20, 12, 6, NEW.paint);                // a toolbox
+        box(ctx, dx + 74, dy + 24, 14, 14, ['#3a0a0a', '#7a1414', '#c02828', '#e05050', '#ff9090']);  // tool chest
+        ribs(ctx, dx + 74, dy + 24, 14, 14, 3, ['#3a0a0a', '#7a1414', '#c02828', '#e05050', '#ff9090']);
+        rect(ctx, dx + 52, dy + 1, 10, 2, '#fff3b0'); rect(ctx, dx + 56, dy - 1, 2, 2, '#3a3a44');   // the bulb
+        // Light spills out of the door across the driveway
+        for (y = 88; y < 97; y++) {
+            for (x = dx - (y - 88) * 2; x < dx + dw + (y - 88) * 2; x += 2) {
+                if ((x + y) % 2 === 0 && x >= 0) rect(ctx, x, y, 1, 1, y < 94 ? '#7a6a48' : '#9a8a60');
+            }
+        }
+
+        // A street lamp with its pool of light
+        var lx = 258;
+        tube(ctx, lx, 30, 3, 66, NEW.iron, true);
+        rect(ctx, lx - 6, 28, 12, 3, '#30363f'); rect(ctx, lx - 4, 31, 8, 2, '#fff3b0');
+        for (y = 34; y < 97; y++) {
+            var half = Math.floor((y - 33) * 0.45);
+            for (x = lx - half; x <= lx + half + 2; x++) {
+                if ((x + y) % 3 === 0) rect(ctx, x, y, 1, 1, y < 88 ? '#3a3654' : '#6e6a5a');
+            }
+        }
+
+        // Your car, parked out front
+        if (color) {
+            L.drawCar(ctx, 160, 52, color, { scale: 2 });
+            rect(ctx, 166, 96, 76, 2, '#141418');                   // its shadow on the curb
+        }
+    };
+
     // ── Parts on the workbench ────────────────────────────────────────────
 
     // Each job's part, drawn in its materials. The shapes follow L.WRENCH's rects and circles,
