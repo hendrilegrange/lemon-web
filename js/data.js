@@ -208,7 +208,8 @@
         { engine: 'v8_283', classes: { carb: 1, intake: 1, exhaust: 1, rear: 1, tires: 1 } },
         { engine: 'v8_327', classes: { carb: 2, intake: 2, cam: 2, exhaust: 1, trans: 1, rear: 2, tires: 1 } },
         { engine: 'v8_409', classes: { carb: 2, intake: 2, cam: 2, exhaust: 2, trans: 2, rear: 2, tires: 3 } },
-        { engine: 'v8_427', classes: { carb: 3, intake: 2, cam: 3, exhaust: 2, trans: 3, rear: 3, tires: 3 } }
+        // The King: a 427 on Best bolt-ons, so a full Bestest build is an even fight and Bestest+ edges it
+        { engine: 'v8_427', classes: { carb: 2, intake: 2, cam: 2, exhaust: 2, trans: 2, rear: 3, tires: 3 } }
     ];
 
     // The parts a rival of this tier runs in this body
