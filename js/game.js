@@ -123,6 +123,13 @@
     L.carColor = function (car) {
         return car.paint && L.PAINTS[car.paint] ? L.PAINTS[car.paint].hex : L.BODIES[car.body].color;
     };
+    // How a rival's car looks at the stand and on the strip: the factory paint, a stripe or a
+    // number on the quick ones, and The King's black car with flames
+    L.rivalLook = function (rival) {
+        if (rival.king) return { color: '#1c1c24', livery: 'flames', trim: '#f2f2ea' };
+        var livery = rival.tier >= 4 ? 'number' : rival.tier >= 2 ? 'stripes' : null;
+        return { color: L.BODIES[rival.body].color, livery: livery, trim: '#f2f2ea' };
+    };
     L.carLook = function (car) {
         var livery = car.livery && L.LIVERIES[car.livery] && car.livery !== 'none' ? car.livery : null;
         return { color: L.carColor(car), livery: livery, trim: L.PAINTS[car.trim] ? L.PAINTS[car.trim].hex : '#f2f2ea' };
