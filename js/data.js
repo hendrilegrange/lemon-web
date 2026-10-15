@@ -212,8 +212,9 @@
     L.KING_PRIZE = 10000;
 
     // What a car fetches, times its body's price: a wreck is worth `junk`, and a car in shape
-    // all over up to junk + restored (see L.carValue). Stripped, the shell goes for `scrap`.
-    L.RESALE = { junk: 0.25, restored: 1.2, scrap: 0.12 };
+    // all over up to junk + restored (see L.carValue), plus `classic` dollars, since any old car
+    // done right draws collectors, so even a cheap Ford can pay. Stripped, the shell goes for `scrap`.
+    L.RESALE = { junk: 0.25, restored: 1.2, classic: 150, scrap: 0.12 };
     L.STRIP_HOURS = 6;
 
     L.START_CASH = 600;     // enough for one scrappy car and a few repairs

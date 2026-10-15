@@ -200,6 +200,21 @@ test('settling races: cash races bet your cash up to $1,000, pink slips are for 
     assert.match(L.canRace(g, { tier: 1 }, 'cash'), /at least/);
 });
 
+test('a week of classifieds has five different cars', () => {
+    for (let i = 0; i < 20; i++) {
+        const g = L.newGame();
+        assert.strictEqual(new Set(g.ads.map((ad) => ad.body)).size, 5);
+    }
+});
+
+test('restoring a cheap flathead car in fair shape pays too', () => {
+    let profit = 0;
+    for (let i = 0; i < 200; i++) {
+        profit += L.potential({ body: 'ford48', condition: 40, engineCondition: 55, parts: {}, price: 280 }).margin;
+    }
+    assert.ok(profit / 200 > 0, 'a $280 Ford restores at a profit: ' + profit / 200);
+});
+
 test('a restored car sells for more than it cost to buy and fix, and a car bought as is sells for less', () => {
     let profit = 0, dump = 0, n = 0;
     for (let i = 0; i < 30; i++) {

@@ -60,7 +60,8 @@
     // plus half of what its speed parts cost new, by their condition
     L.carValue = function (car) {
         var body = L.BODIES[car.body];
-        var value = body.price * (L.RESALE.junk + L.RESALE.restored * Math.pow(L.carShape(car), 3));
+        var shape = Math.pow(L.carShape(car), 3);
+        var value = body.price * (L.RESALE.junk + L.RESALE.restored * shape) + L.RESALE.classic * shape;
         L.SLOTS.forEach(function (slot) {
             value += (L.PARTS[car.parts[slot]].price || 0) / 2 * L.partCondition(car, slot) / 100;
         });
@@ -112,13 +113,14 @@
         g.friday = false;
         g.shopStock = L.restock();
         g.ads = [];
+        // Five different cars, so a week's paper isn't all one kind
         var bodies = Object.keys(L.BODIES);
         for (var i = 0; i < 5; i++) {
-            var bodyId = pick(bodies);
+            var bodyId = bodies.length ? bodies.splice(Math.floor(L.random() * bodies.length), 1)[0] : pick(Object.keys(L.BODIES));
             var body = L.BODIES[bodyId];
             var condition = randInt(10, 75);        // scrappy used cars: rust, dents and tired engines
             var engineCondition = randInt(25, 90);
-            var price = roundTo(body.price * (0.35 + 0.65 * condition / 100) * (0.7 + 0.3 * engineCondition / 100) * rand(0.9, 1.15), 10);
+            var price = roundTo(body.price * (0.35 + 0.65 * condition / 100) * (0.7 + 0.3 * engineCondition / 100) * rand(0.8, 1.4), 10);
             g.ads.push({ body: bodyId, condition: condition, engineCondition: engineCondition, parts: wornParts(engineCondition), price: price, note: adNote(condition, engineCondition) });
         }
         // There is always a cheap beater, so a broke player can get back on the road
