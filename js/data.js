@@ -28,12 +28,22 @@
     L.BOLT_ONS = ['carb', 'intake', 'cam', 'exhaust'];
 
     L.PARTS = {
-        // Engines: any engine bolts into any car, as long as you have the hours
+        // Engines: any engine bolts into any car, as long as you have the hours. Every family
+        // has a Better, Best and Bestest engine, so a flathead or six car can go faster and keep
+        // its bolt-ons.
         flathead: { slot: 'engine', fam: 'flat', cls: 0, name: 'Ford flathead V8, 239 ci', price: 0, tqLbft: 190, tqRpm: 2000, redline: 4200, kg: 250 },
+        flat255:  { slot: 'engine', fam: 'flat', cls: 1, name: 'Mercury flathead V8, 255 ci', price: 180, tqLbft: 215, tqRpm: 2200, redline: 4400, kg: 250 },
+        flat276:  { slot: 'engine', fam: 'flat', cls: 2, name: 'Mercury flathead stroker, 276 ci', price: 300, tqLbft: 245, tqRpm: 2400, redline: 4700, kg: 255 },
+        ardun296: { slot: 'engine', fam: 'flat', cls: 3, name: 'Ardun overhead-valve flathead, 296 ci', price: 560, tqLbft: 285, tqRpm: 3000, redline: 5400, kg: 265 },
         six235:   { slot: 'engine', fam: 'six', cls: 0, name: 'Chevy 235 six', price: 0, tqLbft: 200, tqRpm: 2000, redline: 4400, kg: 260 },
+        six261:   { slot: 'engine', fam: 'six', cls: 1, name: 'Chevy 261 six', price: 160, tqLbft: 220, tqRpm: 2000, redline: 4400, kg: 270 },
+        gmc270:   { slot: 'engine', fam: 'six', cls: 2, name: 'GMC 270 six', price: 260, tqLbft: 245, tqRpm: 2000, redline: 4500, kg: 290 },
+        gmc302:   { slot: 'engine', fam: 'six', cls: 3, name: 'GMC 302 six, Wayne 12-port head', price: 480, tqLbft: 290, tqRpm: 2600, redline: 5000, kg: 300 },
         v8_283:   { slot: 'engine', fam: 'small', cls: 1, name: 'Chevy 283 V8', price: 340, tqLbft: 285, tqRpm: 2800, redline: 5200, kg: 240 },
         v8_327:   { slot: 'engine', fam: 'small', cls: 2, name: 'Chevy 327 V8', price: 520, tqLbft: 335, tqRpm: 3200, redline: 5800, kg: 245 },
-        v8_409:   { slot: 'engine', fam: 'big', cls: 3, name: 'Chevy 409 V8', price: 780, tqLbft: 390, tqRpm: 3200, redline: 6000, kg: 300 },
+        fuelie:   { slot: 'engine', fam: 'small', cls: 3, name: 'Chevy 327 fuel-injected V8', price: 900, tqLbft: 355, tqRpm: 4400, redline: 6500, kg: 250 },
+        v8_348:   { slot: 'engine', fam: 'big', cls: 1, name: 'Chevy 348 V8', price: 560, tqLbft: 330, tqRpm: 3000, redline: 5600, kg: 295 },
+        v8_409:   { slot: 'engine', fam: 'big', cls: 2, name: 'Chevy 409 V8', price: 780, tqLbft: 390, tqRpm: 3200, redline: 6000, kg: 300 },
         v8_427:   { slot: 'engine', fam: 'big', cls: 3, name: 'Ford 427 V8', price: 1150, tqLbft: 440, tqRpm: 3600, redline: 6400, kg: 310 }
     };
 
