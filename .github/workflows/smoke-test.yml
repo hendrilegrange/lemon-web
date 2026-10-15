@@ -31,4 +31,6 @@ jobs:
         env:
           SITE_URL: https://lemon.dontbeone.co.za
           CHECK_FILES: ${{ inputs.check_files && '1' || '' }}
+          SMOKE_LOGIN: ${{ secrets.SMOKE_LOGIN }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
         run: .github/scripts/smoke-test.sh

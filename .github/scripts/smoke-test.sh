@@ -4,6 +4,8 @@
 #
 #   SITE_URL        site to check, e.g. https://lemon.dontbeone.co.za (no trailing slash)
 #   CHECK_FILES=1   also check the live index.html, js/ and css/ match this checkout (right after a deploy)
+#   SMOKE_LOGIN, SMOKE_PASSWORD   a dedicated test account: sign in, save, load and sign out.
+#                   Skipped when they aren't set. The account's saved game is overwritten.
 set -uo pipefail
 
 SITE_URL="${SITE_URL%/}"
@@ -49,6 +51,37 @@ elif grep -q '"offline"' "$WORK/api"; then
 else
     echo "WARN  accounts API returned HTTP $code (is PHP enabled for the site?)"
     echo "::warning::accounts API returned HTTP $code (is PHP enabled for the site?)"
+fi
+
+# Accounts end to end, with the test account: sign in, save a game, load it back, sign out
+if [ -n "${SMOKE_LOGIN:-}" ] && [ -n "${SMOKE_PASSWORD:-}" ] && grep -q '"user"' "$WORK/api"; then
+    JAR="$WORK/cookies"
+    # api ACTION OUTFILE [JSON] → prints the HTTP status; a JSON body makes it a POST
+    api() {
+        : >"$2"
+        local args=(-sS -o "$2" -w '%{http_code}' --max-time 30 -b "$JAR" -c "$JAR")
+        [ $# -ge 3 ] && args+=(-H 'Content-Type: application/json' -H 'X-Requested-With: XMLHttpRequest' --data "$3")
+        curl "${args[@]}" "$SITE_URL/api.php?action=$1" 2>"$WORK/curl.err" || true
+    }
+    login=$(jq -nc --arg u "$SMOKE_LOGIN" --arg p "$SMOKE_PASSWORD" '{username: $u, password: $p}')
+    code=$(api login "$WORK/login" "$login")
+    if [ "$code" = 200 ] && [ "$(jq -r '.user.username // empty' "$WORK/login")" != "" ]; then
+        pass "test account signs in"
+        stamp=$(date +%s)
+        game=$(jq -nc --argjson s "$stamp" '{game: {week: 1, cash: $s, savedAt: ($s * 1000), cars: [], smokeTest: true}}')
+        code=$(api save "$WORK/save" "$game")
+        [ "$code" = 200 ] && jq -e '.ok' "$WORK/save" >/dev/null && pass "a game saves" || fail "save returned HTTP $code: $(head -c 200 "$WORK/save")"
+        code=$(api load "$WORK/load")
+        [ "$code" = 200 ] && [ "$(jq -r '.game.cash // empty' "$WORK/load")" = "$stamp" ] && pass "the saved game loads back" \
+            || fail "load returned HTTP $code without the game just saved: $(head -c 200 "$WORK/load")"
+        code=$(api logout "$WORK/logout" '{}')
+        code2=$(api load "$WORK/after")
+        [ "$code" = 200 ] && [ "$code2" = 401 ] && pass "signing out ends the session" || fail "sign-out returned HTTP $code, then load returned HTTP $code2"
+    else
+        fail "test account can't sign in: HTTP $code $(head -c 200 "$WORK/login")"
+    fi
+elif [ -z "${SMOKE_LOGIN:-}" ]; then
+    echo "SKIP  account sign-in check (no SMOKE_LOGIN / SMOKE_PASSWORD secrets)"
 fi
 
 if [ "${CHECK_FILES:-}" = 1 ]; then
