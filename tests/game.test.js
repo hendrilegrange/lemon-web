@@ -232,7 +232,7 @@ test('stripping a car shelves its speed parts as they are, scraps the shell and 
     const t = g.inventory.indexOf('tires_2');
     assert.ok(t >= 0 && L.shelfCondition(g, t) === 60, 'worn parts keep their wear');
     assert.ok(g.inventory.includes('v8_283'), 'the engine is kept');
-    assert.strictEqual(L.partValue(g, t), Math.floor(120 / 2 * 0.6));
+    assert.strictEqual(L.partValue(g, t), Math.floor(L.PARTS.tires_2.price / 2 * 0.6));
 });
 
 test('the body has to be at least 75% to race, and bodywork costs money and hours', () => {
@@ -399,4 +399,16 @@ test('potential leaves the ad alone', () => {
     const before = JSON.stringify(g.ads);
     g.ads.forEach((ad) => L.potential(ad));
     assert.strictEqual(JSON.stringify(g.ads), before);
+});
+
+test('a full build costs several weeks of cash-race winnings', () => {
+    for (const fam of Object.keys(L.FAMILIES)) {
+        const top = Object.keys(L.PARTS).filter((id) => L.PARTS[id].slot === 'engine' && L.PARTS[id].fam === fam && L.PARTS[id].cls === 3)[0];
+        const parts = L.stockParts(top, { carb: 3, intake: 3, cam: 3, exhaust: 3, trans: 3, rear: 3, tires: 3 });
+        const cost = L.SLOTS.reduce((sum, slot) => sum + L.PARTS[parts[slot]].price, 0);
+        // A Friday night's three cash races win at most 3 x RIVAL_PRIZE
+        assert.ok(cost > 3 * L.RIVAL_PRIZE, `${fam} build costs ${cost}`);
+    }
+    assert.strictEqual(L.repairCost({ parts: { engine: 'v8_427' }, engineCondition: 0 }), Math.ceil(100 * L.REPAIR_PER_POINT * (1 + 1150 / 1000)),
+        'an engine rebuild costs what it did before the price rise');
 });
