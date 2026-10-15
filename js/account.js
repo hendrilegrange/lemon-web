@@ -152,6 +152,14 @@
         });
     };
 
+    // The leaderboards: the top 10 on each, or one board's top 100 ('et', 'rt', 'streak' or
+    // 'cash'). Resolves { boards: { key: [{ name, value }] } } or { error }.
+    A.leaders = function (board) {
+        return call('leaders' + (board ? '&board=' + encodeURIComponent(board) : '')).then(function (res) {
+            return res.ok && res.data.boards ? { boards: res.data.boards } : { error: res.data.error || 'Couldn\'t reach the server.' };
+        });
+    };
+
     // After a conflict: keep 'local' (this browser's game goes to the account) or 'remote'
     A.choose = function (which) {
         if (which === 'local') { pending = L.load(); return push(); }

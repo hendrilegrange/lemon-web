@@ -143,7 +143,8 @@
             return {
                 me: state.foul ? 'jumped the light' : line(me),
                 them: line(them),
-                reaction: me.launchedAt === null ? null : (me.launchedAt - state.greenAt)
+                reaction: me.launchedAt === null ? null : (me.launchedAt - state.greenAt),
+                et: state.foul || me.blown || me.finishAt === null ? null : me.finishAt - state.greenAt
             };
         }
 

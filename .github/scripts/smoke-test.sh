@@ -45,6 +45,9 @@ if grep -q '<?php' "$WORK/api"; then
     fail "api.php is served as source code: PHP isn't running on the site"
 elif grep -q '"user"' "$WORK/api"; then
     pass "accounts API answers"
+    code=$(get "$SITE_URL/api.php?action=leaders" "$WORK/leaders")
+    [ "$code" = 200 ] && jq -e '.boards | has("et") and has("rt") and has("streak") and has("cash")' "$WORK/leaders" >/dev/null \
+        && pass "leaderboards answer" || fail "leaderboards returned HTTP $code: $(head -c 200 "$WORK/leaders")"
 elif grep -q '"offline"' "$WORK/api"; then
     echo "WARN  accounts API is up but config.php isn't on the server yet"
     echo "::warning::accounts API has no config.php on the server yet"
