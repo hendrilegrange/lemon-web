@@ -36,6 +36,21 @@ for asset in $(grep -oE '(src|href)="(js|css)/[^"?]+' "$WORK/index.html" | sed -
     [ "$code" = 200 ] && [ -s "$WORK/asset" ] && pass "$asset loads" || fail "$asset returned HTTP $code"
 done
 
+# Accounts: api.php should answer JSON (503 "offline" until config.php is on the server). Only
+# a warning when it doesn't, since the game works without it, but the PHP source must never show.
+code=$(get "$SITE_URL/api.php?action=me" "$WORK/api")
+if grep -q '<?php' "$WORK/api"; then
+    fail "api.php is served as source code: PHP isn't running on the site"
+elif grep -q '"user"' "$WORK/api"; then
+    pass "accounts API answers"
+elif grep -q '"offline"' "$WORK/api"; then
+    echo "WARN  accounts API is up but config.php isn't on the server yet"
+    echo "::warning::accounts API has no config.php on the server yet"
+else
+    echo "WARN  accounts API returned HTTP $code (is PHP enabled for the site?)"
+    echo "::warning::accounts API returned HTTP $code (is PHP enabled for the site?)"
+fi
+
 if [ "${CHECK_FILES:-}" = 1 ]; then
     # Right after a deploy the live files must be the ones just uploaded. Retry a little, in case
     # the server is still serving a cached copy.

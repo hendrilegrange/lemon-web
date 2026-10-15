@@ -113,6 +113,16 @@
     document.addEventListener('pointerdown', wake);
     document.addEventListener('keydown', wake);
 
+    // The title waits for the account check, so a newer game saved from another device is
+    // in place before Continue is offered. Without the API that's a quick failed request.
     L.initUi(document.getElementById('app'));
-    L.showTitle();
+    L.titleScreen(true);
+    // A password reset link (?reset_token=...) opens the new-password form; the token comes
+    // out of the address bar so it isn't left in the history
+    var resetToken = new URLSearchParams(location.search).get('reset_token');
+    if (resetToken) history.replaceState(null, '', location.pathname);
+    L.account.check().then(function () {
+        if (resetToken && L.account.available) L.showReset(resetToken);
+        else L.showTitle();
+    });
 })(window.Lemon = window.Lemon || {});

@@ -19,5 +19,8 @@ jobs:
       - name: JavaScript syntax check
         run: |
           for f in $(git ls-files 'js/*.js'); do node --check "$f" || exit 1; done
+      - name: PHP syntax check
+        run: |
+          for f in $(git ls-files '*.php'); do php -l "$f" || exit 1; done
       - name: Unit tests
         run: node --test tests/*.test.js
