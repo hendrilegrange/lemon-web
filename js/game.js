@@ -764,7 +764,8 @@
                 var won = L.makeCar(g, rival.body, L.rivalParts(rival.body, rival.tier, rival.era), 80, rival.engineCondition, wornParts(rival.engineCondition));
                 var next = L.ERAS[L.eraOf(g) + 1];
                 var crown = !rival.king ? '' : ' You are the new King of the strip!' +
-                    (next ? ' Next week it\'s ' + next.year + ', and there\'s a new crowd at the burger stand.' : '');
+                    (next ? ' Next week it\'s ' + next.year + ', and there\'s a new crowd at the burger stand.'
+                        : ' From ' + L.ERAS[0].year + ' to ' + L.ERAS[L.eraOf(g)].year + ', you beat every King there was.');
                 if (g.cars.length < L.MAX_CARS) {
                     g.cars.push(won);
                     return 'You won ' + prize + rival.name + "'s " + L.carName(won) + '!' + crown + blown;

@@ -198,7 +198,18 @@
         '.ommmmmooommmmmmmmmmmmmmmmmmmmmmmmmmmmmoooo.',
         MUSCLE[7]
     ].concat(CAR.slice(8));
-    var SHAPES = { coupe: CAR, muscle: MUSCLE, eighties: EIGHTIES, nineties: NINETIES, aughts: AUGHTS };
+    // A 2020s coupe: a low fastback roof set well back, a long hood and a ducktail spoiler
+    var MODERN = [
+        '............................................',
+        '............................................',
+        '.............oooooooooo.....................',
+        '..........ooolhhhhhhhhhoo...................',
+        '.oo.....oolwwwwgwwwwlwwwgwoo................',
+        '.oooo.oommwwwwwwgwwwwlwwwwgwmmmooo..........',
+        'ommmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoo.',
+        MUSCLE[7]
+    ].concat(CAR.slice(8));
+    var SHAPES = { coupe: CAR, muscle: MUSCLE, eighties: EIGHTIES, nineties: NINETIES, aughts: AUGHTS, modern: MODERN };
     var GLASS = { w: '#4a7aa8', g: '#cfe8ff', c: '#d8d8e0', C: '#7a7a86', t: '#141414', T: '#3a3a3a', k: '#060606', r: '#e02020', y: '#fff3b0' };
     var PAINT = { o: 0, d: 1, m: 2, l: 3, h: 4 };
 
