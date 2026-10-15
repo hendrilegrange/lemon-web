@@ -615,7 +615,9 @@ test('the last era\'s King is the end of the line: no next era', () => {
     L.newWeek(g);
     const k = g.rivals.findIndex((r) => r.king);
     assert.strictEqual(g.rivals[k].name, L.KINGS[last].name);
-    assert.doesNotMatch(L.settleRace(g, k, 'pinks', 'win', 0), /Next week/);
+    const line = L.settleRace(g, k, 'pinks', 'win', 0);
+    assert.doesNotMatch(line, /Next week/);
+    assert.match(line, /you beat every King there was/);
     L.newWeek(g);
     assert.strictEqual(L.eraOf(g), last);
     assert.ok(!g.rivals.some((r) => r.king));
@@ -706,6 +708,26 @@ test('2005 needs a 2005 build: Bestest has a fair shot at The Tuner King, and a 
     L.ERA_BUILDS[4].forEach((b, tier) => {
         const et = L.estimate(L.spec(car('gto04', L.rivalParts('gto04', tier, 4)))).et;
         assert.ok(et < last, `2005 tier ${tier}: ${et} < ${last}`);
+        last = et;
+    });
+});
+
+test('2025 needs a 2025 build: Bestest has a fair shot at The Last King, and a 2005 Bestest build a slim one', () => {
+    const king = Object.assign({}, L.KINGS[5], { engineCondition: 90 });
+    const build = (body, engine, c) => ({ body, condition: 100, engineCondition: 100, partCondition: {},
+        parts: L.stockParts(engine, { carb: c, intake: c, cam: c, exhaust: c, trans: c, rear: c, tires: c }) });
+    for (const body of ['challenger23', 'mustang24', 'gtr24']) {
+        for (const engine of ['lt_tt', 'hemi_jb', 'coyote_tt', 'vr38_alpha']) {
+            const odds = L.odds(build(body, engine, 3), king);
+            assert.ok(odds > 0.33 && odds < 0.55, `${body} ${engine}: ${odds}`);
+            assert.ok(L.odds(build(body, engine + '_plus', 4), king) > odds);
+        }
+    }
+    assert.ok(L.odds(build('vette05', 'ls_tt', 3), king) < 0.25);
+    let last = Infinity;
+    L.ERA_BUILDS[5].forEach((b, tier) => {
+        const et = L.estimate(L.spec(car('camaro24', L.rivalParts('camaro24', tier, 5)))).et;
+        assert.ok(et < last, `2025 tier ${tier}: ${et} < ${last}`);
         last = et;
     });
 });

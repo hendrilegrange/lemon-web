@@ -15,7 +15,9 @@
         { year: 1995, tag: '95', money: 5.5, name: 'Summer of 1995',
           intro: "It's 1995. Twin-turbo imports and LT1 V8s line up at the burger stand, and a new King waits in a black Supra. The old crowd is still around, and your cash and your cars came with you." },
         { year: 2005, tag: '05', money: 7, name: 'Summer of 2005',
-          intro: "It's 2005. LS V8s, Hemis and turbo fours with big wings have taken over the burger stand, and a new King waits in a black Evo. The old crowd is still around, and your cash and your cars came with you." }
+          intro: "It's 2005. LS V8s, Hemis and turbo fours with big wings have taken over the burger stand, and a new King waits in a black Evo. The old crowd is still around, and your cash and your cars came with you." },
+        { year: 2025, tag: '25', money: 9, name: 'Summer of 2025',
+          intro: "It's 2025. Supercharged Hellcats, GT500s and twin-turbo GT-Rs run nines on street tires, and the last King waits in a black GT-R. The old crowd is still around, and your cash and your cars came with you." }
     ];
     L.eraOf = function (g) { return Math.min(g.era || 0, L.ERAS.length - 1); };
 
@@ -63,7 +65,13 @@
         hemi05:  { name: 'Chrysler Hemi V8', price: 1.05, era: 4 },
         turbo05: { name: 'Turbo four', price: 1.15, era: 4, items: {
             intake: ['stock intercooler', 'front-mount intercooler', 'big front-mount intercooler', 'race intercooler and intake manifold'],
-            exhaust: ['stock downpipe', 'turbo-back exhaust', 'big turbo-back exhaust', 'tubular manifold and open dump'] } }
+            exhaust: ['stock downpipe', 'turbo-back exhaust', 'big turbo-back exhaust', 'tubular manifold and open dump'] } },
+        lt25:     { name: 'Chevy LT V8', price: 1, era: 5 },
+        hemi25:   { name: 'Hellcat Hemi V8', price: 1.05, era: 5 },
+        ford25:   { name: 'Ford Coyote V8', price: 1, era: 5 },
+        vr25:     { name: 'Nissan twin-turbo V6', price: 1.2, era: 5, items: {
+            intake: ['stock intercoolers', 'bigger intercoolers', 'race intercoolers and intake pipes', 'race intercoolers and billet plenum'],
+            exhaust: ['stock downpipes', 'turbo-back exhaust', 'big turbo-back exhaust', 'race manifolds and open dumps'] } }
     };
     L.BOLT_ONS = ['carb', 'intake', 'cam', 'exhaust'];
 
@@ -136,7 +144,24 @@
         sr4g63:    { slot: 'engine', fam: 'turbo05', cls: 0, name: 'Mitsubishi 4G63 turbo four', price: 0, tqLbft: 290, tqRpm: 3500, redline: 7000, kg: 160 },
         ej257:     { slot: 'engine', fam: 'turbo05', cls: 1, name: 'Subaru EJ257 turbo flat four', price: 3200, tqLbft: 330, tqRpm: 4000, redline: 7000, kg: 165 },
         big4g63:   { slot: 'engine', fam: 'turbo05', cls: 2, name: 'Mitsubishi 4G63, big turbo', price: 5000, tqLbft: 450, tqRpm: 5000, redline: 7800, kg: 165 },
-        gt35r:     { slot: 'engine', fam: 'turbo05', cls: 3, name: 'Mitsubishi 4G63 built, GT35R turbo', price: 8400, tqLbft: 580, tqRpm: 5600, redline: 8400, kg: 170 }
+        gt35r:     { slot: 'engine', fam: 'turbo05', cls: 3, name: 'Mitsubishi 4G63 built, GT35R turbo', price: 8400, tqLbft: 580, tqRpm: 5600, redline: 8400, kg: 170 },
+        // 2025: superchargers from the factory and a twin-turbo V6 from Japan
+        lt1_25:    { slot: 'engine', fam: 'lt25', cls: 0, name: 'Chevy 6.2 LT1 V8', price: 0, tqLbft: 470, tqRpm: 4600, redline: 6500, kg: 210 },
+        lt4_25:    { slot: 'engine', fam: 'lt25', cls: 1, name: 'Chevy 6.2 LT4 supercharged V8', price: 3900, tqLbft: 620, tqRpm: 4400, redline: 6500, kg: 225 },
+        lt4_big:   { slot: 'engine', fam: 'lt25', cls: 2, name: 'Chevy LT4, ported blower and small pulley', price: 6200, tqLbft: 780, tqRpm: 4800, redline: 6800, kg: 225 },
+        lt_tt:     { slot: 'engine', fam: 'lt25', cls: 3, name: 'Chevy LT 427, twin turbos', price: 10300, tqLbft: 1005, tqRpm: 5200, redline: 7200, kg: 240 },
+        hemi392:   { slot: 'engine', fam: 'hemi25', cls: 0, name: 'Chrysler 392 Hemi V8', price: 0, tqLbft: 475, tqRpm: 4300, redline: 6400, kg: 265 },
+        hellcat:   { slot: 'engine', fam: 'hemi25', cls: 1, name: 'Hellcat 6.2 supercharged Hemi', price: 3900, tqLbft: 630, tqRpm: 4800, redline: 6200, kg: 285 },
+        demon:     { slot: 'engine', fam: 'hemi25', cls: 2, name: 'Demon 6.2 supercharged Hemi', price: 6200, tqLbft: 790, tqRpm: 4800, redline: 6500, kg: 285 },
+        hemi_jb:   { slot: 'engine', fam: 'hemi25', cls: 3, name: 'Hemi 426 stroker, 3.0 blower on E85', price: 10300, tqLbft: 1080, tqRpm: 5000, redline: 6800, kg: 300 },
+        coyote:    { slot: 'engine', fam: 'ford25', cls: 0, name: 'Ford 5.0 Coyote V8', price: 0, tqLbft: 420, tqRpm: 4900, redline: 7500, kg: 200 },
+        predator:  { slot: 'engine', fam: 'ford25', cls: 1, name: 'Ford 5.2 Predator supercharged V8', price: 3900, tqLbft: 620, tqRpm: 5000, redline: 7500, kg: 215 },
+        predator_big: { slot: 'engine', fam: 'ford25', cls: 2, name: 'Ford Predator, ported blower and small pulley', price: 6200, tqLbft: 780, tqRpm: 5200, redline: 7600, kg: 215 },
+        coyote_tt: { slot: 'engine', fam: 'ford25', cls: 3, name: 'Ford 5.0 Coyote built, twin turbos', price: 10300, tqLbft: 985, tqRpm: 5600, redline: 7800, kg: 225 },
+        vr38:      { slot: 'engine', fam: 'vr25', cls: 0, name: 'Nissan VR38 twin-turbo V6', price: 0, tqLbft: 465, tqRpm: 3600, redline: 7000, kg: 180 },
+        vr38_t:    { slot: 'engine', fam: 'vr25', cls: 1, name: 'Nissan VR38, tune and bigger turbos', price: 4100, tqLbft: 620, tqRpm: 4200, redline: 7100, kg: 180 },
+        vr38_big:  { slot: 'engine', fam: 'vr25', cls: 2, name: 'Nissan VR38 built, big turbos', price: 6500, tqLbft: 780, tqRpm: 5000, redline: 7600, kg: 185 },
+        vr38_alpha: { slot: 'engine', fam: 'vr25', cls: 3, name: 'Nissan VR38 4.1 stroker, huge turbos', price: 10800, tqLbft: 1000, tqRpm: 5600, redline: 8000, kg: 190 }
     };
     Object.keys(L.PARTS).forEach(function (id) { L.PARTS[id].era = L.FAMILIES[L.PARTS[id].fam].era; });
 
@@ -267,6 +292,31 @@
             { item: 'long-tube headers', tq: 1.06, rpm: 200, price: 980 },
             { item: 'race headers, straight pipes', tq: 1.07, rpm: 250, price: 1290 }
         ]
+    }, {
+        carb: [
+            { item: 'stock fuel system', tq: 1, price: 0 },
+            { item: 'tune and injectors', tq: 1.05, rpm: 100, price: 730 },
+            { item: 'E85 tune and fuel system', tq: 1.08, rpm: 250, price: 1600 },
+            { item: 'flex-fuel race ECU and fuel pumps', tq: 1.09, rpm: 300, price: 1920 }
+        ],
+        intake: [
+            { item: 'stock intake', tq: 1, price: 0 },
+            { item: 'cold air intake', tq: 1.03, rpm: 100, price: 560 },
+            { item: 'ported intake and throttle body', tq: 1.05, rpm: 250, price: 1200 },
+            { item: 'race intake and big throttle body', tq: 1.06, rpm: 350, price: 1600 }
+        ],
+        cam: [
+            { item: 'cam', tq: 1, price: 0 },
+            { item: 'street cam', tq: 1.03, rpm: 150, redline: 200, price: 440 },
+            { item: 'hot cam and springs', tq: 1.05, rpm: 400, redline: 500, price: 830 },
+            { item: 'race cam and valvetrain', tq: 1.07, rpm: 700, redline: 900, price: 1400 }
+        ],
+        exhaust: [
+            { item: 'stock exhaust', tq: 1, price: 0 },
+            { item: 'cat-back exhaust', tq: 1.04, rpm: 150, price: 870 },
+            { item: 'long-tube headers', tq: 1.06, rpm: 200, price: 1270 },
+            { item: 'race headers, straight pipes', tq: 1.07, rpm: 250, price: 1680 }
+        ]
     }];
 
     function round5(n) { return Math.round(n / 5) * 5; }
@@ -382,6 +432,25 @@
             { name: 'Mickey Thompson ET Street Radials', price: 920, mu: 1.7 },
             { name: 'Hoosier drag slicks', price: 1180, mu: 2.15 }
         ]]
+    ], [
+        ['trans', [
+            { name: '6-speed manual', price: 0, gears: [2.66, 1.78, 1.30, 1.0, 0.74, 0.50] },
+            { name: 'Tremec TR-6060 6-speed', price: 2080, gears: [2.97, 2.07, 1.43, 1.0, 0.84, 0.56] },
+            { name: 'Tremec 7-speed dual-clutch', price: 2600, gears: [3.13, 2.20, 1.62, 1.24, 1.0, 0.82, 0.66] },
+            { name: 'Tremec dual-clutch, race clutch packs and paddles', price: 3380, gears: [3.13, 2.20, 1.62, 1.24, 1.0, 0.82, 0.66], shift: 0.7 }
+        ]],
+        ['rear', [
+            { name: '3.55 rear gears', price: 0, final: 3.55 },
+            { name: '3.73 rear gears', price: 600, final: 3.73 },
+            { name: '4.10 rear gears', price: 740, final: 4.10 },
+            { name: '4.30 gears and a race diff', price: 910, final: 4.30 }
+        ]],
+        ['tires', [
+            { name: 'Michelin Pilot Sport tires', price: 0, mu: 1.15 },
+            { name: 'Nitto NT555RII drag radials', price: 800, mu: 1.55 },
+            { name: 'Mickey Thompson ET Street R radials', price: 1200, mu: 2.05 },
+            { name: 'Hoosier Quick Time Pro drag slicks', price: 1530, mu: 2.6 }
+        ]]
     ]];
     GENERIC.forEach(function (rows, era) {
         rows.forEach(function (row) {
@@ -407,7 +476,7 @@
     L.LEGEND_PRICE = 2;        // and a Legendary part this times the Bestest+
     L.ZONE_PER_LEGEND = 0.3;   // each Legendary part widens the green shift zone by this share
     var PLUS_NAME = { engine: ', blueprinted', trans: ', blueprinted', rear: ' with Positraction', tires: ', hand-trued' };
-    var BRANDS = /^(GMC|Chevy|Ford|Ardun|Mopar|Muncie|Holley|Hooker|F70|G60|L60|Buick|T-5|Richmond|Doug|Gatorback|Mickey|P225|Toyota|Nissan|Getrag|Tremec|BFGoodrich|Nitto|Hoosier|Z-rated|Mitsubishi|Subaru|Chrysler|Liberty-built|Summer)\b/;
+    var BRANDS = /^(GMC|Chevy|Ford|Ardun|Mopar|Muncie|Holley|Hooker|F70|G60|L60|Buick|T-5|Richmond|Doug|Gatorback|Mickey|P225|Toyota|Nissan|Getrag|Tremec|BFGoodrich|Nitto|Hoosier|Z-rated|Mitsubishi|Subaru|Chrysler|Liberty-built|Summer|Michelin|Hemi|Hellcat|Demon)\b/;
     function better(p) {
         var x = Object.assign({}, p, { cls: 4, price: round5(p.price * L.PLUS_PRICE) });
         x.name = p.name + (PLUS_NAME[p.slot] || ', blueprinted');
@@ -507,12 +576,21 @@
         ctsv04:     { era: 4, name: "'04 Cadillac CTS-V", kg: 1760, cdA: 0.36, price: 22000, color: '#8aa0b8', parts: stock('ls1', { carb: 1 }) },
         sti05:      { era: 4, name: "'05 Subaru WRX STI", kg: 1480, cdA: 0.40, price: 24000, color: '#2f5d9e', parts: stock('ej257') },
         evo05:      { era: 4, name: "'05 Mitsubishi Lancer Evolution", kg: 1420, cdA: 0.40, price: 25000, color: '#c9c9c9', parts: stock('sr4g63', { carb: 1 }) },
-        vette05:    { era: 4, name: "'05 Chevy Corvette", kg: 1400, cdA: 0.30, price: 30000, color: '#d7263d', parts: stock('ls2') }
+        vette05:    { era: 4, name: "'05 Chevy Corvette", kg: 1400, cdA: 0.30, price: 30000, color: '#d7263d', parts: stock('ls2') },
+        // 2025: two tons of supercharged muscle, and Godzilla
+        charger23:  { era: 5, name: "'23 Dodge Charger Scat Pack", kg: 1970, cdA: 0.40, price: 22000, color: '#5a1a3a', parts: stock('hemi392') },
+        mustang24:  { era: 5, name: "'24 Ford Mustang GT", kg: 1730, cdA: 0.36, price: 22000, color: '#2f5d9e', parts: stock('coyote') },
+        camaro24:   { era: 5, name: "'24 Chevy Camaro SS", kg: 1720, cdA: 0.36, price: 22000, color: '#f2c230', parts: stock('lt1_25') },
+        vette24:    { era: 5, name: "'24 Chevy Corvette Stingray", kg: 1660, cdA: 0.30, price: 34000, color: '#c8102e', parts: stock('lt1_25') },
+        challenger23: { era: 5, name: "'23 Dodge Challenger Hellcat", kg: 2000, cdA: 0.40, price: 38000, color: '#f07a28', parts: stock('hellcat') },
+        zl1_24:     { era: 5, name: "'24 Chevy Camaro ZL1", kg: 1790, cdA: 0.36, price: 36000, color: '#e6e2d6', parts: stock('lt4_25') },
+        gt500_22:   { era: 5, name: "'22 Ford Mustang Shelby GT500", kg: 1880, cdA: 0.36, price: 42000, color: '#2fb8ac', parts: stock('predator') },
+        gtr24:      { era: 5, name: "'24 Nissan GT-R", kg: 1750, cdA: 0.36, price: 48000, color: '#8aa0b8', parts: stock('vr38') }
     };
     Object.keys(L.BODIES).forEach(function (id) {
         var b = L.BODIES[id];
         b.era = b.era || 0;
-        b.shape = b.shape || ['coupe', 'muscle', 'eighties', 'nineties', 'aughts'][b.era];
+        b.shape = b.shape || ['coupe', 'muscle', 'eighties', 'nineties', 'aughts', 'modern'][b.era];
     });
 
     // Rival builds by tier: an engine swap (or none) and the class of each other part
@@ -556,6 +634,13 @@
         { engine: 'hemi64', classes: { carb: 2, intake: 2, cam: 2, exhaust: 1, trans: 1, rear: 2, tires: 1 } },
         { engine: 'big4g63', classes: { carb: 2, intake: 2, cam: 2, exhaust: 2, trans: 2, rear: 2, tires: 3 } },
         { engine: 'gt35r', classes: { carb: 2, intake: 2, cam: 2, exhaust: 2, trans: 2, rear: 3, tires: 3 } }
+    ], [
+        { classes: {} },
+        { classes: { carb: 1, exhaust: 1 } },
+        { engine: 'lt4_25', classes: { carb: 1, intake: 1, exhaust: 1, rear: 1, tires: 1 } },
+        { engine: 'demon', classes: { carb: 2, intake: 2, cam: 2, exhaust: 1, trans: 1, rear: 2, tires: 1 } },
+        { engine: 'vr38_big', classes: { carb: 2, intake: 2, cam: 2, exhaust: 2, trans: 2, rear: 2, tires: 3 } },
+        { engine: 'vr38_alpha', classes: { carb: 3, intake: 2, cam: 3, exhaust: 2, trans: 2, rear: 3, tires: 3 } }
     ]];
 
     // The parts a rival of this tier and era runs in this body
@@ -619,7 +704,18 @@
         { era: 4, name: 'Danny "NOS" Kowalczyk', tier: 2, skill: 0.55, body: 'evo05', line: 'I live my life a quarter mile at a time. Ha.' },
         { era: 4, name: 'Mei Lin Chou', tier: 2, skill: 0.75, body: 'vette05', line: "Don't blink." },
         { era: 4, name: 'Brett Sandoval', tier: 3, skill: 0.7, body: 'c300_05', line: "Grandma's sedan. Grandma's not driving." },
-        { era: 4, name: 'Andre "Anti-Lag" Fontaine', tier: 4, skill: 0.85, body: 'evo05', line: 'Hear the pops? That is the sound of losing.' }
+        { era: 4, name: 'Andre "Anti-Lag" Fontaine', tier: 4, skill: 0.85, body: 'evo05', line: 'Hear the pops? That is the sound of losing.' },
+        // 2025
+        { era: 5, name: 'Brayden Cole', tier: 0, skill: 0.3, body: 'charger23', line: "Hold up, I'm going live." },
+        { era: 5, name: 'Zoe Albright', tier: 0, skill: 0.5, body: 'mustang24', line: 'Loser posts the L.' },
+        { era: 5, name: 'Jaxon "Burnout" Price', tier: 0, skill: 0.25, body: 'camaro24', line: 'Watch the burnout. That part I can do.' },
+        { era: 5, name: 'Nadia Haddad', tier: 0, skill: 0.4, body: 'vette24', line: 'Engine in the middle. You in my mirror.' },
+        { era: 5, name: 'Logan Pike', tier: 1, skill: 0.45, body: 'challenger23', line: 'My great-granddad Wendell raced here. Go easy on me.' },
+        { era: 5, name: 'Sofia Marquez', tier: 1, skill: 0.6, body: 'gt500_22', line: 'Seven hundred sixty horsepower and no patience.' },
+        { era: 5, name: 'Ethan "Pulley" Wu', tier: 2, skill: 0.55, body: 'zl1_24', line: 'Smaller pulley, bigger problem. Yours.' },
+        { era: 5, name: 'Keisha Monroe', tier: 2, skill: 0.75, body: 'gtr24', line: 'Launch control does the rest.' },
+        { era: 5, name: 'Dominic Russo', tier: 3, skill: 0.7, body: 'challenger23', line: "My grandpa Vinnie raced here. Can you dig it? Didn't think so." },
+        { era: 5, name: 'Ray "Nine Flat" Okafor', tier: 4, skill: 0.85, body: 'gt500_22', line: 'Nine flat on street tires. Your turn.' }
     ];
     L.RIVALS.forEach(function (r) { r.era = r.era || 0; });
 
@@ -629,7 +725,8 @@
         { era: 1, name: 'The Hemi King', tier: 5, skill: 0.9, body: 'cuda70', line: "Four-twenty-six cubes say you're done." },
         { era: 2, name: 'The Turbo King', tier: 5, skill: 0.9, body: 'gn84', line: "Darth Vader's car. And I'm Darth Vader." },
         { era: 3, name: 'The Import King', tier: 5, skill: 0.9, body: 'supra93', line: 'Sixty pounds of boost. Bring a lunch.' },
-        { era: 4, name: 'The Tuner King', tier: 5, skill: 0.9, body: 'evo05', line: 'Four cylinders. Nine seconds. Your move.' }];
+        { era: 4, name: 'The Tuner King', tier: 5, skill: 0.9, body: 'evo05', line: 'Four cylinders. Nine seconds. Your move.' },
+        { era: 5, name: 'The Last King', tier: 5, skill: 0.9, body: 'gtr24', line: "Sixty years of Kings, and I'm the last. Prove me wrong." }];
     L.KING_WINS = 10;
 
     // Prizes, in 1963 dollars (later eras pay their era's money times these). A race just for
