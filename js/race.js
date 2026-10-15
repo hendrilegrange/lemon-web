@@ -26,6 +26,7 @@
             lastAmber: -1,
             greenBeeped: false,
             shiftBeeped: -1,
+            rpmRate: 0,               // how fast your revs are climbing, rpm a second
             foul: false,
             last: null,
             stopped: false
@@ -67,16 +68,29 @@
             L.sound.engineOff();
         }
 
-        // The shift light: off, 'ready' just below the best shift point, 'shift' at it,
-        // 'over' past redline. Nothing in top gear but the redline warning.
+        // The shift window for this gear, in rpm. A fast engine climbs through the last few
+        // hundred rpm in a blink, and its best shift is often right at redline, so the window
+        // opens a set time (SHIFT_LEAD) before the best point at the revs' current climb rate,
+        // and the amber warning comes READY_LEAD before that. A shift a beat early costs little.
+        var SHIFT_LEAD = 0.3, READY_LEAD = 0.4;
+        function shiftWindow(gear) {
+            var spec = player.spec;
+            var best = Math.min(L.shiftRpm(spec, gear), spec.redline);
+            var rate = Math.max(state.rpmRate, 0);
+            var green = best - Math.max(150, rate * SHIFT_LEAD);
+            return { best: best, green: green, ready: green - Math.max(400, rate * READY_LEAD) };
+        }
+
+        // The shift light: off, 'ready' as the window nears, 'shift' in it, 'over' past
+        // redline. Nothing in top gear but the redline warning.
         function shiftLight() {
             var me = state.me, spec = player.spec;
             if (me.launchedAt === null || me.blown || me.run.done || me.run.shiftLeft > 0) return null;
             if (me.run.rpm > spec.redline) return 'over';
             if (me.run.gear >= spec.gears.length - 1) return null;
-            var best = L.shiftRpm(spec, me.run.gear);
-            if (me.run.rpm >= best) return 'shift';
-            if (me.run.rpm >= best - 400) return 'ready';
+            var w = shiftWindow(me.run.gear);
+            if (me.run.rpm >= w.green) return 'shift';
+            if (me.run.rpm >= w.ready) return 'ready';
             return null;
         }
 
@@ -152,7 +166,11 @@
             if (state.phase === 'tree' && state.clock >= state.greenAt) state.message = 'GO!';
             if (them.launchedAt === null && state.clock >= state.greenAt + them.reaction) them.launchedAt = state.clock;
             if (state.phase === 'racing' && state.clock > state.greenAt + 0.6) state.message = '';
+            var before = me.run.rpm, gear = me.run.gear;
             stepCar(me, player.spec, false, player.condition);
+            // Smooth the climb rate; a shift or the launch clutch resets it
+            if (me.run.shiftLeft > 0 || me.run.gear !== gear || me.launchedAt === null) state.rpmRate = 0;
+            else state.rpmRate += ((me.run.rpm - before) / dt - state.rpmRate) * 0.15;
             stepCar(them, rival.spec, true);
             if (state.phase === 'racing') {
                 var meOver = me.run.done || me.blown;
@@ -270,10 +288,13 @@
             ctx.strokeStyle = '#ff3b3b';
             ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI + Math.PI * spec.redline / max, 2 * Math.PI); ctx.stroke();
             var rpm = me.launchedAt === null ? (state.phase === 'tree' ? 1800 + Math.sin(state.clock * 30) * 200 : 900) : me.run.rpm;
-            // A green tick at the best shift point for this gear
+            // The shift window for this gear in green, with a tick at the best shift point
             if (me.run.gear < spec.gears.length - 1) {
-                var sa = Math.PI + Math.PI * L.shiftRpm(spec, me.run.gear) / max;
+                var w = shiftWindow(me.run.gear);
                 ctx.strokeStyle = '#3bff6e';
+                ctx.lineWidth = 4;
+                ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI + Math.PI * Math.max(0, w.green) / max, Math.PI + Math.PI * w.best / max); ctx.stroke();
+                var sa = Math.PI + Math.PI * w.best / max;
                 ctx.lineWidth = 3;
                 ctx.beginPath(); ctx.moveTo(cx + Math.cos(sa) * (r - 6), cy + Math.sin(sa) * (r - 6));
                 ctx.lineTo(cx + Math.cos(sa) * (r + 3), cy + Math.sin(sa) * (r + 3)); ctx.stroke();
