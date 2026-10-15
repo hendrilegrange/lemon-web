@@ -60,6 +60,7 @@ button {
 }
 button:hover:not([disabled]) { filter: brightness(1.1); }
 button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+button { touch-action: manipulation; }   /* no double-tap zoom on a phone */
 button[disabled] { opacity: 0.4; cursor: not-allowed; }
 button.minor { background: var(--line); color: var(--text); border-bottom-color: #15152b; }
 button.danger { background: var(--bad); color: #fff; border-bottom-color: #a01f1f; }
@@ -85,8 +86,21 @@ button.danger { background: var(--bad); color: #fff; border-bottom-color: #a01f1
 .gauge.cash .value { color: var(--good); }
 .gauge.friday { border-color: #ff4fa0; }
 .gauge.friday .value { color: #ff7ab8; }
-@media (max-width: 480px) {
-    .status { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* On a phone the gauges stay in view at the top, in one compact row */
+@media (max-width: 600px) {
+    .status {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        gap: 4px;
+        margin: -16px -16px 12px;
+        padding: 8px 16px;
+        background: var(--bg);
+        border-bottom: 2px solid var(--line);
+    }
+    .gauge { padding: 4px 6px; }
+    .gauge .label { font-size: 0.6rem; letter-spacing: 0.06em; }
+    .gauge .value { font-size: 0.9rem; }
 }
 
 .flash { background: #2b2410; border-left: 4px solid var(--accent); padding: 8px 12px; margin-bottom: 12px; }
@@ -166,7 +180,8 @@ button.danger { background: var(--bad); color: #fff; border-bottom-color: #a01f1
 .toggles button { margin: 0; padding: 4px 10px; }
 
 .shop-group { border-top: 2px solid var(--line); padding: 4px 0 8px; }
-.shop-group summary { display: flex; align-items: baseline; gap: 12px; cursor: pointer; padding: 6px 0; flex-wrap: wrap; }
+.shop-group summary { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 2px 10px; cursor: pointer; padding: 8px 0; }
+.shop-group summary > :not(h3) { grid-column: 2; }
 .shop-group summary h3 { display: inline; margin: 0; }
 .shop-group h4 { color: var(--muted); margin: 10px 0 4px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; }
 .shop-group summary::-webkit-details-marker { display: none; }
@@ -215,3 +230,35 @@ canvas.scene {
     .tiles { grid-template-columns: 1fr; }
     .hub-foot .toggles { margin: 0; width: 100%; justify-content: flex-start; }
 }
+
+/* The way back: at the end of the screen, and pinned to the bottom on a phone */
+.backbar { margin-top: 12px; }
+.backbar button { margin: 0; }
+@media (max-width: 600px) {
+    .backbar {
+        position: sticky;
+        bottom: 0;
+        z-index: 5;
+        margin: 12px -16px -16px;
+        padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+        background: var(--bg);
+        border-top: 2px solid var(--line);
+    }
+    .backbar button { width: 100%; padding: 12px; }
+}
+
+/* A message that would otherwise land out of sight */
+.toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    width: min(90vw, 480px);
+    z-index: 10;
+    padding: 10px 14px;
+    background: #2b2410;
+    border: 2px solid var(--accent);
+    color: var(--text);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+.toast[hidden] { display: none; }
