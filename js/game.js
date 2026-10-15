@@ -98,7 +98,7 @@
         var fixed = { body: car.body, parts: car.parts, condition: 100, engineCondition: 100, partCondition: {} };
         var fam = L.PARTS[car.parts.engine].fam;
         var top = Object.keys(L.PARTS).filter(function (id) {
-            return L.PARTS[id].slot === 'engine' && L.PARTS[id].fam === fam;
+            return L.PARTS[id].slot === 'engine' && L.PARTS[id].fam === fam && L.PARTS[id].cls <= 3;
         }).sort(function (a, b) { return L.PARTS[b].cls - L.PARTS[a].cls; })[0];
         var builtParts = L.stockParts(top, { carb: 3, intake: 3, cam: 3, exhaust: 3, trans: 3, rear: 3, tires: 3 });
         var built = { body: car.body, parts: builtParts, condition: 100, engineCondition: 100, partCondition: {} };
@@ -381,6 +381,11 @@
             for (var i = 0; i < group.length - 1 && r >= weights[i]; i++) r -= weights[i];
             shelf.push(group[i]);
         });
+        // Now and then a Legendary part turns up
+        if (L.random() < L.LEGEND_ODDS) {
+            var legends = ids.filter(function (id) { return L.PARTS[id].legend; });
+            shelf.push(legends[Math.floor(L.random() * legends.length)]);
+        }
         return shelf;
     };
 
@@ -388,10 +393,10 @@
 
     // Everything the speed shop carries, with whether it's on the shelf this week and whether
     // it fits the car (every part fits when there's no car). Parts for other engine families
-    // are for sale too, for a swap later.
+    // are for sale too, for a swap later. A Legendary part shows only the week it turns up.
     L.catalogFor = function (g, car) {
         return Object.keys(L.PARTS).filter(function (id) {
-            return L.PARTS[id].price > 0;
+            return L.PARTS[id].price > 0 && (!L.PARTS[id].legend || L.inStock(g, id));
         }).map(function (id) {
             return { id: id, inStock: L.inStock(g, id), fits: !car || L.fits(id, car.parts.engine) };
         });
