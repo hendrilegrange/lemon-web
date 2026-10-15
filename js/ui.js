@@ -64,8 +64,10 @@
     }
 
     // The way back, which stays at the bottom of the screen on a phone however long the page
-    function backBar(label, act) {
-        return '<div class="backbar"><button data-act="' + (act || 'back') + '">' + label + '</button></div>';
+    // more: other places to jump to from here, as [label, act] pairs beside the way back
+    function backBar(label, act, more) {
+        return '<div class="backbar"><button data-act="' + (act || 'back') + '">' + label + '</button>' +
+            (more || []).map(function (m) { return '<button data-act="' + m[1] + '" class="minor">' + m[0] + '</button>'; }).join('') + '</div>';
     }
 
     // The gauges across the top of every screen
@@ -511,9 +513,10 @@
         render(
             status() + flash(msg) + '<div class="panel"><h2>Speed Shop</h2><p class="sub">' + intro +
             ' The shelves restock every week with something for every engine, but not every part every week, and the Bestest parts sell out fast.</p>' + html + '</div>' +
-            backBar('Back'),
+            backBar('Back', 'back', [['Garage', 'garage']]),
             {
                 buy: act(L.showParts, function (id) { return L.buyPart(g, id) || 'Bought. It\'s on your garage shelf.'; }),
+                garage: function () { L.showGarage(); },
                 back: function () { L.showHub(); }
             }
         );
@@ -622,7 +625,9 @@
                 '<p>0-60 ' + (st.zeroSixty ? st.zeroSixty.toFixed(1) + ' s' : 'n/a') + ' · quarter mile ' + st.et.toFixed(2) + ' s at ' + Math.round(st.trap) + ' mph</p>' +
                 '<p>Body ' + bar(car.condition, 'Body condition') + (car.condition < L.MIN_BODY ? ' <span class="shot">needs ' + L.MIN_BODY + '% to race</span>' : '') + '</p>' +
                 '<p class="sub">Sells for ' + money(L.carValue(car)) + ' as it is.</p>' +
-                (fix.cost ? '<button data-act="fix">Fix car (' + money(fix.cost) + ', ' + fix.hours + ' h for everything)</button>' : '<p class="sub">Everything is in good shape.</p>') +
+                (fix.cost ? '' : '<p class="sub">Everything is in good shape.</p>') +
+                '<div class="car-btns">' + (fix.cost ? '<button data-act="fix">Fix car (' + money(fix.cost) + ', ' + fix.hours + ' h for everything)</button>' : '') +
+                '<button data-act="shop">Shop for parts</button></div>' +
                 '</div>' + onceOver(car) +
                 L.SLOTS.map(function (slot) {
                     return '<div class="row"><span><span class="slot">' + L.SLOT_NAMES[slot] + '</span>' + esc(L.PARTS[car.parts[slot]].name) + '</span>' +
@@ -673,6 +678,7 @@
                 },
                 sellpart: act(L.showGarage, function (i) { return L.sellPart(g, +i); }),
                 fix: function () { L.showFix(); },
+                shop: function () { L.showParts(); },
                 back: function () { L.showHub(); }
             }
         );
