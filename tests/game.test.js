@@ -669,3 +669,23 @@ test('1985 needs a 1985 build: Bestest has close to an even shot at The Turbo Ki
         last = et;
     });
 });
+
+test('1995 needs a 1995 build: Bestest has a fair shot at The Import King, and a 1985 Bestest build a slim one', () => {
+    const king = Object.assign({}, L.KINGS[3], { engineCondition: 90 });
+    const build = (body, engine, c) => ({ body, condition: 100, engineCondition: 100, partCondition: {},
+        parts: L.stockParts(engine, { carb: c, intake: c, cam: c, exhaust: c, trans: c, rear: c, tires: c }) });
+    for (const body of ['mustang94', 'vette92', 'supra93']) {
+        for (const engine of ['lt1_427', 'kennebell', 'twojz_t88']) {
+            const odds = L.odds(build(body, engine, 3), king);
+            assert.ok(odds > 0.35 && odds < 0.55, `${body} ${engine}: ${odds}`);
+            assert.ok(L.odds(build(body, engine + '_plus', 4), king) > odds);
+        }
+    }
+    assert.ok(L.odds(build('irocz85', 'chevy406', 3), king) < 0.2);
+    let last = Infinity;
+    L.ERA_BUILDS[3].forEach((b, tier) => {
+        const et = L.estimate(L.spec(car('camaro93', L.rivalParts('camaro93', tier, 3)))).et;
+        assert.ok(et < last, `1995 tier ${tier}: ${et} < ${last}`);
+        last = et;
+    });
+});
