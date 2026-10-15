@@ -378,3 +378,25 @@ test('the pixel font has every character the canvas draws', () => {
     }
     assert.strictEqual(L.textWidth('AB', 2), 22);
 });
+
+test('a classified ad shows what the car could become', () => {
+    const g = L.newGame();
+    for (let w = 0; w < 20; w++) {
+        for (const ad of g.ads) {
+            const p = L.potential(ad);
+            assert.ok(p.fixCost > 0 && p.fixHours > 0, 'a used car always needs something');
+            assert.strictEqual(p.margin, p.restored - ad.price - p.fixCost);
+            assert.ok(p.asIs >= p.fixedEt - 0.01, `fixing doesn't slow it: ${p.asIs} vs ${p.fixedEt}`);
+            assert.ok(p.builtEt < p.fixedEt - 3, `the Bestest parts make a real difference: ${p.builtEt} vs ${p.fixedEt}`);
+            assert.ok(p.buildCost > 0 && p.builtHp > 0);
+        }
+        L.newWeek(g);
+    }
+});
+
+test('potential leaves the ad alone', () => {
+    const g = L.newGame();
+    const before = JSON.stringify(g.ads);
+    g.ads.forEach((ad) => L.potential(ad));
+    assert.strictEqual(JSON.stringify(g.ads), before);
+});
