@@ -182,6 +182,11 @@ button.danger { background: var(--bad); color: #fff; border-bottom-color: #a01f1
 .look .et { font-weight: bold; white-space: nowrap; }
 .look .et.best { color: #b3261e; }
 .look .build { color: #5d5340; margin: 4px 0 0; font-size: 0.8rem; }
+.garage-look { border-top-color: var(--line); margin: 10px 0 8px; }
+.garage-look h4, .garage-look dt, .garage-look .build { color: var(--muted); }
+.garage-look .up { color: var(--good); }
+.garage-look .down, .garage-look .et.best { color: #ff7a6a; }
+.row small.potential { display: block; color: var(--muted); font-size: 0.8rem; }
 .ad button.ink { margin: auto 0 0; background: var(--ink); color: var(--paper); border-bottom-color: #000; width: 100%; }
 .ad button.ink[disabled] { background: transparent; color: #8a7d5c; border: 1px dashed #8a7d5c; opacity: 1; }
 /* Your pencil circles the best deal and the fastest build of the week */

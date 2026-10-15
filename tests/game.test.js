@@ -448,3 +448,14 @@ test('the paint shop changes the colour and livery for a price, and only on a so
     g.cash = 10;
     assert.match(L.paintCar(g, 'black', 'none', null), /afford/);
 });
+
+test('the garage once-over counts only the build parts a car still needs', () => {
+    const g = garage('ford48', null, 40, 50);
+    const car = L.activeCar(g);
+    const before = L.carPotential(car);
+    assert.strictEqual(before.margin, before.restored - L.carValue(car) - before.fixCost);
+    car.parts.tires = 'tires_3';
+    const after = L.carPotential(car);
+    assert.strictEqual(before.buildCost - after.buildCost, L.PARTS.tires_3.price);
+    assert.ok(after.asIs < before.asIs || after.asIs === before.asIs);
+});
