@@ -597,11 +597,27 @@ test('1973: beating The King brings the next era the week after, its cars, parts
     const k = g.rivals.findIndex((r) => r.king);
     assert.ok(k >= 0 && g.rivals[k].name === L.KINGS[1].name);
     const before = g.cash;
-    assert.doesNotMatch(L.settleRace(g, k, 'pinks', 'win', 0), /Next week/);   // the last era so far
+    assert.match(L.settleRace(g, k, 'pinks', 'win', 0), /Next week it's 1985/);
     assert.strictEqual(g.cash, before + 25000);
     assert.strictEqual(g.cars[g.cars.length - 1].body, 'cuda70');
     L.newWeek(g);
-    assert.strictEqual(L.eraOf(g), 1);
+    assert.strictEqual(L.eraOf(g), 2);
+    assert.ok(!g.rivals.some((r) => r.king));
+    assert.deepStrictEqual(g.ads.slice(0, 3).map((ad) => L.BODIES[ad.body].era), [2, 2, 2]);
+    assert.ok(g.ads.slice(3).every((ad) => L.BODIES[ad.body].era < 2));
+    assert.strictEqual(L.kingPrize(g), 40000);
+});
+
+test('the last era\'s King is the end of the line: no next era', () => {
+    const g = garage('ford48', FULL, 90, 90);
+    const last = L.ERAS.length - 1;
+    g.era = last; g.eraWins = L.KING_WINS;
+    L.newWeek(g);
+    const k = g.rivals.findIndex((r) => r.king);
+    assert.strictEqual(g.rivals[k].name, L.KINGS[last].name);
+    assert.doesNotMatch(L.settleRace(g, k, 'pinks', 'win', 0), /Next week/);
+    L.newWeek(g);
+    assert.strictEqual(L.eraOf(g), last);
     assert.ok(!g.rivals.some((r) => r.king));
 });
 
@@ -630,6 +646,26 @@ test('1973 needs a 1973 build: Bestest muscle has an even shot at its King, and 
     L.ERA_BUILDS[1].forEach((b, tier) => {
         const et = L.estimate(L.spec(car('torino70', L.rivalParts('torino70', tier, 1)))).et;
         assert.ok(et < last, `1973 tier ${tier}: ${et} < ${last}`);
+        last = et;
+    });
+});
+
+test('1985 needs a 1985 build: Bestest has close to an even shot at The Turbo King, and a 1973 Bestest build a slim one', () => {
+    const king = Object.assign({}, L.KINGS[2], { engineCondition: 90 });
+    const build = (body, engine, c) => ({ body, condition: 100, engineCondition: 100, partCondition: {},
+        parts: L.stockParts(engine, { carb: c, intake: c, cam: c, exhaust: c, trans: c, rear: c, tires: c }) });
+    for (const body of ['fox79', 'irocz85', 'gn84']) {
+        for (const engine of ['chevy406', 'ford392', 'stage2']) {
+            const odds = L.odds(build(body, engine, 3), king);
+            assert.ok(odds > 0.38 && odds < 0.55, `${body} ${engine}: ${odds}`);
+            assert.ok(L.odds(build(body, engine + '_plus', 4), king) > odds);
+        }
+    }
+    assert.ok(L.odds(build('camaro69', 'hemi426', 3), king) < 0.2);
+    let last = Infinity;
+    L.ERA_BUILDS[2].forEach((b, tier) => {
+        const et = L.estimate(L.spec(car('montess84', L.rivalParts('montess84', tier, 2)))).et;
+        assert.ok(et < last, `1985 tier ${tier}: ${et} < ${last}`);
         last = et;
     });
 });
