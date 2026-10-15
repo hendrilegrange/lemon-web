@@ -586,11 +586,14 @@
     // earns over selling it as it is, and how fast it is now, fixed and fully built
     function onceOver(car) {
         var p = L.carPotential(car);
-        var restore = !p.fixCost ? 'already in top shape'
-            : 'sells for ' + money(p.restored) + ' (' + (p.margin >= 0
-                ? '<b class="up">' + money(p.margin) + ' more</b>' : '<b class="down">' + money(-p.margin) + ' less</b>') + ' than as is, after fixing)';
+        var gain = p.margin >= 0 ? '<b class="up">+' + money(p.margin) + '</b>' : '<b class="down">−' + money(-p.margin) + '</b>';
         return '<div class="look garage-look"><h4>Mechanic\'s once-over</h4><dl>' +
-            '<dt>Restored</dt><dd>' + restore + '</dd>' +
+            (p.fixCost
+                ? '<dt>Restored</dt><dd>sells for ' + money(p.restored) + '</dd>' +
+                  '<dt>Fix it all</dt><dd>' + money(p.fixCost) + ' · ' + p.fixHours + ' h</dd>' +
+                  '<dt>Worth it?</dt><dd>' + money(p.restored) + ' − ' + money(p.fixCost) + ' fix − ' + money(L.carValue(car)) +
+                  ' it sells for now = ' + gain + '</dd>'
+                : '<dt>Restored</dt><dd>already in top shape</dd>') +
             '<dt>¼ mile</dt><dd><span class="et">' + p.asIs.toFixed(2) + ' s</span> now · <span class="et">' + p.fixedEt.toFixed(2) + ' s</span> fixed · <span class="et best">' + p.builtEt.toFixed(2) + ' s</span> built</dd>' +
             '</dl><p class="build">' + (p.buildCost ? 'Built: the Bestest ' + esc(p.family.toLowerCase()) + ' parts it doesn\'t have yet, about ' + money(p.buildCost) + ', ' + p.builtHp + ' hp.'
                 : 'Already built with the Bestest ' + esc(p.family.toLowerCase()) + ' parts.') + '</p></div>';
@@ -602,7 +605,7 @@
             var p = L.carPotential(c);
             return '<div class="row' + (i === g.active ? ' active' : '') + '"><span>' + esc(L.carName(c)) +
                 ' · sells for ' + money(L.carValue(c)) +
-                '<small class="potential">' + (p.fixCost ? 'Restored ' + money(p.restored) + (p.margin >= 0 ? ' (+' + money(p.margin) + ')' : ' (−' + money(-p.margin) + ')') + ' · ' : '') +
+                '<small class="potential">' + (p.fixCost ? 'Restoring earns ' + (p.margin >= 0 ? '+' + money(p.margin) : '−' + money(-p.margin)) + ' · ' : '') +
                 'built ' + p.builtEt.toFixed(2) + ' s</small></span>' +
                 (i === g.active ? '<span class="price">Driving</span>' : '<button data-act="drive" data-arg="' + i + '">Drive</button>') +
                 '<button data-act="sell" data-arg="' + i + '" class="minor">Sell</button>' +
