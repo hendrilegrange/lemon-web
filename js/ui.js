@@ -45,7 +45,32 @@
             if (f && f.getBoundingClientRect().bottom <= hidden + 4) toast(f.textContent);
         }
         keepScroll = false;
+        // Away from the title, the browser's Back button is the screen's own way back
+        if (!app.querySelector('.title-menu')) guardBack();
     }
+
+    // The browser's Back button. Every screen but the title keeps one extra history entry
+    // in front of the page, so Back lands here instead of leaving the site, and does what
+    // the screen's own Back (or Cancel, or Leave it) button does. A screen with no way back,
+    // like a race under way, keeps you where you are. On the title, Back leaves as usual.
+    var guarded = false;
+    function guardBack() {
+        if (guarded) return;
+        history.pushState({ lemon: 'back' }, '');
+        guarded = true;
+    }
+    function wayBack() {
+        return app.querySelector('.backbar button, [data-act="back"], [data-act="no"], [data-act="cancel"], [data-act="quit"]');
+    }
+    window.addEventListener('popstate', function (e) {
+        if (e.state && e.state.lemon) { guarded = true; return; }   // Forward onto our own entry
+        guarded = false;
+        if (!app || !app.firstChild) return;
+        if (app.querySelector('.title-menu')) return history.back();
+        var way = wayBack();
+        if (way) way.click();   // the screen it goes to sets its own entry
+        else guardBack();       // nowhere to go back to: stay put
+    });
 
     var toastTimer;
     function toast(text) {
