@@ -81,29 +81,41 @@
     // what fixing everything costs, what it would then fetch, and its quarter mile as it sits,
     // fixed, and built with the Bestest parts for its engine family
     L.potential = function (ad) {
-        var body = L.BODIES[ad.body];
-        var car = { body: ad.body, parts: Object.assign({}, body.parts), condition: ad.condition,
+        var car = { body: ad.body, parts: Object.assign({}, L.BODIES[ad.body].parts), condition: ad.condition,
             engineCondition: ad.engineCondition, partCondition: ad.parts || {} };
-        var fixed = { body: ad.body, parts: car.parts, condition: 100, engineCondition: 100, partCondition: {} };
+        return outlook(car, ad.price);
+    };
+
+    // The same once-over for a car you own: what it costs to fix, what it would fetch then
+    // and how much that beats selling it as it is (margin), and its quarter mile now, fixed
+    // and built, the build costing only the Bestest parts it doesn't have yet
+    L.carPotential = function (car) {
+        return outlook(car, L.carValue(car));
+    };
+
+    function outlook(car, price) {
+        var fixed = { body: car.body, parts: car.parts, condition: 100, engineCondition: 100, partCondition: {} };
         var fam = L.PARTS[car.parts.engine].fam;
         var top = Object.keys(L.PARTS).filter(function (id) {
             return L.PARTS[id].slot === 'engine' && L.PARTS[id].fam === fam;
         }).sort(function (a, b) { return L.PARTS[b].cls - L.PARTS[a].cls; })[0];
         var builtParts = L.stockParts(top, { carb: 3, intake: 3, cam: 3, exhaust: 3, trans: 3, rear: 3, tires: 3 });
-        var built = { body: ad.body, parts: builtParts, condition: 100, engineCondition: 100, partCondition: {} };
+        var built = { body: car.body, parts: builtParts, condition: 100, engineCondition: 100, partCondition: {} };
         var buildCost = 0;
-        L.SLOTS.forEach(function (slot) { buildCost += L.PARTS[builtParts[slot]].price || 0; });
+        L.SLOTS.forEach(function (slot) {
+            if (builtParts[slot] !== car.parts[slot]) buildCost += L.PARTS[builtParts[slot]].price || 0;
+        });
         var fix = L.fixAll(car);
         var restored = L.restoredValue(car);
         function et(c) { return L.estimate(L.spec(c)).et; }
         return {
             fixCost: fix.cost, fixHours: fix.hours, restored: restored,
-            margin: restored - ad.price - fix.cost,
+            margin: restored - price - fix.cost,
             asIs: et(car), fixedEt: et(fixed), builtEt: et(built),
             builtHp: Math.round(L.peakPower(L.spec(built)).hp), buildCost: buildCost,
-            family: L.FAMILIES[fam].name, kg: body.kg
+            family: L.FAMILIES[fam].name, kg: L.BODIES[car.body].kg
         };
-    };
+    }
 
     // How a car looks: its paint (the factory colour until the paint shop changes it) and
     // its livery with the livery's trim colour

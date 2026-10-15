@@ -582,11 +582,28 @@
 
     // ── Garage ────────────────────────────────────────────────────────────
 
+    // The mechanic's once-over for a car you own, like the classifieds': what restoring it
+    // earns over selling it as it is, and how fast it is now, fixed and fully built
+    function onceOver(car) {
+        var p = L.carPotential(car);
+        var restore = !p.fixCost ? 'already in top shape'
+            : 'sells for ' + money(p.restored) + ' (' + (p.margin >= 0
+                ? '<b class="up">' + money(p.margin) + ' more</b>' : '<b class="down">' + money(-p.margin) + ' less</b>') + ' than as is, after fixing)';
+        return '<div class="look garage-look"><h4>Mechanic\'s once-over</h4><dl>' +
+            '<dt>Restored</dt><dd>' + restore + '</dd>' +
+            '<dt>¼ mile</dt><dd><span class="et">' + p.asIs.toFixed(2) + ' s</span> now · <span class="et">' + p.fixedEt.toFixed(2) + ' s</span> fixed · <span class="et best">' + p.builtEt.toFixed(2) + ' s</span> built</dd>' +
+            '</dl><p class="build">' + (p.buildCost ? 'Built: the Bestest ' + esc(p.family.toLowerCase()) + ' parts it doesn\'t have yet, about ' + money(p.buildCost) + ', ' + p.builtHp + ' hp.'
+                : 'Already built with the Bestest ' + esc(p.family.toLowerCase()) + ' parts.') + '</p></div>';
+    }
+
     L.showGarage = function (msg) {
         var car = L.activeCar(g);
         var cars = g.cars.map(function (c, i) {
+            var p = L.carPotential(c);
             return '<div class="row' + (i === g.active ? ' active' : '') + '"><span>' + esc(L.carName(c)) +
-                ' · sells for ' + money(L.carValue(c)) + '</span>' +
+                ' · sells for ' + money(L.carValue(c)) +
+                '<small class="potential">' + (p.fixCost ? 'Restored ' + money(p.restored) + (p.margin >= 0 ? ' (+' + money(p.margin) + ')' : ' (−' + money(-p.margin) + ')') + ' · ' : '') +
+                'built ' + p.builtEt.toFixed(2) + ' s</small></span>' +
                 (i === g.active ? '<span class="price">Driving</span>' : '<button data-act="drive" data-arg="' + i + '">Drive</button>') +
                 '<button data-act="sell" data-arg="' + i + '" class="minor">Sell</button>' +
                 '<button data-act="strip" data-arg="' + i + '" class="minor">Strip</button></div>';
@@ -601,9 +618,9 @@
                 '<p><b>' + st.hp + ' hp</b> at ' + st.hpRpm + ' rpm · redline ' + st.redline + '</p>' +
                 '<p>0-60 ' + (st.zeroSixty ? st.zeroSixty.toFixed(1) + ' s' : 'n/a') + ' · quarter mile ' + st.et.toFixed(2) + ' s at ' + Math.round(st.trap) + ' mph</p>' +
                 '<p>Body ' + bar(car.condition, 'Body condition') + (car.condition < L.MIN_BODY ? ' <span class="shot">needs ' + L.MIN_BODY + '% to race</span>' : '') + '</p>' +
-                '<p class="sub">Sells for ' + money(L.carValue(car)) + (fix.cost ? '. Restored, it would fetch about ' + money(L.restoredValue(car)) : '') + '.</p>' +
+                '<p class="sub">Sells for ' + money(L.carValue(car)) + ' as it is.</p>' +
                 (fix.cost ? '<button data-act="fix">Fix car (' + money(fix.cost) + ', ' + fix.hours + ' h for everything)</button>' : '<p class="sub">Everything is in good shape.</p>') +
-                '</div>' +
+                '</div>' + onceOver(car) +
                 L.SLOTS.map(function (slot) {
                     return '<div class="row"><span><span class="slot">' + L.SLOT_NAMES[slot] + '</span>' + esc(L.PARTS[car.parts[slot]].name) + '</span>' +
                         '<span>' + bar(L.partCondition(car, slot), 'Condition') + '</span></div>';
