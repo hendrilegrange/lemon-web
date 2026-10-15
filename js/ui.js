@@ -118,6 +118,12 @@
         return { hp: Math.round(pp.hp), hpRpm: pp.rpm, et: est.et, trap: est.trapMph, zeroSixty: est.zeroSixty, redline: s.redline };
     }
 
+    // A part's name in its class's colour, the same as the speed shop's class badges
+    function partName(id) {
+        var p = L.PARTS[id];
+        return '<span class="tier t' + p.cls + '" title="' + (L.CLASSES[p.cls] || '') + '">' + esc(p.name) + '</span>';
+    }
+
     function bar(value, label) {
         var cls = value < 35 ? 'bad' : value < 70 ? 'ok' : 'good';
         return '<span class="meter ' + cls + '" title="' + label + '"><span style="width:' + value + '%"></span></span> ' + value + '%';
@@ -706,7 +712,7 @@
                 '<button data-act="shop">Shop for parts</button></div>' +
                 '</div>' + onceOver(car) +
                 L.SLOTS.map(function (slot) {
-                    return '<div class="row"><span><span class="slot">' + L.SLOT_NAMES[slot] + '</span>' + esc(L.PARTS[car.parts[slot]].name) + '</span>' +
+                    return '<div class="row"><span><span class="slot">' + L.SLOT_NAMES[slot] + '</span>' + partName(car.parts[slot]) + '</span>' +
                         '<span>' + bar(L.partCondition(car, slot), 'Condition') + '</span></div>';
                 }).join('') + '</div>';
         }
@@ -714,7 +720,7 @@
         var shelf = g.inventory.map(function (id, i) {
             var p = L.PARTS[id];
             var cond = L.shelfCondition(g, i);
-            return '<div class="row"><span><span class="slot">' + L.SLOT_NAMES[p.slot] + '</span> ' + esc(p.name) + (cond < 100 ? ' ' + bar(cond, 'Condition') : '') + '</span>' +
+            return '<div class="row"><span><span class="slot">' + L.SLOT_NAMES[p.slot] + '</span> ' + partName(id) + (cond < 100 ? ' ' + bar(cond, 'Condition') : '') + '</span>' +
                 (car ? '<button data-act="install" data-arg="' + i + '">Install (' + L.JOB_HOURS[p.slot] + ' h)</button>' : '') +
                 (L.shelfRebuild(g, i) ? '<button data-act="rebuild" data-arg="' + i + '" class="minor">Rebuild (' + money(L.shelfRebuild(g, i).cost) + ', ' + L.shelfRebuild(g, i).hours + ' h)</button>' : '') +
                 '<button data-act="sellpart" data-arg="' + i + '" class="minor">' + (L.partValue(g, i) ? 'Sell ' + money(L.partValue(g, i)) : 'Bin it') + '</button></div>';
@@ -783,7 +789,7 @@
             bar(car.condition, 'Condition') + '</span>' + bodyBtns + '</div>';
 
         var rows = L.diagnose(car).map(function (d) {
-            var name = esc(L.PARTS[d.part].name);
+            var name = partName(d.part);
             var btns;
             if (d.action === 'ok') {
                 btns = '<span class="price">Good</span>';
