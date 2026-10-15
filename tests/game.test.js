@@ -472,6 +472,22 @@ test('the garage once-over counts only the build parts a car still needs', () =>
     assert.ok(after.asIs < before.asIs || after.asIs === before.asIs);
 });
 
+test('an engine swap or a Bestest+ part never makes the built time slower', () => {
+    const car = L.activeCar(garage('chevy57', null, 31, 100));
+    const stock = L.carPotential(car);
+    assert.strictEqual(stock.family, 'Small-block');
+    // A Best flathead swapped into a small-block car: the built time stays the small-block build's
+    car.parts.engine = 'flat276';
+    const swapped = L.carPotential(car);
+    assert.strictEqual(swapped.builtEt, stock.builtEt);
+    assert.strictEqual(swapped.family, 'Small-block');
+    // Bestest+ slicks stay on the build, so it gets quicker and doesn't pay for Bestest slicks
+    car.parts.tires = 'tires_4';
+    const slicks = L.carPotential(car);
+    assert.ok(slicks.builtEt < stock.builtEt, `${slicks.builtEt} vs ${stock.builtEt}`);
+    assert.strictEqual(swapped.buildCost - slicks.buildCost, L.PARTS.tires_3.price);
+});
+
 test('a part taken off goes on the shelf, unless it is shot', () => {
     const g = garage('ford48', null, 80, 60);
     const car = L.activeCar(g);

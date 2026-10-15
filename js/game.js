@@ -94,28 +94,47 @@
         return outlook(car, L.carValue(car));
     };
 
+    // "Built" is the quickest of two builds: the Bestest parts for the engine family on the car
+    // now, and for the family the body came with, so swapping in another engine never makes the
+    // built time worse. Parts already on the car that beat Bestest (Bestest+, Legendary) stay.
     function outlook(car, price) {
         var fixed = { body: car.body, parts: car.parts, condition: 100, engineCondition: 100, partCondition: {} };
-        var fam = L.PARTS[car.parts.engine].fam;
-        var top = Object.keys(L.PARTS).filter(function (id) {
-            return L.PARTS[id].slot === 'engine' && L.PARTS[id].fam === fam && L.PARTS[id].cls <= 3;
-        }).sort(function (a, b) { return L.PARTS[b].cls - L.PARTS[a].cls; })[0];
-        var builtParts = L.stockParts(top, { carb: 3, intake: 3, cam: 3, exhaust: 3, trans: 3, rear: 3, tires: 3 });
-        var built = { body: car.body, parts: builtParts, condition: 100, engineCondition: 100, partCondition: {} };
-        var buildCost = 0;
-        L.SLOTS.forEach(function (slot) {
-            if (builtParts[slot] !== car.parts[slot]) buildCost += L.PARTS[builtParts[slot]].price || 0;
+        function et(c) { return L.estimate(L.spec(c)).et; }
+        var fams = [L.PARTS[car.parts.engine].fam, L.PARTS[L.BODIES[car.body].parts.engine].fam];
+        var best = null;
+        fams.forEach(function (fam) {
+            var b = buildFor(car, fam);
+            b.et = et(b.car);
+            if (!best || b.et < best.et) best = b;
         });
+        var built = best.car, buildCost = best.cost, fam = best.fam;
         var fix = L.fixAll(car);
         var restored = L.restoredValue(car);
-        function et(c) { return L.estimate(L.spec(c)).et; }
         return {
             fixCost: fix.cost, fixHours: fix.hours, restored: restored,
             margin: restored - price - fix.cost,
-            asIs: et(car), fixedEt: et(fixed), builtEt: et(built),
+            asIs: et(car), fixedEt: et(fixed), builtEt: best.et,
             builtHp: Math.round(L.peakPower(L.spec(built)).hp), buildCost: buildCost,
             family: L.FAMILIES[fam].name, kg: L.BODIES[car.body].kg
         };
+    }
+
+    // A car built with the Bestest parts for an engine family, keeping any Bestest+ or Legendary
+    // part on it made from the Bestest it would get, and what the parts it doesn't have yet cost
+    function buildFor(car, fam) {
+        var top = Object.keys(L.PARTS).filter(function (id) {
+            return L.PARTS[id].slot === 'engine' && L.PARTS[id].fam === fam && L.PARTS[id].cls <= 3;
+        }).sort(function (a, b) { return L.PARTS[b].cls - L.PARTS[a].cls; })[0];
+        var have = L.PARTS[car.parts.engine];
+        if (have.fam === fam && have.cls > 3) top = car.parts.engine;
+        var parts = L.stockParts(top, { carb: 3, intake: 3, cam: 3, exhaust: 3, trans: 3, rear: 3, tires: 3 });
+        var cost = 0;
+        L.SLOTS.forEach(function (slot) {
+            var mine = car.parts[slot];
+            if (slot !== 'engine' && L.PARTS[mine].cls > 3 && mine.replace(/_[45]$/, '') === parts[slot].replace(/_3$/, '')) parts[slot] = mine;
+            if (parts[slot] !== mine) cost += L.PARTS[parts[slot]].price || 0;
+        });
+        return { car: { body: car.body, parts: parts, condition: 100, engineCondition: 100, partCondition: {} }, cost: cost, fam: fam };
     }
 
     // How a car looks: its paint (the factory colour until the paint shop changes it) and
