@@ -241,22 +241,67 @@
 
     // ── Classifieds ───────────────────────────────────────────────────────
 
+    // Phone extensions for the ads, so each reads like a real 1963 classified
+    var EXCHANGES = ['ALpine', 'BUtterfield', 'CApitol', 'DIamond', 'EVergreen', 'FAirfax', 'GLadstone', 'HUdson'];
+
     L.showAds = function (msg) {
+        var pots = g.ads.map(function (ad) { return L.potential(ad); });
+        // Your pencil marks the best deal and the fastest build of the week
+        var bestDeal = -1, fastest = -1;
+        pots.forEach(function (p, i) {
+            if (p.margin > 0 && (bestDeal < 0 || p.margin > pots[bestDeal].margin)) bestDeal = i;
+        });
+        // The fastest build, only when one car clearly beats the rest
+        var ets = pots.map(function (p) { return p.builtEt; }).sort(function (a, b) { return a - b; });
+        if (ets.length > 1 && ets[1] - ets[0] >= 0.1) {
+            pots.forEach(function (p, i) { if (p.builtEt === ets[0]) fastest = i; });
+        }
         var rows = g.ads.map(function (ad, i) {
-            return '<div class="ad"><h3>' + esc(L.BODIES[ad.body].name.toUpperCase()) + '</h3>' +
-                '<p>' + esc(ad.note) + ' Body ' + ad.condition + '%, engine ' + ad.engineCondition + '%.</p>' +
-                '<p class="price">' + money(ad.price) + '</p>' +
-                '<button data-act="buy" data-arg="' + i + '"' + (g.cash < ad.price ? ' disabled' : '') + '>Buy</button></div>';
-        }).join('') || '<p>Sold out this week. Try again next week.</p>';
+            var p = pots[i], body = L.BODIES[ad.body];
+            var marks = [];
+            if (i === bestDeal) marks.push('Best deal!');
+            if (i === fastest) marks.push('Fastest when built');
+            var margin = p.margin >= 0
+                ? '<b class="up">' + money(p.margin) + ' profit</b>'
+                : '<b class="down">' + money(-p.margin) + ' loss</b>';
+            var phone = EXCHANGES[(ad.price + i) % EXCHANGES.length] + ' ' + (5 + (ad.price % 4)) + '-' + ('000' + (ad.price * 7 + ad.condition * 13) % 10000).slice(-4);
+            return '<article class="ad' + (marks.length ? ' circled' : '') + '">' +
+                (marks.length ? '<span class="pencil">' + marks.join(' · ') + '</span>' : '') +
+                '<canvas class="ad-car" width="96" height="48" data-ad="' + i + '" aria-hidden="true"></canvas>' +
+                '<h3>' + esc(body.name.toUpperCase()) + '</h3>' +
+                '<p class="copy">' + esc(ad.note) + ' ' + esc(p.family) + ', ' + body.kg + ' kg. Body ' + ad.condition + '%, engine ' + ad.engineCondition + '%. Call ' + phone + '.</p>' +
+                '<p class="ad-price">' + money(ad.price) + '</p>' +
+                '<div class="look"><h4>Mechanic\'s once-over</h4>' +
+                '<dl>' +
+                '<dt>Fix it all</dt><dd>' + (p.fixCost ? money(p.fixCost) + ' · ' + p.fixHours + ' h' : 'Nothing to fix') + '</dd>' +
+                '<dt>Restored</dt><dd>sells for ' + money(p.restored) + ' (' + margin + ')</dd>' +
+                '<dt>¼ mile</dt><dd><span class="et">' + p.asIs.toFixed(1) + ' s</span> as is · <span class="et">' + p.fixedEt.toFixed(1) + ' s</span> fixed · <span class="et best">' + p.builtEt.toFixed(1) + ' s</span> built</dd>' +
+                '</dl>' +
+                '<p class="build">Built: the Bestest ' + esc(p.family.toLowerCase()) + ' parts, about ' + money(p.buildCost) + ', ' + p.builtHp + ' hp.</p></div>' +
+                '<button data-act="buy" data-arg="' + i + '" class="ink"' + (g.cash < ad.price ? ' disabled' : '') + '>' +
+                (g.cash < ad.price ? 'Can\'t afford it' : 'Buy it for ' + money(ad.price)) + '</button></article>';
+        }).join('');
         render(
             status() + flash(msg) +
-            '<div class="paper"><h2>CLASSIFIEDS</h2><p class="sub">Autos for sale · Week ' + g.week + '</p>' + rows + '</div>' +
+            '<div class="paper news">' +
+            '<header class="masthead"><p class="dateline"><span>Week ' + g.week + ', summer 1963</span><span>Five cents</span></p>' +
+            '<h2>The Lemon Gazette</h2>' +
+            '<p class="section">Classified · Automobiles for sale</p></header>' +
+            (rows ? '<div class="ads">' + rows + '</div>' : '<p class="empty">No autos this week. Try again next week.</p>') +
+            '<p class="fineprint">"Restored" is the price with every part fixed and the body like new. "Built" is the car with every Bestest part for its engine, and an expert at the wheel.</p>' +
+            '</div>' +
             backBar('Back'),
             {
                 buy: act(L.showAds, function (i) { return L.buyAd(g, +i) || 'Sold! It\'s in your garage.'; }),
                 back: function () { L.showHub(); }
             }
         );
+        // Each ad's photo: the car in its paint, gone toward rust as the body gets worse
+        app.querySelectorAll('canvas.ad-car').forEach(function (c) {
+            var ad = g.ads[+c.getAttribute('data-ad')];
+            var paint = L.art.mix(L.BODIES[ad.body].color, '#7a4a2a', (100 - ad.condition) / 100 * 0.7);
+            L.drawCar(c.getContext('2d'), 4, 2, paint, { scale: 2 });
+        });
     };
 
     // ── Parts catalog ─────────────────────────────────────────────────────

@@ -136,12 +136,75 @@ button.danger { background: var(--bad); color: #fff; border-bottom-color: #a01f1
 .dyno { border: 1px dashed var(--line); padding: 8px; margin-bottom: 8px; }
 
 /* The classifieds look like newsprint */
-.paper { background: var(--paper); color: var(--ink); padding: 16px; margin-bottom: 12px; border: 2px solid #c9bc98; }
+.paper {
+    background: var(--paper);
+    color: var(--ink);
+    padding: 16px;
+    margin-bottom: 12px;
+    border: 2px solid #c9bc98;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+    /* faint newsprint grain */
+    background-image: radial-gradient(rgba(90, 70, 40, 0.07) 1px, transparent 1px);
+    background-size: 3px 3px;
+}
 .paper h2 { color: var(--ink); text-align: center; font-family: Georgia, "Times New Roman", serif; font-size: 1.8rem; border-bottom: 3px double var(--ink); }
 .paper .sub { color: #5d5340; text-align: center; }
-.paper .ad { border-bottom: 1px solid #c9bc98; padding: 8px 0; }
 .paper h3 { color: var(--ink); }
 .paper .price { color: var(--ink); }
+
+/* The classifieds: a 1963 newspaper page, one boxed ad per car, two columns when there's room */
+.news .masthead { text-align: center; border-bottom: 3px double var(--ink); margin-bottom: 12px; padding-bottom: 6px; }
+.news .dateline { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--ink); padding-bottom: 4px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; }
+.news h2 { border: 0; margin: 6px 0 2px; font-size: clamp(1.7rem, 7vw, 2.6rem); font-weight: 900; letter-spacing: 0.02em; text-transform: none; font-variant: small-caps; }
+.news .section { font-family: Georgia, "Times New Roman", serif; font-style: italic; margin: 0; }
+.ads { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.ad {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px 12px;
+    border: 1px solid var(--ink);
+    background: rgba(255, 252, 240, 0.55);
+    min-width: 0;
+}
+.ad h3 { font-family: Georgia, "Times New Roman", serif; font-size: 1.15rem; font-weight: 900; margin: 0; letter-spacing: 0.03em; }
+.ad .copy { font-family: Georgia, "Times New Roman", serif; font-size: 0.95rem; line-height: 1.35; margin: 0; }
+.ad-car { width: 144px; height: 72px; image-rendering: pixelated; border: 0; aspect-ratio: auto; align-self: center; filter: sepia(0.25) contrast(1.05); }
+.ad-price { font-family: Georgia, "Times New Roman", serif; font-size: 1.6rem; font-weight: 900; margin: 0; }
+.look { border-top: 1px dashed #8a7d5c; padding-top: 6px; font-size: 0.85rem; }
+.look h4 { margin: 0 0 4px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: #5d5340; }
+.look dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; }
+.look dt { color: #5d5340; white-space: nowrap; }
+.look dd { margin: 0; min-width: 0; }
+.look .up { color: #1e7a3a; }
+.look .down { color: #b3261e; }
+.look .et { font-weight: bold; white-space: nowrap; }
+.look .et.best { color: #b3261e; }
+.look .build { color: #5d5340; margin: 4px 0 0; font-size: 0.8rem; }
+.ad button.ink { margin: auto 0 0; background: var(--ink); color: var(--paper); border-bottom-color: #000; width: 100%; }
+.ad button.ink[disabled] { background: transparent; color: #8a7d5c; border: 1px dashed #8a7d5c; opacity: 1; }
+/* Your pencil circles the best deal and the fastest build of the week */
+.ad.circled::before {
+    content: "";
+    position: absolute;
+    inset: -7px -5px;
+    border: 3px solid rgba(200, 30, 30, 0.75);
+    border-radius: 46% 54% 50% 48% / 12% 10% 14% 12%;
+    transform: rotate(-0.8deg);
+    pointer-events: none;
+}
+.pencil {
+    align-self: flex-end;
+    margin: -2px 6px 0 0;
+    color: #c81e1e;
+    font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", "Chalkboard SE", cursive;
+    font-weight: bold;
+    font-size: 0.95rem;
+    transform: rotate(-3deg);
+}
+.news .empty, .news .fineprint { font-family: Georgia, "Times New Roman", serif; }
+.news .fineprint { font-size: 0.75rem; font-style: italic; color: #5d5340; border-top: 1px solid var(--ink); margin-top: 14px; padding-top: 6px; }
 
 .title-menu { text-align: center; }
 .title-menu .tag { color: var(--accent); font-size: 1.1rem; margin: 0 0 12px; }
