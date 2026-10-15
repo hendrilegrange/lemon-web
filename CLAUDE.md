@@ -34,7 +34,8 @@ stack as dnd-web. The game works without it (offline, or before the server is se
 | `js/main.js` | Boot, the title screen animation, and sizing the canvas to a whole-number scale when that costs little size |
 | `favicon.ico`, `icons/`, `manifest.webmanifest` | The site icon (a lemon hot rod in pixel art, drawn from `icons/lemon-32.png`) for the browser tab, iPhone and Android home-screen shortcuts; the manifest opens a saved shortcut full screen |
 | `tests/` | `node --test tests/*.test.js`; `tests/load.js` loads the plain scripts into Node |
-| `css/style.css` | Page styles |
+| `css/style.css` | Page styles: a night-sky glow, panels with depth, condition meters as strips of lights, a time slip on the results |
+| `fonts/` | Space Mono (400, italic, 700), the page font, served from the site (SIL Open Font License, `fonts/OFL.txt`); `.woff2` has a MIME type in `web.config` |
 | `web.config` | IIS config: default document, MIME types for game assets, security headers |
 
 ## Workflow and deploy
