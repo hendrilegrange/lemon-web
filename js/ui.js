@@ -335,27 +335,46 @@
     L.showParts = function (msg) {
         var car = L.activeCar(g);
         var catalog = L.catalogFor(g, car);
-        var html = L.SLOTS.map(function (slot) {
-            var items = catalog.filter(function (x) { return L.PARTS[x.id].slot === slot; });
-            if (!items.length) return '';
-            return '<h3>' + L.SLOT_NAMES[slot] + '</h3>' + items.map(function (x) {
-                var p = L.PARTS[x.id];
-                var owned = g.inventory.filter(function (id) { return id === x.id; }).length;
-                var fitted = car && car.parts[slot] === x.id;
-                return '<div class="row' + (x.inStock ? '' : ' out') + '"><span><span class="cls cls' + p.cls + '">' + L.CLASSES[p.cls] + '</span> ' + esc(p.name) +
-                    (fitted ? ' <em>· on your car</em>' : '') + (owned ? ' <em>· ' + owned + ' on your shelf</em>' : '') + '</span>' +
-                    '<span class="price">' + money(p.price) + '</span>' +
-                    (x.inStock
-                        ? '<button data-act="buy" data-arg="' + x.id + '"' + (g.cash < p.price ? ' disabled' : '') + '>Buy</button>'
-                        : '<span class="soldout">Sold out</span>') + '</div>';
+        function row(x) {
+            var p = L.PARTS[x.id];
+            var owned = g.inventory.filter(function (id) { return id === x.id; }).length;
+            var fitted = car && car.parts[p.slot] === x.id;
+            return '<div class="row' + (x.inStock ? '' : ' out') + '"><span><span class="cls cls' + p.cls + '">' + L.CLASSES[p.cls] + '</span> ' + esc(p.name) +
+                (fitted ? ' <em>· on your car</em>' : '') + (owned ? ' <em>· ' + owned + ' on your shelf</em>' : '') + '</span>' +
+                '<span class="price">' + money(p.price) + '</span>' +
+                (x.inStock
+                    ? '<button data-act="buy" data-arg="' + x.id + '"' + (g.cash < p.price ? ' disabled' : '') + '>Buy</button>'
+                    : '<span class="soldout">Sold out</span>') + '</div>';
+        }
+        // A group of parts, slot by slot, with a heading per slot
+        function slots(items) {
+            return L.SLOTS.map(function (slot) {
+                var these = items.filter(function (x) { return L.PARTS[x.id].slot === slot; });
+                return these.length ? '<h4>' + L.SLOT_NAMES[slot] + '</h4>' + these.map(row).join('') : '';
             }).join('');
-        }).join('');
+        }
+        function group(title, items, open) {
+            var stocked = items.filter(function (x) { return x.inStock; }).length;
+            return '<details class="shop-group"' + (open ? ' open' : '') + '><summary><h3>' + esc(title) + '</h3>' +
+                '<span class="sub">' + stocked + ' of ' + items.length + ' in stock</span></summary>' + slots(items) + '</details>';
+        }
+        function family(fam) {
+            return group((fam === mine ? 'For your ' : '') + L.FAMILIES[fam].name + ' engines and parts',
+                catalog.filter(function (x) { return L.PARTS[x.id].fam === fam; }), fam === mine || !car);
+        }
+        // Your engine's family, then what fits anything, then the other families folded away
+        // for a swap
+        var mine = car ? L.PARTS[car.parts.engine].fam : null;
+        var others = Object.keys(L.FAMILIES).filter(function (fam) { return fam !== mine; });
+        var html = (mine ? family(mine) : '') +
+            group('Fits anything', catalog.filter(function (x) { return !L.PARTS[x.id].fam; }), true) +
+            others.map(family).join('');
         var intro = car
-            ? 'Parts that fit your ' + esc(L.carName(car)) + ' with the ' + esc(L.PARTS[car.parts.engine].name) + '. Engines fit anything.'
-            : 'Everything we carry. Buy a car and we\'ll show you what fits it.';
+            ? 'Your ' + esc(L.carName(car)) + ' has the ' + esc(L.PARTS[car.parts.engine].name) + '. Carbs, intakes, cams and exhausts only fit their own engine family; engines and the rest fit anything.'
+            : 'Everything we carry. Buy a car and we\'ll put what fits it first.';
         render(
             status() + flash(msg) + '<div class="panel"><h2>Speed Shop</h2><p class="sub">' + intro +
-            ' The shelves restock every week, and the Bestest parts sell out fast.</p>' + html + '</div>' +
+            ' The shelves restock every week with something for every engine, but not every part every week, and the Bestest parts sell out fast.</p>' + html + '</div>' +
             '<button data-act="back">Back</button>',
             {
                 buy: act(L.showParts, function (id) { return L.buyPart(g, id) || 'Bought. It\'s on your garage shelf.'; }),

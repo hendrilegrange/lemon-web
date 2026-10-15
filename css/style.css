@@ -165,3 +165,11 @@ button.danger { background: var(--bad); color: #fff; border-bottom-color: #a01f1
 .account-form .or { display: flex; align-items: center; gap: 8px; color: var(--muted); margin: 12px 0 8px; max-width: 360px; }
 .account-form .or::before, .account-form .or::after { content: ""; flex: 1; border-top: 2px solid var(--line); }
 .google-button { min-height: 44px; max-width: 360px; }
+
+.shop-group { border-top: 2px solid var(--line); padding: 4px 0 8px; }
+.shop-group summary { display: flex; align-items: baseline; gap: 12px; cursor: pointer; padding: 6px 0; flex-wrap: wrap; }
+.shop-group summary h3 { display: inline; margin: 0; }
+.shop-group h4 { color: var(--muted); margin: 10px 0 4px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.shop-group summary::-webkit-details-marker { display: none; }
+.shop-group summary::before { content: "\25B8"; color: var(--accent); }
+.shop-group[open] summary::before { content: "\25BE"; }

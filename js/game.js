@@ -82,10 +82,7 @@
         if (!first) g.week++;
         g.hours = L.HOURS_PER_WEEK;
         g.friday = false;
-        g.shopStock = Object.keys(L.PARTS).filter(function (id) {
-            var part = L.PARTS[id];
-            return part.price > 0 && L.random() < L.IN_STOCK[part.cls];
-        });
+        g.shopStock = L.restock();
         g.ads = [];
         var bodies = Object.keys(L.BODIES);
         for (var i = 0; i < 5; i++) {
@@ -242,15 +239,39 @@
         return Math.floor((L.PARTS[g.inventory[invIndex]].price || 0) / 2 * L.shelfCondition(g, invIndex) / 100);
     };
 
+    // The week's shelf: each part by its class's odds, but never a week without something
+    // for every engine family in every slot (and every slot that fits anything), so whatever
+    // you drive there's an upgrade to buy
+    L.restock = function () {
+        var ids = Object.keys(L.PARTS).filter(function (id) { return L.PARTS[id].price > 0; });
+        var shelf = ids.filter(function (id) { return L.random() < L.IN_STOCK[L.PARTS[id].cls]; });
+        var groups = {};
+        ids.forEach(function (id) {
+            var p = L.PARTS[id], key = p.slot + '/' + (p.fam || '');
+            (groups[key] = groups[key] || []).push(id);
+        });
+        Object.keys(groups).forEach(function (key) {
+            var group = groups[key];
+            if (group.some(function (id) { return shelf.indexOf(id) >= 0; })) return;
+            // Mostly a Better part; a Best or Bestest now and then
+            var weights = group.map(function (id) { return L.IN_STOCK[L.PARTS[id].cls]; });
+            var r = L.random() * weights.reduce(function (a, w) { return a + w; }, 0);
+            for (var i = 0; i < group.length - 1 && r >= weights[i]; i++) r -= weights[i];
+            shelf.push(group[i]);
+        });
+        return shelf;
+    };
+
     L.inStock = function (g, partId) { return (g.shopStock || []).indexOf(partId) >= 0; };
 
-    // What the speed shop sells that fits a car (everything for sale if there's no car),
-    // slot by slot, cheapest first, with whether it's on the shelf this week
+    // Everything the speed shop carries, with whether it's on the shelf this week and whether
+    // it fits the car (every part fits when there's no car). Parts for other engine families
+    // are for sale too, for a swap later.
     L.catalogFor = function (g, car) {
         return Object.keys(L.PARTS).filter(function (id) {
-            return L.PARTS[id].price > 0 && (!car || L.fits(id, car.parts.engine));
+            return L.PARTS[id].price > 0;
         }).map(function (id) {
-            return { id: id, inStock: L.inStock(g, id) };
+            return { id: id, inStock: L.inStock(g, id), fits: !car || L.fits(id, car.parts.engine) };
         });
     };
 

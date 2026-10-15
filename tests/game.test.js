@@ -77,15 +77,35 @@ test('over-revving damages the engine', () => {
     assert.ok(run.overRev > 0 && damage > 0);
 });
 
-test('the speed shop only shows parts that fit, and only sells what it has in stock', () => {
+test('the speed shop shows every family\'s parts, marks what fits, and only sells what it has in stock', () => {
     const g = garage('ford48', null, 80, 80);
-    const ids = L.catalogFor(g, L.activeCar(g)).map((x) => x.id);
-    assert.ok(ids.includes('carb_flat_2') && ids.includes('tires_3') && ids.includes('v8_327'));
-    assert.ok(!ids.includes('carb_small_2'), 'a small-block carb does not fit a flathead');
+    const fits = Object.fromEntries(L.catalogFor(g, L.activeCar(g)).map((x) => [x.id, x.fits]));
+    assert.ok(fits.carb_flat_2 && fits.tires_3 && fits.v8_327 && fits.ardun296);
+    assert.strictEqual(fits.carb_small_2, false, 'a small-block carb is for sale but does not fit a flathead');
     g.shopStock = ['carb_flat_1'];
     assert.match(L.buyPart(g, 'carb_flat_2'), /Sold out/);
     assert.strictEqual(L.buyPart(g, 'carb_flat_1'), null);
     assert.match(L.buyPart(g, 'carb_flat_1'), /Sold out/);   // one on the shelf
+});
+
+test('every engine family has three upgrade engines', () => {
+    Object.keys(L.FAMILIES).forEach((fam) => {
+        const classes = Object.values(L.PARTS).filter((p) => p.slot === 'engine' && p.fam === fam && p.price > 0).map((p) => p.cls).sort();
+        assert.deepStrictEqual(classes, [1, 2, 3], fam);
+    });
+});
+
+test('every week the shop has something for every engine family in every slot, but not everything', () => {
+    const g = L.newGame();
+    const all = Object.keys(L.PARTS).filter((id) => L.PARTS[id].price > 0);
+    for (let w = 0; w < 300; w++) {
+        L.newWeek(g);
+        Object.keys(L.FAMILIES).forEach((fam) => ['engine'].concat(L.BOLT_ONS).forEach((slot) => {
+            assert.ok(g.shopStock.some((id) => L.PARTS[id].slot === slot && L.PARTS[id].fam === fam), 'week ' + w + ': no ' + fam + ' ' + slot);
+        }));
+        ['trans', 'rear', 'tires'].forEach((slot) => assert.ok(g.shopStock.some((id) => L.PARTS[id].slot === slot), slot));
+        assert.ok(g.shopStock.length < all.length, 'some parts sell out');
+    }
 });
 
 test('the stock rotates weekly and the better classes are scarcer', () => {
