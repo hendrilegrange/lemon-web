@@ -700,11 +700,18 @@
 
     // ── Racing ────────────────────────────────────────────────────────────
 
-    // A cash race is all your cash, up to RIVAL_PRIZE in the rival's era's money, against the
-    // same from the rival
+    // A cash race bets what you pick, from MIN_BET up to all your cash or RIVAL_PRIZE in the
+    // rival's era's money, whichever is less, against the same from the rival. cashBet is
+    // the most you can bet; betStep the slider's step; betAmount a pick kept in bounds.
     L.cashBet = function (g, rival) { return Math.min(Math.max(0, g.cash), L.rivalPrize(g, rival)); };
+    L.betStep = function (g, rival) { return Math.max(L.MIN_BET, Math.round(L.rivalPrize(g, rival) / 20 / 50) * 50); };
+    L.betAmount = function (g, rival, want) {
+        var max = L.cashBet(g, rival);
+        if (want == null || isNaN(want)) return max;
+        return Math.min(max, Math.max(L.MIN_BET, Math.round(want)));
+    };
 
-    // stake: 'cash' for cashBet, 'pinks' for the cars only (The King adds KING_PRIZE),
+    // stake: 'cash' for a bet, 'pinks' for the cars only (The King adds KING_PRIZE),
     // 'fun' for a small prize and no risk
     L.canRace = function (g, rival, stake) {
         var car = L.activeCar(g);
@@ -730,8 +737,9 @@
     // Settle a race. result: 'win', 'lose' or 'foul' (jumped the light, which loses).
     // A race for fun pays a small prize for a win and costs nothing to lose; the rival stays
     // at the stand for a real race but won't race for fun again this week. Every race counts
-    // on your record. Returns a line for the results screen.
-    L.settleRace = function (g, rivalIndex, stake, result, damage) {
+    // on your record. bet is a cash race's stake (all you can bet if left out). Returns a line
+    // for the results screen.
+    L.settleRace = function (g, rivalIndex, stake, result, damage, bet) {
         var rival = g.rivals[rivalIndex];
         var car = L.activeCar(g);
         car.engineCondition = Math.max(0, Math.round(car.engineCondition - damage));
@@ -754,7 +762,7 @@
         }
 
         g.rivals.splice(rivalIndex, 1);
-        var cash = stake === 'pinks' ? (rival.king ? L.kingPrize(g) : 0) : L.cashBet(g, rival);
+        var cash = stake === 'pinks' ? (rival.king ? L.kingPrize(g) : 0) : L.betAmount(g, rival, bet);
         var cashText = '$' + cash.toLocaleString('en-US');
         if (result === 'win') {
             if (rival.king) g.kingBeaten = true;
