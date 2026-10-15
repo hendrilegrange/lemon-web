@@ -689,3 +689,23 @@ test('1995 needs a 1995 build: Bestest has a fair shot at The Import King, and a
         last = et;
     });
 });
+
+test('2005 needs a 2005 build: Bestest has a fair shot at The Tuner King, and a 1995 Bestest build a slim one', () => {
+    const king = Object.assign({}, L.KINGS[4], { engineCondition: 90 });
+    const build = (body, engine, c) => ({ body, condition: 100, engineCondition: 100, partCondition: {},
+        parts: L.stockParts(engine, { carb: c, intake: c, cam: c, exhaust: c, trans: c, rear: c, tires: c }) });
+    for (const body of ['gto04', 'vette05', 'evo05']) {
+        for (const engine of ['ls_tt', 'hemi_whip', 'gt35r']) {
+            const odds = L.odds(build(body, engine, 3), king);
+            assert.ok(odds > 0.33 && odds < 0.55, `${body} ${engine}: ${odds}`);
+            assert.ok(L.odds(build(body, engine + '_plus', 4), king) > odds);
+        }
+    }
+    assert.ok(L.odds(build('supra93', 'twojz_t88', 3), king) < 0.25);
+    let last = Infinity;
+    L.ERA_BUILDS[4].forEach((b, tier) => {
+        const et = L.estimate(L.spec(car('gto04', L.rivalParts('gto04', tier, 4)))).et;
+        assert.ok(et < last, `2005 tier ${tier}: ${et} < ${last}`);
+        last = et;
+    });
+});
