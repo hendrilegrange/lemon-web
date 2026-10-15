@@ -156,12 +156,47 @@
     var GLASS = { w: '#4a7aa8', g: '#cfe8ff', c: '#d8d8e0', C: '#7a7a86', t: '#141414', T: '#3a3a3a', k: '#060606', r: '#e02020', y: '#fff3b0' };
     var PAINT = { o: 0, d: 1, m: 2, l: 3, h: 4 };
 
-    // Draws a car with its roof at (x, y). opts: smoke, scale (whole pixels per car pixel),
-    // clip (only the part left of this x)
-    L.drawCar = function (ctx, x, y, color, opts) {
+    // Liveries from the paint shop, laid over the paint (and, for a racing number, the chrome).
+    // Each gives a car pixel's colour: a shade of the trim colour (0-4, like PAINT), a colour,
+    // or nothing to leave the paint showing. shade is the paint's shade at that pixel.
+    var FLAME_TIPS = { 8: 31, 9: 25, 10: 29, 11: 23, 12: 27, 13: 32, 14: 35 };
+    var LIVERY = {
+        pinstripe: function (col, row) { return row === 8 && col >= 2 && col <= 40 ? 4 : null; },
+        stripes: function (col, row, shade) { return (row === 9 || row === 10) && col >= 1 && col <= 42 ? shade : null; },
+        twotone: function (col, row, shade) { return row <= 6 ? shade : null; },
+        scallops: function (col, row, shade) {
+            // Two spears running back from the nose, outlined at their points
+            var tip = { 8: 24, 9: 16, 10: 24, 12: 30, 13: 22, 14: 30 }[row];
+            if (tip === undefined || col < tip || col > 40) return null;
+            return col === tip ? 0 : shade;
+        },
+        flames: function (col, row) {
+            var tip = FLAME_TIPS[row];
+            if (tip === undefined || col < tip) return null;
+            var d = col - tip;
+            return d < 2 ? '#c81e1e' : d < 4 ? '#f07a28' : '#ffd23f';
+        },
+        number: function (col, row) {
+            // A white roundel on the door with a black 7
+            var dx = col - 25, dy = row - 11;
+            if (dx * dx + dy * dy > 6) return null;
+            return [[24, 10], [25, 10], [26, 10], [26, 11], [25, 12], [25, 13]].some(function (p) { return p[0] === col && p[1] === row; })
+                ? '#141414' : '#f2f2ea';
+        }
+    };
+    L.LIVERY_ART = LIVERY;
+
+    // A car's look: a paint colour, or { color, livery, trim } from L.carLook
+    L.lookColor = function (look) { return typeof look === 'string' ? look : look.color; };
+
+    // Draws a car with its roof at (x, y). look: a paint colour or { color, livery, trim }.
+    // opts: smoke, scale (whole pixels per car pixel), clip (only the part left of this x)
+    L.drawCar = function (ctx, x, y, look, opts) {
         opts = opts || {};
         var s = opts.scale || 1;
-        var c = L.ramp(color);
+        var c = L.ramp(L.lookColor(look));
+        var livery = typeof look === 'object' && look.livery ? LIVERY[look.livery] : null;
+        var t = livery ? L.ramp(look.trim || '#f2f2ea') : null;
         x = Math.round(x); y = Math.round(y);
         for (var row = 0; row < CAR.length; row++) {
             var line = CAR[row];
@@ -170,7 +205,13 @@
                 if (ch === '.') continue;
                 var px = x + col * s;
                 if (opts.clip !== undefined && px + s > opts.clip) continue;
-                ctx.fillStyle = ch in PAINT ? c[PAINT[ch]] : GLASS[ch];
+                var fill = ch in PAINT ? c[PAINT[ch]] : GLASS[ch];
+                if (livery && (ch in PAINT || (ch === 'c' && look.livery === 'number'))) {
+                    var v = livery(col, row, ch in PAINT ? PAINT[ch] : 3);
+                    if (typeof v === 'number') fill = t[v];
+                    else if (v) fill = v;
+                }
+                ctx.fillStyle = fill;
                 ctx.fillRect(px, y + row * s, s, s);
             }
         }
@@ -223,7 +264,7 @@
 
     // Draws the hub's 320x120 scene. color: the parked car's paint, or null for an empty
     // driveway. friday lights the burger stand's sign down the street.
-    L.drawHubScene = function (ctx, W, H, color, friday) {
+    L.drawHubScene = function (ctx, W, H, look, friday) {
         var rnd = seeded(1963);
         // Night sky in bands, dithered where they meet
         var sky = ['#0a0a22', '#10102e', '#18183c', '#22204a', '#2e2652'];
@@ -316,8 +357,8 @@
         }
 
         // Your car, parked out front
-        if (color) {
-            L.drawCar(ctx, 160, 52, color, { scale: 2 });
+        if (look) {
+            L.drawCar(ctx, 160, 52, look, { scale: 2 });
             rect(ctx, 166, 96, 76, 2, '#141418');                   // its shadow on the curb
         }
     };

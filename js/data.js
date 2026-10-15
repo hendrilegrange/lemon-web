@@ -217,6 +217,33 @@
     L.RESALE = { junk: 0.25, restored: 1.2, classic: 150, scrap: 0.12 };
     L.STRIP_HOURS = 6;
 
+    // The paint shop: a new colour, a livery over it, or both, done by the shop while you
+    // wait (no garage hours). Looks only: the car's value and speed don't change. A metallic
+    // or candy paint costs more. A livery's trim colour comes from the same list.
+    L.PAINTS = {
+        red:       { name: 'Candy apple red', hex: '#c8102e', price: 250 },
+        black:     { name: 'Tuxedo black', hex: '#2a2a32', price: 150 },
+        white:     { name: 'Ermine white', hex: '#e6e2d6', price: 150 },
+        turquoise: { name: 'Tropical turquoise', hex: '#2fb8ac', price: 150 },
+        seafoam:   { name: 'Seafoam green', hex: '#8fd1b0', price: 150 },
+        yellow:    { name: 'Canary yellow', hex: '#f2c230', price: 150 },
+        tangerine: { name: 'Tangerine', hex: '#f07a28', price: 150 },
+        blue:      { name: 'Harbor blue', hex: '#2f5d9e', price: 150 },
+        pink:      { name: 'Dusk pink', hex: '#e88aa8', price: 150 },
+        silver:    { name: 'Silver blue metallic', hex: '#8aa0b8', price: 250 },
+        copper:    { name: 'Copper metallic', hex: '#b5653a', price: 250 },
+        cherry:    { name: 'Black cherry', hex: '#5a1a3a', price: 250 }
+    };
+    L.LIVERIES = {
+        none:      { name: 'Plain', price: 0 },
+        pinstripe: { name: 'Pinstripe', price: 40 },
+        stripes:   { name: 'Racing stripe', price: 60 },
+        twotone:   { name: 'Two-tone roof', price: 100 },
+        scallops:  { name: 'Scallops', price: 120 },
+        flames:    { name: 'Flames', price: 150, ownColors: true },
+        number:    { name: 'Racing number', price: 30, ownColors: true }
+    };
+
     L.START_CASH = 600;     // enough for one scrappy car and a few repairs
     L.MAX_CARS = 10;
     L.REPAIR_PER_POINT = 2;   // dollars per point of engine condition restored
