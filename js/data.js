@@ -234,14 +234,15 @@
         copper:    { name: 'Copper metallic', hex: '#b5653a', price: 250 },
         cherry:    { name: 'Black cherry', hex: '#5a1a3a', price: 250 }
     };
+    // Liveries are for showing off: priced to soak up the winnings of a car that's already built
     L.LIVERIES = {
         none:      { name: 'Plain', price: 0 },
-        pinstripe: { name: 'Pinstripe', price: 40 },
-        stripes:   { name: 'Racing stripe', price: 60 },
-        twotone:   { name: 'Two-tone roof', price: 100 },
-        scallops:  { name: 'Scallops', price: 120 },
-        flames:    { name: 'Flames', price: 150, ownColors: true },
-        number:    { name: 'Racing number', price: 30, ownColors: true }
+        pinstripe: { name: 'Pinstripe', price: 800 },
+        stripes:   { name: 'Racing stripe', price: 1200 },
+        twotone:   { name: 'Two-tone roof', price: 2000 },
+        scallops:  { name: 'Scallops', price: 2400 },
+        flames:    { name: 'Flames', price: 3000, ownColors: true },
+        number:    { name: 'Racing number', price: 600, ownColors: true }
     };
 
     L.START_CASH = 600;     // enough for one scrappy car and a few repairs

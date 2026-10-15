@@ -434,14 +434,14 @@ test('the paint shop changes the colour and livery for a price, and only on a so
     const g = L.newGame();
     g.cars.push(L.makeCar(g, 'ford48', null, 50, 80));
     g.active = 0;
-    g.cash = 1000;
+    g.cash = 10000;
     const car = L.activeCar(g);
     assert.strictEqual(L.carColor(car), L.BODIES.ford48.color);
     assert.match(L.paintCar(g, 'red', 'flames', 'white'), /rust/);
     car.condition = 90;
     assert.strictEqual(L.paintCost(car, 'red', 'flames', 'white'), L.PAINTS.red.price + L.LIVERIES.flames.price);
     assert.strictEqual(L.paintCar(g, 'red', 'flames', 'white'), null);
-    assert.strictEqual(g.cash, 1000 - L.PAINTS.red.price - L.LIVERIES.flames.price);
+    assert.strictEqual(g.cash, 10000 - L.PAINTS.red.price - L.LIVERIES.flames.price);
     assert.deepStrictEqual(L.carLook(car), { color: L.PAINTS.red.hex, livery: 'flames', trim: '#f2f2ea' });
     assert.match(L.canPaint(g, null, 'flames', 'white'), /already/);
     // A new stripe colour costs the livery again; the paint stays
