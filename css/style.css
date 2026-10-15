@@ -214,6 +214,23 @@ button.danger { background: var(--bad); color: #fff; border-bottom-color: #a01f1
 .title-menu { text-align: center; }
 .title-menu .tag { color: var(--accent); font-size: 1.1rem; margin: 0 0 12px; }
 
+/* Leaderboards: a line per board on the title, the top 10s side by side, a top 100 */
+.leaders-mini { display: grid; gap: 4px; max-width: 460px; margin: 16px auto 0; }
+.leaders-mini h3 { margin: 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
+.leader-line { display: flex; justify-content: space-between; gap: 12px; margin: 0; padding: 6px 10px; font-weight: normal; text-align: left; }
+.leader-line .who { color: var(--accent); font-weight: bold; text-align: right; white-space: nowrap; }
+@media (max-width: 600px) { .leader-line { font-size: 0.85rem; } }
+.leaders .boards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 12px; }
+.leaders section { min-width: 0; }
+.board { list-style: none; margin: 0 0 6px; padding: 0; }
+.board li { display: flex; gap: 8px; padding: 3px 0; border-bottom: 1px solid var(--line); }
+.board .rank { width: 2.2em; color: var(--muted); text-align: right; flex: none; }
+.board .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board .val { color: var(--accent); font-weight: bold; }
+.board li:first-child .name { color: var(--accent); }
+.board li.you { background: var(--line); }
+.result .record { color: var(--accent); font-weight: bold; }
+
 .race-controls { text-align: center; }
 .go { width: 100%; padding: 18px; font-size: 1.3rem; touch-action: manipulation; user-select: none; }
 

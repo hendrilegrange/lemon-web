@@ -134,9 +134,11 @@
             (saved ? '<button data-act="cont">Continue (week ' + saved.week + ', ' + money(saved.cash) + ')</button>' : '') +
             '<button data-act="new">New game</button>' +
             '<p class="hint">Summer, 1963. You have ' + money(L.START_CASH) + ' and a driver\'s license.</p>' +
+            leadersBlock() +
             accountBlock() +
             '</div>',
             {
+                leaders: function () { L.showLeaders(); },
                 login: function () { showAccount('login'); },
                 register: function () { showAccount('register'); },
                 signout: function () {
@@ -158,6 +160,73 @@
             }
         );
         L.titleScreen(true);
+        fillLeaders();
+    };
+
+    // ── Leaderboards ──────────────────────────────────────────────────────
+    // Kept on the server for signed-in players (api.php), so they only show when it answers
+
+    var BOARDS = [
+        { key: 'et', name: 'Fastest quarter mile', fmt: function (v) { return v.toFixed(2) + ' s'; } },
+        { key: 'rt', name: 'Quickest reaction', fmt: function (v) { return v.toFixed(3) + ' s'; } },
+        { key: 'streak', name: 'Longest win streak', fmt: function (v) { return v + (v === 1 ? ' win' : ' wins'); } },
+        { key: 'cash', name: 'Most cash on hand', fmt: function (v) { return money(v); } }
+    ];
+    function boardOf(key) { return BOARDS.filter(function (b) { return b.key === key; })[0]; }
+
+    // The title's four lines, each with the record holder; filled in once the server answers
+    function leadersBlock() {
+        if (!L.account || !L.account.available) return '';
+        return '<div class="leaders-mini"><h3>Leaderboards</h3>' + BOARDS.map(function (b) {
+            return '<button data-act="leaders" class="leader-line minor"><span class="what">' + b.name + '</span>' +
+                '<span class="who" id="lead-' + b.key + '">...</span></button>';
+        }).join('') + '</div>';
+    }
+
+    function fillLeaders() {
+        if (!L.account || !L.account.available) return;
+        L.account.leaders().then(function (res) {
+            BOARDS.forEach(function (b) {
+                var cell = document.getElementById('lead-' + b.key);
+                if (!cell) return;       // the player moved on
+                var top = res.boards && res.boards[b.key] && res.boards[b.key][0];
+                cell.textContent = res.error ? '' : top ? b.fmt(top.value) + ' · ' + top.name : 'nobody yet';
+            });
+        });
+    }
+
+    function leaderRows(b, rows) {
+        var me = L.account.user && L.account.user.username;
+        if (!rows.length) return '<p class="sub">Nobody on this board yet. Win some races and it\'s yours.</p>';
+        return '<ol class="board">' + rows.map(function (r, i) {
+            return '<li' + (r.name === me ? ' class="you"' : '') + '><span class="rank">' + (i + 1) + '</span>' +
+                '<span class="name">' + esc(r.name) + '</span><span class="val">' + b.fmt(r.value) + '</span></li>';
+        }).join('') + '</ol>';
+    }
+
+    // The top 10 on all four boards, or (board set) one board's top 100
+    var leadersShown = 0;
+    L.showLeaders = function (board) {
+        var shown = ++leadersShown;
+        var b = board && boardOf(board);
+        var back = b ? function () { L.showLeaders(); } : function () { L.showTitle(); };
+        var bar = b ? backBar('Back', 'back', [['Title screen', 'title']]) : backBar('Back');
+        var actions = { back: back, title: function () { L.showTitle(); }, board: function (key) { L.showLeaders(key); } };
+        var heading = '<h2>' + (b ? b.name + ' <span class="sub">top 100</span>' : 'Leaderboards') + '</h2>';
+        render('<div class="panel leaders">' + heading + '<p class="sub">Loading...</p></div>' + bar, actions);
+        L.titleScreen(false);       // the boards are long: no title scene above them
+        L.account.leaders(board).then(function (res) {
+            if (shown !== leadersShown || !document.querySelector('.leaders')) return;    // the player moved on
+            var note = L.account.user ? '' : '<p class="hint">Sign in on the title screen to get your name on the boards.</p>';
+            var body = res.error ? '<p class="shot">' + esc(res.error) + '</p>'
+                : b ? leaderRows(b, res.boards[b.key] || [])
+                : '<p class="sub">Every signed-in player\'s best, from any game they\'ve played.</p><div class="boards">' + BOARDS.map(function (x) {
+                    var rows = res.boards[x.key] || [];
+                    return '<section><h3>' + x.name + '</h3>' + leaderRows(x, rows) +
+                        (rows.length ? '<button data-act="board" data-arg="' + x.key + '" class="minor">Top 100</button>' : '') + '</section>';
+                }).join('') + '</div>';
+            render('<div class="panel leaders">' + heading + body + note + '</div>' + bar, actions);
+        });
     };
 
     // ── Accounts ──────────────────────────────────────────────────────────
@@ -874,14 +943,20 @@
             { spec: L.spec(rcar), color: '#e8e8e8', skill: rival.skill },
             function (result, damage, sum) {
                 var line = L.settleRace(g, i, stake, result, damage);
+                var beat = L.noteRace(g, result, sum.et, sum.reaction);
                 L.save(g);
+                var rec = L.records(g);
+                var best = beat.map(function (k) {
+                    return k === 'streak' ? rec.streak + ' wins in a row' : (k === 'et' ? 'quarter mile ' : 'reaction ') + boardOf(k).fmt(rec[k]);
+                });
                 L.showCanvas(false);
                 render(
                     status() +
                     '<div class="panel result ' + result + '"><h2>' + { win: 'You win!', lose: 'You lose', foul: 'Red light!' }[result] + '</h2>' +
                     '<p>' + esc(line) + '</p>' +
-                    '<p class="sub">You: ' + esc(sum.me) + (sum.reaction !== null && result !== 'foul' ? ' (reaction ' + sum.reaction.toFixed(2) + ' s)' : '') +
-                    '<br>' + esc(rival.name) + ': ' + esc(sum.them) + '</p></div>' +
+                    '<p class="sub">You: ' + esc(sum.me) + (sum.reaction !== null && result !== 'foul' ? ' (reaction ' + sum.reaction.toFixed(3) + ' s)' : '') +
+                    '<br>' + esc(rival.name) + ': ' + esc(sum.them) + '</p>' +
+                    (best.length ? '<p class="record">New personal best: ' + best.join(', ') + '!</p>' : '') + '</div>' +
                     backBar('Back to the burger stand', 'stand'),
                     { stand: function () { L.showStand(); } }
                 );

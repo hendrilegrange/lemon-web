@@ -45,6 +45,15 @@ if grep -q '<?php' "$WORK/api"; then
     fail "api.php is served as source code: PHP isn't running on the site"
 elif grep -q '"user"' "$WORK/api"; then
     pass "accounts API answers"
+    code=$(get "$SITE_URL/api.php?action=leaders" "$WORK/leaders")
+    if [ "$code" = 200 ] && jq -e '.boards | has("et") and has("rt") and has("streak") and has("cash")' "$WORK/leaders" >/dev/null; then
+        pass "leaderboards answer"
+    elif [ "$code" = 404 ] && [ "${CHECK_FILES:-}" != 1 ]; then
+        # A pull request's run checks the live site, which may not have the leaderboards yet
+        echo "WARN  the live api.php has no leaderboards yet (not deployed)"
+    else
+        fail "leaderboards returned HTTP $code: $(head -c 200 "$WORK/leaders")"
+    fi
 elif grep -q '"offline"' "$WORK/api"; then
     echo "WARN  accounts API is up but config.php isn't on the server yet"
     echo "::warning::accounts API has no config.php on the server yet"
