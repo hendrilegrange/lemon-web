@@ -10,7 +10,10 @@
  *   POST api.php?action=forgot    { email }  emails a password reset link
  *   POST api.php?action=reset     { token, password }  sets a new password from that link
  *   POST api.php?action=logout
- *   POST api.php?action=save      { game }  replaces the player's online save
+ *   POST api.php?action=save      { game }  replaces the player's online save, and keeps any
+ *                                 records in it that beat the player's best
+ *   GET  api.php?action=leaders   the top 10 on each leaderboard; &board=et|rt|streak|cash for
+ *                                 that board's top 100
  *
  * Google sign-in, email resets, the mailer and the CA bundle in certs/ are copied from dnd-web.
  * Every response is JSON through respond(). POSTs must carry X-Requested-With: XMLHttpRequest;
@@ -41,11 +44,15 @@ require __DIR__ . '/mailer.php';
 const MAX_SAVE_BYTES = 256 * 1024;
 const USERNAME_PATTERN = '/^[A-Za-z0-9_]{3,20}$/';
 // [max requests, window in seconds] per IP
+// The leaderboards, each a column of lemon_records: [sort order, lowest and highest value
+// believed]. The game runs in the browser, so a record is only as honest as its player; these
+// bounds keep out the impossible ones (and the smoke test's save, whose cash is a timestamp).
+const BOARDS = ['et' => ['ASC', 5, 60], 'rt' => ['ASC', 0, 2], 'streak' => ['DESC', 1, 100000], 'cash' => ['DESC', 1, 100000000]];
 const RATE_LIMITS = ['login' => [10, 300], 'register' => [5, 3600], 'google' => [20, 300], 'forgot' => [3, 300], 'reset' => [10, 300]];
 
 $action = $_GET['action'] ?? '';
 $posts = ['register', 'login', 'google', 'forgot', 'reset', 'logout', 'save'];
-$gets = ['me', 'load'];
+$gets = ['me', 'load', 'leaders'];
 if (!in_array($action, $posts, true) && !in_array($action, $gets, true)) {
     respond(['error' => 'Unknown action'], 404);
 }
@@ -95,6 +102,16 @@ function createTables(PDO $db): void {
         week INT NOT NULL,
         cash INT NOT NULL,
         updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES lemon_users (id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    // Each player's all-time bests, and when each was set (the earlier wins a tie)
+    $db->exec("CREATE TABLE IF NOT EXISTS lemon_records (
+        user_id INT UNSIGNED PRIMARY KEY,
+        et DECIMAL(6,3) NULL, et_at DATETIME NULL,
+        rt DECIMAL(5,3) NULL, rt_at DATETIME NULL,
+        streak INT UNSIGNED NULL, streak_at DATETIME NULL,
+        cash INT UNSIGNED NULL, cash_at DATETIME NULL,
+        KEY et (et), KEY rt (rt), KEY streak (streak), KEY cash (cash),
         FOREIGN KEY (user_id) REFERENCES lemon_users (id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     $db->exec("CREATE TABLE IF NOT EXISTS lemon_rate_limits (
@@ -167,6 +184,29 @@ function saveSummary(PDO $db, int $userId): ?array {
     $stmt->execute([$userId]);
     $row = $stmt->fetch();
     return $row ? ['savedAt' => (int)$row['saved_at'], 'week' => (int)$row['week'], 'cash' => (int)$row['cash']] : null;
+}
+
+// Keeps the records in a saved game ($game['records']) that beat the player's best so far
+function updateRecords(PDO $db, int $userId, array $game): void {
+    $records = $game['records'] ?? null;
+    if (!is_array($records) || !empty($game['smokeTest'])) return;
+    $stmt = $db->prepare('SELECT et, rt, streak, cash FROM lemon_records WHERE user_id = ?');
+    $stmt->execute([$userId]);
+    $best = $stmt->fetch() ?: [];
+    $sets = [];
+    $values = [];
+    foreach (BOARDS as $key => [$order, $min, $max]) {
+        $v = $records[$key] ?? null;
+        if (!is_int($v) && !is_float($v) || $v < $min || $v > $max) continue;
+        $old = $best[$key] ?? null;
+        if ($old !== null && ($order === 'ASC' ? $v >= (float)$old : $v <= (float)$old)) continue;
+        $sets[] = "$key = ?, {$key}_at = NOW()";
+        $values[] = $v;
+    }
+    if (!$sets) return;
+    if (!$best) $db->prepare('INSERT IGNORE INTO lemon_records (user_id) VALUES (?)')->execute([$userId]);
+    $values[] = $userId;
+    $db->prepare('UPDATE lemon_records SET ' . implode(', ', $sets) . ' WHERE user_id = ?')->execute($values);
 }
 
 function badPassword(string $password): ?string {
@@ -332,7 +372,21 @@ function handle(PDO $db, string $action): never {
             $db->prepare('INSERT INTO lemon_saves (user_id, game, saved_at, week, cash) VALUES (?, ?, ?, ?, ?)
                           ON DUPLICATE KEY UPDATE game = VALUES(game), saved_at = VALUES(saved_at), week = VALUES(week), cash = VALUES(cash)')
                ->execute([$user['id'], json_encode($game, JSON_UNESCAPED_UNICODE), (int)$game['savedAt'], (int)$game['week'], (int)$game['cash']]);
+            updateRecords($db, (int)$user['id'], $game);
             respond(['ok' => true, 'save' => saveSummary($db, (int)$user['id'])]);
+
+        case 'leaders':
+            $board = (string)($_GET['board'] ?? '');
+            if ($board !== '' && !isset(BOARDS[$board])) respond(['error' => 'No such leaderboard.'], 400);
+            $limit = $board === '' ? 10 : 100;
+            $boards = [];
+            foreach ($board === '' ? array_keys(BOARDS) : [$board] as $key) {
+                $order = BOARDS[$key][0];
+                $rows = $db->query("SELECT u.username, r.$key AS v FROM lemon_records r JOIN lemon_users u ON u.id = r.user_id
+                                    WHERE r.$key IS NOT NULL ORDER BY r.$key $order, r.{$key}_at, r.user_id LIMIT $limit")->fetchAll();
+                $boards[$key] = array_map(fn($row) => ['name' => $row['username'], 'value' => $key === 'et' || $key === 'rt' ? (float)$row['v'] : (int)$row['v']], $rows);
+            }
+            respond(['boards' => $boards]);
     }
     respond(['error' => 'Unknown action'], 404);
 }

@@ -500,3 +500,19 @@ test('a worn part on the shelf can be rebuilt with spare hours, and sells for mo
     g.hours = 5;
     assert.ok(L.canRebuildShelf(g, 0));                        // not enough hours left
 });
+
+test('records: quickest run and reaction, longest streak, most cash on hand', () => {
+    const g = L.newGame();
+    assert.deepStrictEqual(L.records(g), { et: null, rt: null, streak: 0, cash: L.START_CASH });
+    assert.deepStrictEqual(L.noteRace(g, 'win', 14.2, 0.41), ['et', 'rt']);   // a first win isn't a streak yet
+    assert.deepStrictEqual(L.noteRace(g, 'win', 14.5, 0.38), ['streak', 'rt']);
+    assert.deepStrictEqual(L.noteRace(g, 'lose', null, 0.6), []);              // blew up: no time
+    assert.strictEqual(g.streak, 0);
+    assert.deepStrictEqual(L.noteRace(g, 'foul', 13, 0.1), []);                // a jumped light counts for nothing
+    L.noteRace(g, 'win', 15, 0.5);
+    assert.deepStrictEqual(L.records(g), { et: 14.2, rt: 0.38, streak: 2, cash: L.START_CASH });
+    g.cash = 9000; L.save(g); g.cash = 100; L.save(g);
+    assert.strictEqual(L.records(g).cash, 9000);
+    const old = { cash: 700 };                                                 // a save from before records
+    assert.deepStrictEqual(L.records(old), { et: null, rt: null, streak: 0, cash: 700 });
+});

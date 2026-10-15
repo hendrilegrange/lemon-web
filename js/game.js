@@ -12,7 +12,8 @@
     function roundTo(n, step) { return Math.round(n / step) * step; }
 
     L.newGame = function () {
-        var g = { cash: L.START_CASH, week: 1, cars: [], active: -1, inventory: [], wins: 0, losses: 0, nextId: 1 };
+        var g = { cash: L.START_CASH, week: 1, cars: [], active: -1, inventory: [], wins: 0, losses: 0, nextId: 1, streak: 0 };
+        L.records(g);
         L.newWeek(g, true);
         return g;
     };
@@ -718,9 +719,38 @@
         return why + 'You lost ' + cashText + ' to ' + rival.name + '.' + blown;
     };
 
+    // ── Records ───────────────────────────────────────────────────────────
+    // The player's bests for the leaderboards: quickest quarter mile (et) and reaction time
+    // (rt) in seconds, longest win streak, and the most cash ever on hand. g.streak is the
+    // current run of wins.
+
+    L.records = function (g) {
+        if (!g.records) g.records = { et: null, rt: null, streak: 0, cash: g.cash };
+        return g.records;
+    };
+
+    // After a race: et is the player's quarter mile from the green light (null if they didn't
+    // finish or jumped the light), reaction from green to launch. Returns the records it beat.
+    L.noteRace = function (g, result, et, reaction) {
+        var r = L.records(g), beat = [];
+        if (result === 'win') {
+            g.streak = (g.streak || 0) + 1;
+            if (g.streak > r.streak) { r.streak = g.streak; if (g.streak > 1) beat.push('streak'); }
+        } else {
+            g.streak = 0;
+        }
+        if (result !== 'foul') {
+            if (typeof et === 'number' && et > 0 && (r.et === null || et < r.et)) { r.et = Math.round(et * 1000) / 1000; beat.push('et'); }
+            if (typeof reaction === 'number' && reaction >= 0 && (r.rt === null || reaction < r.rt)) { r.rt = Math.round(reaction * 1000) / 1000; beat.push('rt'); }
+        }
+        return beat;
+    };
+
     // ── Saving ────────────────────────────────────────────────────────────
 
     L.save = function (g) {
+        var r = L.records(g);
+        if (g.cash > r.cash) r.cash = g.cash;
         try { localStorage.setItem(SAVE_KEY, JSON.stringify(g)); } catch (e) { /* private mode: play on unsaved */ }
     };
 
