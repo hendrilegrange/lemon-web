@@ -37,10 +37,17 @@
         if (focus) focus.focus({ preventScroll: true });
     }
 
+    // The gauges across the top of every screen
     function status() {
-        return '<div class="status"><span>' + money(g.cash) + '</span><span>Week ' + g.week +
-            '</span><span>' + (g.friday ? 'Friday night' : g.hours + ' h in the garage before Friday') +
-            '</span><span>Wins ' + g.wins + ' · Losses ' + g.losses + '</span></div>';
+        function gauge(label, value, cls) {
+            return '<div class="gauge' + (cls ? ' ' + cls : '') + '"><span class="label">' + label + '</span><span class="value">' + value + '</span></div>';
+        }
+        return '<div class="status">' +
+            gauge('Cash', money(g.cash), 'cash') +
+            gauge('Week', g.week) +
+            (g.friday ? gauge('Tonight', 'Friday night', 'friday') : gauge('Garage', g.hours + ' h left')) +
+            gauge('Record', g.wins + '–' + g.losses) +
+            '</div>';
     }
 
     // Ask before something that can't be undone. Shows the question in place of the screen;
@@ -268,31 +275,74 @@
 
     // ── Hub ───────────────────────────────────────────────────────────────
 
+    // 12x12 pixel icons for the hub's tiles, one letter per pixel ('.' is see-through)
+    var ICONS = {
+        ads: { p: '#efe6cf', P: '#c9bc98', k: '#1d1a14', r: '#d7263d', rows: [
+            '..pppppppp..', '..pkkkkkkP..', '..pppppppP..', '..pkkpkkkP..', '..pkkpppPP..', '..pppprrrP..',
+            '..pkkprrrP..', '..pkkppppP..', '..pppkkkkP..', '..pkkppppP..', '..ppppppPP..', '...PPPPPP...'] },
+        parts: { k: '#141414', t: '#3a3a3a', c: '#a0a8b8', h: '#e0e6f0', rows: [
+            '...kkkkkk...', '.kkttttttkk.', '.kttkkkkttk.', 'kttkcccckttk', 'ktkcchhccktk', 'ktkchkkhcktk',
+            'ktkchkkhcktk', 'ktkcchhccktk', 'kttkcccckttk', '.kttkkkkttk.', '.kkttttttkk.', '...kkkkkk...'] },
+        garage: { o: '#3a3a44', w: '#8a3a26', d: '#5a2418', g: '#e0b040', G: '#8a6a30', rows: [
+            '.oooooooooo.', 'oooooooooooo', '.wwwwwwwwww.', '.wddddddddw.', '.wdggggggdw.', '.wdGGGGGGdw.',
+            '.wdggggggdw.', '.wdGGGGGGdw.', '.wdggggggdw.', '.wdGGGGGGdw.', '.wdggggggdw.', '.wwwwwwwwww.'] },
+        stand: { b: '#e0a040', B: '#a86a20', s: '#fff3b0', l: '#3bb273', c: '#ffd23f', m: '#6a2a14', rows: [
+            '............', '...bbbbbb...', '..bbsbbsbb..', '.bbbbbbbbbb.', '.BBBBBBBBBB.', '.llllllllll.',
+            '.cccccccccc.', '.mmmmmmmmmm.', '.mmmmmmmmmm.', '.bbbbbbbbbb.', '..BBBBBBBB..', '............'] }
+    };
+
+    function icon(name) {
+        var ic = ICONS[name], out = '';
+        ic.rows.forEach(function (row, y) {
+            for (var x = 0; x < 12; x++) {
+                var ch = row[x];
+                if (ic[ch]) out += '<rect x="' + x + '" y="' + y + '" width="1" height="1" fill="' + ic[ch] + '"/>';
+            }
+        });
+        return '<svg class="icon" viewBox="0 0 12 12" shape-rendering="crispEdges" aria-hidden="true">' + out + '</svg>';
+    }
+
+    function tile(act, name, title, sub, cls) {
+        return '<button data-act="' + act + '" class="tile' + (cls ? ' ' + cls : '') + '">' + icon(name) +
+            '<span><span class="tile-title">' + title + '</span><span class="tile-sub">' + sub + '</span></span></button>';
+    }
+
+    function plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
+
     L.showHub = function (msg) {
         L.titleScreen(false);
         var car = L.activeCar(g);
         var carHtml;
         if (car) {
             var st = carStats(car);
-            carHtml = '<div class="card"><h3>' + esc(L.carName(car)) + '</h3>' +
-                '<p>' + st.hp + ' hp · quarter mile about ' + st.et.toFixed(1) + ' s</p>' +
-                '<p>Engine ' + bar(car.engineCondition, 'Engine condition') + ' · Body ' + bar(car.condition, 'Body condition') + '</p>' +
+            var paint = L.BODIES[car.body].color;
+            carHtml = '<div class="card car-card"><h3><span class="swatch" style="background:' + paint + '"></span>' + esc(L.carName(car)) + '</h3>' +
+                '<div class="chips"><span class="chip"><b>' + st.hp + '</b> hp</span>' +
+                '<span class="chip"><b>' + st.et.toFixed(1) + '</b> s quarter mile</span>' +
+                '<span class="chip"><b>' + Math.round(st.trap) + '</b> mph</span></div>' +
+                '<div class="conds"><span>Engine ' + bar(car.engineCondition, 'Engine condition') + '</span>' +
+                '<span>Body ' + bar(car.condition, 'Body condition') + '</span></div>' +
                 (car.condition < L.MIN_BODY ? '<p class="shot">The body needs to be ' + L.MIN_BODY + '% to race.</p>' : '') + '</div>';
         } else {
-            carHtml = '<div class="card"><h3>No car</h3><p>Check the classifieds.</p></div>';
+            carHtml = '<div class="card car-card"><h3>No car yet</h3><p class="sub">The driveway is empty. Check the classifieds.</p></div>';
         }
+        var stocked = L.catalogFor(g, car).filter(function (x) { return x.inStock && x.fits; }).length;
         render(
-            status() + flash(msg) + carHtml +
-            '<nav class="menu">' +
-            '<button data-act="ads">Classifieds</button>' +
-            '<button data-act="parts">Speed shop</button>' +
-            '<button data-act="garage">Garage</button>' +
-            '<button data-act="stand">' + (g.friday ? 'Back to the burger stand' : 'Friday night: burger stand') + '</button>' +
+            status() + flash(msg) +
+            '<canvas class="scene" id="hub-scene" width="320" height="120" aria-hidden="true"></canvas>' +
+            carHtml +
+            '<nav class="menu tiles">' +
+            tile('ads', 'ads', 'Classifieds', plural(g.ads.length, 'car') + ' for sale') +
+            tile('parts', 'parts', 'Speed shop', stocked + (car ? ' parts for your car' : ' parts') + ' in stock') +
+            tile('garage', 'garage', 'Garage', plural(g.cars.length, 'car') + ' · ' + plural(g.inventory.length, 'part') + ' on the shelf') +
+            tile('stand', 'stand', 'Burger stand',
+                g.friday || g.hours === 0 ? 'Racing tonight' : 'Friday night: closes the garage', g.friday ? 'hot' : '') +
+            '</nav>' +
+            '<div class="hub-foot">' +
             '<button data-act="week">Next week</button>' +
             '<button data-act="quit" class="minor">Title screen</button>' +
-            '</nav>' +
-            '<div class="toggles"><button data-act="sound" class="minor" id="sound">Sound: ' + (L.sound.on ? 'on' : 'off') + '</button>' +
-            '<button data-act="music" class="minor" id="music">Music: ' + (L.sound.music ? 'on' : 'off') + '</button></div>',
+            '<span class="toggles"><button data-act="sound" class="minor" id="sound">Sound: ' + (L.sound.on ? 'on' : 'off') + '</button>' +
+            '<button data-act="music" class="minor" id="music">Music: ' + (L.sound.music ? 'on' : 'off') + '</button></span></div>',
             {
                 sound: function () { document.getElementById('sound').textContent = 'Sound: ' + (L.sound.toggle() ? 'on' : 'off'); },
                 music: function () { document.getElementById('music').textContent = 'Music: ' + (L.sound.toggleMusic() ? 'on' : 'off'); },
@@ -308,6 +358,9 @@
                 quit: function () { L.showTitle(); }
             }
         );
+        var scene = document.getElementById('hub-scene');
+        var sctx = scene.getContext('2d');
+        L.drawHubScene(sctx, 320, 120, car ? L.BODIES[car.body].color : null, g.friday);
     };
 
     // ── Classifieds ───────────────────────────────────────────────────────

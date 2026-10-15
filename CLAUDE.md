@@ -26,11 +26,11 @@ stack as dnd-web. The game works without it (offline, or before the server is se
 | `oauth.php`, `mailer.php`, `certs/cacert.pem` | Copied from dnd-web: Google ID token check (`verifyGoogleIdToken`, needs `GOOGLE_CLIENT_ID`), the SMTP mailer (`sendMail`, needs the `SMTP_*` settings) and the CA bundle both use, since the host's PHP has none |
 | `config.example.php` | Template for `config.php` (database settings), which lives on the server only: git-ignored, never deployed, hidden by `web.config` |
 | `js/font.js` | The 5x7 pixel font all canvas text uses (`L.text`, `L.textWidth`), so text stays as sharp as the art when the canvas is scaled; upper case only |
-| `js/art.js` | Pixel art drawn a whole pixel at a time in VGA-style shades: the cars (`L.drawCar`, a 44x22 sprite, scaled up for bodywork), the garage (`L.drawGarage`), each workbench job's part worn or new (`L.drawPart`), bolts, holes and the orange target rings |
+| `js/art.js` | Pixel art drawn a whole pixel at a time in VGA-style shades: the cars (`L.drawCar`, a 44x22 sprite, scaled up for bodywork), the garage (`L.drawGarage`), the hub's night scene of your garage with your car parked out front (`L.drawHubScene`), each workbench job's part worn or new (`L.drawPart`), bolts, holes and the orange target rings |
 | `js/sound.js` | Web Audio, no sound files: a V8 that lopes at idle and roars under load, effects for the strip (tire bark, shift clunk and pops, a blown engine, win/lose/red-light stings) and the workbench (ratchet, clink, grinder, spray), a cash-register ring when money changes hands, and a 12-bar rock'n'roll jukebox on the menus (`L.sound.scene`: menu, garage quieter, race off). Sound and music on/off are kept in localStorage |
 | `js/race.js` | The drag race on the canvas: Christmas tree start, shifting with a shift light, rival AI, dashboard |
 | `js/wrench.js` | Wrenching on the canvas: installing a part or rebuilding the engine means clicking the orange bolts out and back in (`L.WRENCH`, up to 8 bolts per job; grey bolts hold something else); bodywork (`L.startBodywork`) is grinding and filling rust spots, then a paint sweep |
-| `js/ui.js` | Menu screens built as HTML into `#app`: title, hub, classifieds, parts catalog, garage, Fix car, burger stand, results |
+| `js/ui.js` | Menu screens built as HTML into `#app`: the gauges across the top (`status()`), title, hub (scene, car card, tiles with 12x12 pixel icons), classifieds, parts catalog, garage, Fix car, burger stand, results |
 | `js/main.js` | Boot, the title screen animation, and sizing the canvas to a whole-number scale when that costs little size |
 | `tests/` | `node --test tests/*.test.js`; `tests/load.js` loads the plain scripts into Node |
 | `css/style.css` | Page styles |

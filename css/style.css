@@ -65,16 +65,28 @@ button.minor { background: var(--line); color: var(--text); border-bottom-color:
 button.danger { background: var(--bad); color: #fff; border-bottom-color: #a01f1f; }
 
 .status {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    margin-bottom: 12px;
+}
+.gauge {
     display: flex;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 8px;
-    padding: 8px 12px;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 10px;
     background: var(--panel);
     border: 2px solid var(--line);
-    margin-bottom: 12px;
-    color: var(--accent);
-    font-weight: bold;
+    border-bottom-color: #0e0e20;
+    min-width: 0;
+}
+.gauge .label { color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; }
+.gauge .value { color: var(--text); font-weight: bold; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gauge.cash .value { color: var(--good); }
+.gauge.friday { border-color: #ff4fa0; }
+.gauge.friday .value { color: #ff7ab8; }
+@media (max-width: 480px) {
+    .status { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .flash { background: #2b2410; border-left: 4px solid var(--accent); padding: 8px 12px; margin-bottom: 12px; }
@@ -173,3 +185,46 @@ button.danger { background: var(--bad); color: #fff; border-bottom-color: #a01f1
 .shop-group summary::-webkit-details-marker { display: none; }
 .shop-group summary::before { content: "\25B8"; color: var(--accent); }
 .shop-group[open] summary::before { content: "\25BE"; }
+
+/* The hub: a night scene of your garage, your car's card, and big tiles to go places */
+canvas.scene {
+    display: block;
+    width: 100%;
+    aspect-ratio: 320 / 120;
+    border: 4px solid var(--line);
+    margin-bottom: 12px;
+}
+.car-card h3 { display: flex; align-items: center; gap: 8px; font-size: 1.15rem; }
+.swatch { width: 14px; height: 14px; border: 2px solid var(--bg); outline: 2px solid var(--line); flex: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.chip { background: var(--bg); border: 1px solid var(--line); padding: 3px 8px; color: var(--muted); }
+.chip b { color: var(--accent); font-size: 1.05rem; }
+.conds { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+
+.tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.menu button.tile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    text-align: left;
+    background: var(--panel);
+    color: var(--text);
+    border: 2px solid var(--line);
+    border-bottom: 4px solid #0e0e20;
+}
+.menu button.tile:hover:not([disabled]) { border-color: var(--accent); border-bottom-color: #b38f1d; filter: none; }
+.tile .icon { width: 44px; height: 44px; flex: none; background: var(--bg); padding: 4px; }
+.tile > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tile-title { color: var(--accent); font-size: 1.05rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.tile-sub { color: var(--muted); font-weight: normal; font-size: 0.85rem; }
+.menu button.tile.hot { border-color: #ff4fa0; box-shadow: 0 0 12px rgba(255, 79, 160, 0.35); }
+.tile.hot .tile-title { color: #ff7ab8; }
+
+.hub-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.hub-foot > button { margin: 0; }
+.hub-foot .toggles { margin: 0 0 0 auto; }
+@media (max-width: 480px) {
+    .tiles { grid-template-columns: 1fr; }
+    .hub-foot .toggles { margin: 0; width: 100%; justify-content: flex-start; }
+}
