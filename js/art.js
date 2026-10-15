@@ -153,6 +153,19 @@
         '.......tttttt.....................ttttt.....',
         '.........tt.........................t.......'
     ];
+    // A late-60s muscle car on the same chassis: a low fastback roof, a spoiler on the deck and
+    // a scoop on the hood, so the liveries and the bodywork's rust spots land on it the same way
+    var MUSCLE = [
+        '............................................',
+        '............................................',
+        '.............ooooooooooooo..................',
+        '..........oooohhhhhhhhhhhhoo................',
+        'oo......oolwwwgwwwwwwlwwgwwwwlo.............',
+        'ohoo..oomwwwwwwgwwwwwmwwwwgwwwwmoo...oooo...',
+        'odmmoommmmmmmmmmmmmmmmmmmmmmmmmmmmmmohhhhoo.',
+        '.olllllllllllllllllldlllllllllllllllllllllo.'
+    ].concat(CAR.slice(8));
+    var SHAPES = { coupe: CAR, muscle: MUSCLE };
     var GLASS = { w: '#4a7aa8', g: '#cfe8ff', c: '#d8d8e0', C: '#7a7a86', t: '#141414', T: '#3a3a3a', k: '#060606', r: '#e02020', y: '#fff3b0' };
     var PAINT = { o: 0, d: 1, m: 2, l: 3, h: 4 };
 
@@ -189,11 +202,13 @@
     // A car's look: a paint colour, or { color, livery, trim } from L.carLook
     L.lookColor = function (look) { return typeof look === 'string' ? look : look.color; };
 
-    // Draws a car with its roof at (x, y). look: a paint colour or { color, livery, trim }.
-    // opts: smoke, scale (whole pixels per car pixel), clip (only the part left of this x)
+    // Draws a car with its roof at (x, y). look: a paint colour or { color, livery, trim, shape }.
+    // opts: smoke, scale (whole pixels per car pixel), clip (only the part left of this x),
+    // shape (the body's sprite, when look is only a colour)
     L.drawCar = function (ctx, x, y, look, opts) {
         opts = opts || {};
         var s = opts.scale || 1;
+        var CAR = SHAPES[opts.shape || (typeof look === 'object' && look.shape)] || SHAPES.coupe;
         var c = L.ramp(L.lookColor(look));
         var livery = typeof look === 'object' && look.livery ? LIVERY[look.livery] : null;
         var t = livery ? L.ramp(look.trim || '#f2f2ea') : null;

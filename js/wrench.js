@@ -272,7 +272,7 @@
         // The car five times the size it is on the strip, filling BODY and CAB; clip is
         // how far across the new paint has reached
         function car(color, clip) {
-            L.drawCar(ctx, BODY.x, CAB.y, color, { scale: 5, clip: clip });
+            L.drawCar(ctx, BODY.x, CAB.y, color, { scale: 5, clip: clip, shape: opts.color && opts.color.shape });
         }
 
         function draw() {
