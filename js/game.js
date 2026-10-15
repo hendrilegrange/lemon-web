@@ -394,10 +394,12 @@
         return L.needHours(g, L.JOB_HOURS[part.slot]);
     };
 
-    // Swap a part from the shelf onto the active car; the old part goes on the shelf.
+    // Swap a part from the shelf onto the active car; the old part goes on the shelf, stock or
+    // not, so it can go back on or onto another car (a shot part or a blown engine is binned).
     // An engine from another family comes with its own stock carb, intake, cam and exhaust,
-    // and the old ones go on the shelf too.
-    L.installPart = function (g, invIndex) {
+    // and the old ones go on the shelf too. out, if given, gets the names of the parts
+    // shelved and binned.
+    L.installPart = function (g, invIndex, out) {
         var err = L.canInstall(g, invIndex);
         if (err) return err;
         var car = L.activeCar(g);
@@ -406,11 +408,17 @@
         var cond = unshelve(g, invIndex);
         g.hours -= L.JOB_HOURS[part.slot];
         if (!car.partCondition) car.partCondition = {};
+        out = out || {};
+        out.shelved = []; out.binned = [];
         function takeOff(slot) {
             var old = car.parts[slot];
             var oldCond = L.partCondition(car, slot);
-            // Stock parts are worth nothing, and a shot part is scrap, so they go in the bin
-            if (L.PARTS[old].price && (slot === 'engine' ? oldCond > 0 : oldCond >= L.SHOT)) shelve(g, old, oldCond);
+            if (slot === 'engine' ? oldCond > 0 : oldCond >= L.SHOT) {
+                shelve(g, old, oldCond);
+                out.shelved.push(L.PARTS[old].name);
+            } else {
+                out.binned.push(L.PARTS[old].name);
+            }
         }
         takeOff(part.slot);
         if (part.slot === 'engine') {
