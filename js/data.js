@@ -118,6 +118,16 @@
         });
     });
 
+    // Speed parts cost PART_PRICE times the prices above, so a full build takes several Friday
+    // nights of winnings, not one. One number tunes the whole speed shop; basePrice keeps the
+    // price above for the engine rebuild cost, which shouldn't grow with it.
+    L.PART_PRICE = 2.5;
+    Object.keys(L.PARTS).forEach(function (id) {
+        var p = L.PARTS[id];
+        p.basePrice = p.price;
+        p.price = round5(p.price * L.PART_PRICE);
+    });
+
     // The stock part for a slot on a car with this engine
     L.stockPart = function (engineId, slot) {
         if (L.BOLT_ONS.indexOf(slot) >= 0) return slot + '_' + L.PARTS[engineId].fam + '_0';

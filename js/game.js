@@ -371,7 +371,7 @@
     };
 
     L.repairCost = function (car) {
-        return Math.ceil((100 - car.engineCondition) * L.REPAIR_PER_POINT * (1 + (L.PARTS[car.parts.engine].price || 300) / 1000));
+        return Math.ceil((100 - car.engineCondition) * L.REPAIR_PER_POINT * (1 + (L.PARTS[car.parts.engine].basePrice || 300) / 1000));
     };
 
     // ── Fixing the other parts ────────────────────────────────────────────
