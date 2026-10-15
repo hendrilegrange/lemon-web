@@ -372,6 +372,61 @@ button.danger:hover:not([disabled]) { box-shadow: 0 0 14px rgba(255, 59, 59, 0.3
     .rival-btns button { flex: 1 1 auto; }
 }
 
+/* Are you sure?: a red-edged warning card with a big mark, the question, and the buttons */
+.panel.ask { border-color: var(--bad); text-align: center;
+    background: radial-gradient(ellipse at 50% 0%, rgba(255, 59, 59, 0.16), transparent 65%), linear-gradient(var(--panel-hi), var(--panel) 120px);
+    box-shadow: 0 0 0 1px rgba(255, 59, 59, 0.25), 0 0 24px rgba(255, 59, 59, 0.15), var(--shadow); }
+.panel.ask > h2:first-child { display: flex; justify-content: center; align-items: center; gap: 10px; font-size: 1.4rem; color: #ff6b6b;
+    text-shadow: 0 0 8px rgba(255, 59, 59, 0.5); }
+.ask-mark { display: inline-grid; place-items: center; width: 1.4em; height: 1.4em; background: var(--bad); color: #fff; text-shadow: none;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%); padding-top: 0.25em; font-size: 0.9em; }
+.ask-q { max-width: 46ch; margin: 10px auto 14px; font-size: 1.05rem; line-height: 1.5; }
+.ask-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.ask-btns button { margin: 0; padding: 10px 22px; font-size: 1.05rem; }
+
+/* Two cars lined up for a race, with both times and your chances under them */
+.matchup { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; margin: 4px 0 6px; text-align: center; }
+.matchup .side { margin: 0; min-width: 0; padding: 8px 6px 6px; background: var(--bg); border: 2px solid var(--line); }
+.matchup .side.king { border-color: var(--accent); }
+.matchup .stand-car { display: block; margin: 0 auto; }
+.matchup figcaption { font-size: 0.85rem; color: var(--muted); overflow-wrap: anywhere; }
+.matchup figcaption b { display: block; color: var(--text); text-transform: uppercase; letter-spacing: 0.05em; }
+.vs { font-size: 1.6rem; font-weight: bold; color: var(--pink); text-shadow: 0 0 6px var(--pink), 0 0 16px rgba(255, 79, 160, 0.5); }
+.matchup-odds { display: flex; flex-direction: column; align-items: center; margin-bottom: 8px; text-align: center; }
+.matchup-odds .tape { justify-content: center; }
+
+/* The bet slip: a big number, a slider, quick picks, and what a win or a loss leaves you */
+.bet-body { padding: 12px 14px 16px; }
+.bet-pick { margin: 6px auto 0; max-width: 460px; text-align: center; padding: 12px; background: var(--bg); border: 2px dashed #3a3a5c; }
+.bet-amount { display: block; font-size: 2.4rem; font-weight: bold; color: var(--good); letter-spacing: 1px;
+    text-shadow: 0 0 10px rgba(59, 255, 110, 0.45); }
+#bet-range { width: 100%; margin: 10px 0 2px; accent-color: var(--accent); height: 28px; cursor: pointer; }
+.bet-scale { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--muted); }
+.bet-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
+.bet-chips .chip { margin: 0; padding: 6px 4px; background: var(--line); color: var(--text); border-bottom-color: #15152b; display: flex; flex-direction: column; align-items: center; }
+.bet-chips .chip small { font-weight: normal; color: var(--muted); font-size: 0.75rem; }
+.bet-chips .chip.on { background: var(--accent); color: var(--bg); border-bottom-color: #b38f1d; }
+.bet-chips .chip.on small { color: var(--bg); }
+.bet-outcome { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 460px; margin: 10px auto; }
+.bet-outcome p { margin: 0; padding: 8px 10px; background: var(--bg); border-left: 4px solid; font-size: 0.9rem; color: var(--muted); }
+.bet-outcome b { display: block; font-size: 0.95rem; }
+.bet-outcome .win { border-color: var(--good); }
+.bet-outcome .win b { color: var(--good); }
+.bet-outcome .lose { border-color: var(--bad); }
+.bet-outcome .lose b { color: #ff6b6b; }
+.bet-warn { max-width: 460px; margin: 0 auto 10px; padding: 8px 10px; text-align: center; font-weight: bold; color: #fff;
+    background: repeating-linear-gradient(-45deg, rgba(255, 59, 59, 0.35) 0 10px, rgba(255, 59, 59, 0.2) 10px 20px); border: 2px solid var(--bad); }
+
+@media (max-width: 600px) {
+    .matchup { gap: 4px; }
+    .matchup .side { padding: 6px 2px 4px; }
+    .vs { font-size: 1.2rem; }
+    .bet-amount { font-size: 2rem; }
+    .bet-chips { grid-template-columns: repeat(2, 1fr); }
+    .bet-outcome { grid-template-columns: 1fr; }
+    .ask-btns button { flex: 1 1 auto; }
+}
+
 /* Speed shop: part classes, and what's sold out this week */
 .cls { display: inline-block; min-width: 64px; padding: 1px 4px; margin-right: 4px; font-size: 0.75rem; text-align: center; text-transform: uppercase; color: var(--bg); }
 .cls0 { background: var(--muted); }

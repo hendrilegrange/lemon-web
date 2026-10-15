@@ -730,8 +730,8 @@
     L.KING_WINS = 10;
 
     // Prizes, in 1963 dollars (later eras pay their era's money times these). A race just for
-    // fun costs nothing and pays by the rival's tier. A cash race bets all your cash up to
-    // RIVAL_PRIZE (at least MIN_BET); a pink slip race is for the cars only. The King races for
+    // fun costs nothing and pays by the rival's tier. A cash race bets what you pick, from
+    // MIN_BET up to all your cash or RIVAL_PRIZE; a pink slip race is for the cars only. The King races for
     // pinks only and pays KING_PRIZE with his car.
     L.FUN_PRIZE = [50, 100, 100, 200, 200, 200];
     L.RIVAL_PRIZE = 1000;

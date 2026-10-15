@@ -210,6 +210,13 @@ test('settling races: cash races bet your cash up to $1,000, pink slips are for 
     assert.deepStrictEqual([g.wins, g.losses], [2, 2]);
     g.cash = L.MIN_BET - 1;
     assert.match(L.canRace(g, { tier: 1 }, 'cash'), /at least/);
+    g.cash = 900;                                             // or pick a smaller bet
+    g.rivals = [{ name: 'E', tier: 1, skill: 0.5, body: 'ford50' }, { name: 'F', tier: 1, skill: 0.5, body: 'ford50' }];
+    L.settleRace(g, 0, 'cash', 'lose', 0, 250);
+    assert.strictEqual(g.cash, 650);
+    L.settleRace(g, 0, 'cash', 'win', 0, 5000);               // kept to what you can bet
+    assert.strictEqual(g.cash, 1300);
+    assert.strictEqual(L.betAmount(g, { tier: 1 }, 10), L.MIN_BET);
 });
 
 test('a week of classifieds has five different cars', () => {

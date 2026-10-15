@@ -109,12 +109,13 @@
     }
 
     // Ask before something that can't be undone. Shows the question in place of the screen;
-    // Cancel goes back to the screen it came from.
-    function ask(question, yesLabel, onYes, back) {
+    // Cancel goes back to the screen it came from. extra is HTML shown above the question.
+    function ask(question, yesLabel, onYes, back, extra) {
         render(
-            status() + '<div class="panel ask"><h2>Are you sure?</h2><p>' + esc(question) + '</p>' +
+            status() + '<div class="panel ask"><h2><span class="ask-mark" aria-hidden="true">!</span>Are you sure?</h2>' + (extra || '') +
+            '<p class="ask-q">' + esc(question) + '</p><div class="ask-btns">' +
             '<button data-act="yes" class="danger">' + esc(yesLabel) + '</button>' +
-            '<button data-act="no" class="minor">Cancel</button></div>',
+            '<button data-act="no" class="minor">Cancel</button></div></div>',
             { yes: onYes, no: function () { back(); } }
         );
     }
@@ -936,7 +937,7 @@
                 : '<button data-act="fun" data-arg="' + i + '" class="minor"' + (funErr ? ' disabled' : '') + '>' +
                     (r.funDone ? 'Raced for fun this week' : 'Just for fun (win ' + money(L.funPrize(r)) + ')') + '</button>' +
                   '<button data-act="cash" data-arg="' + i + '"' + (cashErr ? ' disabled title="' + esc(cashErr) + '"' : '') + '>' +
-                    (bet >= L.rivalPrize(g, r) ? 'Bet ' + money(bet) : 'Bet it all: ' + money(bet)) + '</button>' +
+                    'Bet up to ' + money(bet) + '</button>' +
                   '<button data-act="pinks" data-arg="' + i + '" class="danger"' + (pinkErr ? ' disabled' : '') + '>Pink slips</button>';
             var theirEt = L.estimate(L.spec(L.rivalCar(r))).et;
             return '<div class="rival' + (r.king ? ' king' : '') + '">' +
@@ -957,23 +958,18 @@
             '<div class="panel stand"><header class="stand-sign"><h2>The Burger Stand</h2><p>Friday night. Engines idling, everybody watching.</p></header>' +
             '<div class="rivals">' + rows + '</div></div>' +
             '<details class="stand-help"><summary>How a race works</summary><p>Press Space, Enter or the big button when the start light turns green, then again each time the SHIFT light goes green. Keep out of the red.</p>' +
-            '<p>A race just for fun risks nothing and pays a little. A cash race bets all your cash, up to ' + money(L.rivalPrize(g)) + ', against the same. Pink slips are for the cars.</p>' +
+            '<p>A race just for fun risks nothing and pays a little. In a cash race you pick the bet, from ' + money(L.MIN_BET) + ' up to ' + money(L.rivalPrize(g)) + ' or all your cash, and the rival puts up the same. Pink slips are for the cars.</p>' +
             '<p>The times are each car\'s best quarter mile with a perfect launch and shifts. The odds count an average driver for you and the rival\'s own skill.</p></details>' +
             backBar('Back'),
             {
-                cash: function (i) {
-                    var r = g.rivals[+i];
-                    var bet = L.cashBet(g, r);
-                    if (bet < g.cash) return race(+i, 'cash');
-                    ask('Bet all ' + money(bet) + ' you have on beating ' + r.name + '? Lose and you are broke.',
-                        'Bet it all', function () { race(+i, 'cash'); }, L.showStand);
-                },
+                cash: function (i) { showBet(+i); },
                 fun: function (i) { race(+i, 'fun'); },
                 pinks: function (i) {
                     var r = g.rivals[+i];
                     ask('Race ' + r.name + ' for pink slips? Win and you take their ' + L.BODIES[r.body].name + (r.king ? ' and ' + money(L.kingPrize(g)) : '') +
                         '. Lose and they keep your ' + L.carName(L.activeCar(g)) + '.',
-                        'Race for pinks', function () { race(+i, 'pinks'); }, L.showStand);
+                        'Race for pinks', function () { race(+i, 'pinks'); }, L.showStand, matchup(r));
+                    drawMatchup(r);
                 },
                 back: function () { L.showHub(); }
             }
@@ -982,6 +978,72 @@
             L.drawCar(c.getContext('2d'), 4, 2, L.rivalLook(g.rivals[+c.getAttribute('data-rival')]), { scale: 2 });
         });
     };
+
+    // Your car and the rival's side by side, with both times and your chances
+    function matchup(r) {
+        var car = L.activeCar(g);
+        return '<div class="matchup">' +
+            '<figure class="side"><canvas class="stand-car" width="96" height="48" data-side="me" aria-hidden="true"></canvas>' +
+            '<figcaption><b>You</b>' + esc(L.carName(car)) + '</figcaption></figure>' +
+            '<span class="vs" aria-hidden="true">VS</span>' +
+            '<figure class="side' + (r.king ? ' king' : '') + '"><canvas class="stand-car" width="96" height="48" data-side="them" aria-hidden="true"></canvas>' +
+            '<figcaption><b>' + esc(r.name) + '</b>' + esc(L.BODIES[r.body].name) + '</figcaption></figure></div>' +
+            '<div class="matchup-odds">' + tape(L.estimate(L.spec(car)).et, L.estimate(L.spec(L.rivalCar(r))).et) + chances(L.odds(car, r)) + '</div>';
+    }
+    function drawMatchup(r) {
+        var me = app.querySelector('canvas[data-side="me"]'), them = app.querySelector('canvas[data-side="them"]');
+        if (me) L.drawCar(me.getContext('2d'), 4, 2, L.carLook(L.activeCar(g)), { scale: 2 });
+        if (them) L.drawCar(them.getContext('2d'), 4, 2, L.rivalLook(r), { scale: 2 });
+    }
+
+    // Pick a bet for a cash race: a slider and quick picks from the least you can bet to the
+    // most, what you'd have after a win or a loss, and a warning when it's every dollar you have
+    function showBet(i) {
+        var r = g.rivals[i];
+        var err = L.canRace(g, r, 'cash');
+        if (err) return L.showStand(err);
+        var max = L.cashBet(g, r), min = L.MIN_BET, step = L.betStep(g, r);
+        function snap(v) { return L.betAmount(g, r, v >= max ? max : Math.round(v / step) * step); }
+        var bet = snap(max / 2);
+        var picks = [['Small', min], ['Quarter', max / 4], ['Half', max / 2], [max >= g.cash ? 'All in' : 'Max', max]];
+        render(
+            status() +
+            '<div class="panel stand bet"><header class="stand-sign"><h2>Place your bet</h2><p>' + esc(r.name) + ' puts up the same. Winner takes the pot.</p></header>' +
+            '<div class="bet-body">' + matchup(r) +
+            '<div class="bet-pick"><output class="bet-amount" id="bet-amount" aria-live="polite"></output>' +
+            '<input type="range" id="bet-range" min="' + min + '" max="' + max + '" step="' + (max - min < step ? 1 : step) + '" value="' + bet + '" aria-label="Your bet">' +
+            '<div class="bet-scale"><span>' + money(min) + '</span><span>' + money(max) + '</span></div>' +
+            '<div class="bet-chips">' + picks.map(function (p) {
+                return '<button data-act="pick" data-arg="' + snap(p[1]) + '" class="chip">' + p[0] + '<small>' + money(snap(p[1])) + '</small></button>';
+            }).join('') + '</div></div>' +
+            '<div class="bet-outcome"><p class="win">Win: <b id="bet-win"></b></p><p class="lose">Lose: <b id="bet-lose"></b></p></div>' +
+            '<p class="bet-warn" id="bet-warn" hidden>That\'s every dollar you have. Lose and you\'re broke.</p>' +
+            '<div class="ask-btns"><button data-act="go" id="bet-go"></button><button data-act="no" class="minor">Cancel</button></div>' +
+            '</div></div>',
+            {
+                pick: function (v) { set(+v); },
+                go: function () { race(i, 'cash', bet); },
+                no: function () { L.showStand(); }
+            }
+        );
+        drawMatchup(r);
+        var range = document.getElementById('bet-range');
+        range.addEventListener('input', function () { set(+range.value); });
+        function set(v) {
+            bet = snap(v);
+            range.value = bet;
+            var allIn = bet >= g.cash;
+            document.getElementById('bet-amount').textContent = money(bet);
+            document.getElementById('bet-win').textContent = '+' + money(bet) + ', you\'ll have ' + money(g.cash + bet);
+            document.getElementById('bet-lose').textContent = '−' + money(bet) + ', you\'ll have ' + money(g.cash - bet);
+            document.getElementById('bet-warn').hidden = !allIn;
+            var go = document.getElementById('bet-go');
+            go.textContent = (allIn ? 'Bet it all: ' : 'Bet ') + money(bet);
+            go.className = allIn ? 'danger' : '';
+            app.querySelectorAll('.chip').forEach(function (c) { c.classList.toggle('on', +c.getAttribute('data-arg') === bet); });
+        }
+        set(bet);
+    }
 
     // Both cars' quarter mile times side by side, the quicker one lit
     function tape(mine, theirs) {
@@ -1004,14 +1066,14 @@
             '<strong style="color:hsl(' + hue + ',85%,60%)">' + label + '</strong> · about ' + pct + '% to win</p>';
     }
 
-    function race(i, stake) {
+    function race(i, stake, bet) {
         var rival = g.rivals[i];
         var pinks = stake === 'pinks';
         var err = L.canRace(g, rival, stake);
         if (err) return L.showStand(err);
         var car = L.activeCar(g);
         render('<div class="race-controls"><button class="go" id="go">GO / SHIFT</button>' +
-            '<p class="hint">Racing ' + esc(rival.name) + ' ' + (pinks ? 'for pink slips' : stake === 'fun' ? 'just for fun' : 'for ' + money(L.cashBet(g, rival))) +
+            '<p class="hint">Racing ' + esc(rival.name) + ' ' + (pinks ? 'for pink slips' : stake === 'fun' ? 'just for fun' : 'for ' + money(L.betAmount(g, rival, bet))) +
             '. Shift when the SHIFT light goes green.</p>' +
             '<button data-act="sound" class="minor" id="sound">Sound: ' + (L.sound.on ? 'on' : 'off') + '</button></div>', {
             sound: function () { document.getElementById('sound').textContent = 'Sound: ' + (L.sound.toggle() ? 'on' : 'off'); L.sound.begin(); L.sound.engineOn(); }
@@ -1026,7 +1088,7 @@
             { spec: L.spec(car), color: L.carLook(car), condition: car.engineCondition },
             { spec: L.spec(rcar), color: L.rivalLook(rival), skill: rival.skill },
             function (result, damage, sum) {
-                var line = L.settleRace(g, i, stake, result, damage);
+                var line = L.settleRace(g, i, stake, result, damage, bet);
                 var beat = L.noteRace(g, result, sum.et, sum.reaction);
                 L.save(g);
                 var rec = L.records(g);
