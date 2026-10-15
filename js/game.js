@@ -321,9 +321,43 @@
         return typeof c === 'number' ? c : 100;
     };
 
-    // Half what it costs new, by its condition
+    // Half what it costs new, by its condition. A stock part fetches half its junkyard price.
     L.partValue = function (g, invIndex) {
-        return Math.floor((L.PARTS[g.inventory[invIndex]].price || 0) / 2 * L.shelfCondition(g, invIndex) / 100);
+        var part = L.PARTS[g.inventory[invIndex]];
+        var whole = part.price || (part.slot === 'engine' ? L.JUNK_ENGINE : L.WEAR[part.slot].junk);
+        return Math.floor(whole / 2 * L.shelfCondition(g, invIndex) / 100);
+    };
+
+    // Rebuilding a worn part on the shelf, a way to use spare hours: { cost, hours }, priced
+    // like the same job on a car, or null when it can't be (tires, or already like new)
+    L.shelfRebuild = function (g, invIndex) {
+        var partId = g.inventory[invIndex];
+        if (!partId) return null;
+        var part = L.PARTS[partId], c = L.shelfCondition(g, invIndex);
+        if (c >= 100) return null;
+        if (part.slot === 'engine') return { cost: engineRebuildCost(partId, c), hours: L.REBUILD_HOURS };
+        var wear = L.WEAR[part.slot];
+        if (!wear.repair) return null;
+        return { cost: Math.max(5, Math.ceil((100 - c) * wear.repair)), hours: L.JOB_HOURS[part.slot] };
+    };
+
+    L.canRebuildShelf = function (g, invIndex) {
+        if (!g.inventory[invIndex]) return 'No such part.';
+        var job = L.shelfRebuild(g, invIndex);
+        if (!job) return L.shelfCondition(g, invIndex) >= 100 ? "It's like new." : "Tires can't be rebuilt.";
+        if (g.cash < job.cost) return "You can't afford the rebuild.";
+        return L.needHours(g, job.hours);
+    };
+
+    L.rebuildShelf = function (g, invIndex) {
+        var err = L.canRebuildShelf(g, invIndex);
+        if (err) return err;
+        var job = L.shelfRebuild(g, invIndex);
+        g.cash -= job.cost;
+        g.hours -= job.hours;
+        if (!g.shelfCond) g.shelfCond = [];
+        g.shelfCond[invIndex] = 100;
+        return null;
     };
 
     // The week's shelf: each part by its class's odds, but never a week without something
@@ -437,9 +471,11 @@
         return null;
     };
 
-    L.repairCost = function (car) {
-        return Math.ceil((100 - car.engineCondition) * L.REPAIR_PER_POINT * (1 + (L.PARTS[car.parts.engine].basePrice || 300) / 1000));
-    };
+    function engineRebuildCost(engineId, condition) {
+        return Math.ceil((100 - condition) * L.REPAIR_PER_POINT * (1 + (L.PARTS[engineId].basePrice || 300) / 1000));
+    }
+
+    L.repairCost = function (car) { return engineRebuildCost(car.parts.engine, car.engineCondition); };
 
     // ── Fixing the other parts ────────────────────────────────────────────
 

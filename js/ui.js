@@ -640,6 +640,7 @@
             var cond = L.shelfCondition(g, i);
             return '<div class="row"><span><span class="slot">' + L.SLOT_NAMES[p.slot] + '</span> ' + esc(p.name) + (cond < 100 ? ' ' + bar(cond, 'Condition') : '') + '</span>' +
                 (car ? '<button data-act="install" data-arg="' + i + '">Install (' + L.JOB_HOURS[p.slot] + ' h)</button>' : '') +
+                (L.shelfRebuild(g, i) ? '<button data-act="rebuild" data-arg="' + i + '" class="minor">Rebuild (' + money(L.shelfRebuild(g, i).cost) + ', ' + L.shelfRebuild(g, i).hours + ' h)</button>' : '') +
                 '<button data-act="sellpart" data-arg="' + i + '" class="minor">' + (L.partValue(g, i) ? 'Sell ' + money(L.partValue(g, i)) : 'Bin it') + '</button></div>';
         }).join('') || '<p>Nothing on the shelf. Parts you buy and parts you take off land here.</p>';
 
@@ -677,6 +678,10 @@
                         }), L.showGarage);
                 },
                 sellpart: act(L.showGarage, function (i) { return L.sellPart(g, +i); }),
+                rebuild: act(L.showGarage, function (i) {
+                    var name = L.PARTS[g.inventory[+i]].name;
+                    return L.rebuildShelf(g, +i) || 'Rebuilt the ' + name + '. It\'s like new, and worth ' + money(L.partValue(g, +i)) + ' now.';
+                }),
                 fix: function () { L.showFix(); },
                 shop: function () { L.showParts(); },
                 back: function () { L.showHub(); }
