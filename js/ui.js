@@ -547,6 +547,7 @@
             var owned = g.inventory.filter(function (id) { return id === x.id; }).length;
             var fitted = car && car.parts[p.slot] === x.id;
             return '<div class="row' + (x.inStock ? '' : ' out') + '"><span><span class="cls cls' + p.cls + '">' + L.CLASSES[p.cls] + '</span> ' + esc(p.name) +
+                (p.legend ? ' <em class="legend-note">· widens your green shift zone</em>' : '') +
                 (fitted ? ' <em>· on your car</em>' : '') + (owned ? ' <em>· ' + owned + ' on your shelf</em>' : '') + '</span>' +
                 '<span class="price">' + money(p.price) + '</span>' +
                 (x.inStock
@@ -581,7 +582,13 @@
             : 'Everything we carry. Buy a car and we\'ll put what fits it first.';
         render(
             status() + flash(msg) + '<div class="panel"><h2>Speed Shop</h2><p class="sub">' + intro +
-            ' The shelves restock every week with something for every engine, but not every part every week, and the Bestest parts sell out fast.</p>' + html + '</div>' +
+            ' The shelves restock every week with something for every engine, but not every part every week, and the Bestest parts sell out fast.' +
+            ' Bestest+ is a hair quicker than Bestest at five times the price. Now and then a Legendary part turns up: as quick as Bestest+, and every one on your car widens the green shift zone.</p>' +
+            catalog.filter(function (x) { return L.PARTS[x.id].legend; }).map(function (x) {
+                var p = L.PARTS[x.id];
+                return '<p class="legend-find"><span class="cls cls5">Legendary</span> Just in: the ' + esc(p.name) + ', ' + money(p.price) +
+                    (car && !x.fits ? '. It doesn\'t fit your engine.' : '. It won\'t be here long.') + '</p>';
+            }).join('') + html + '</div>' +
             backBar('Back', 'back', [['Garage', 'garage']]),
             {
                 buy: act(L.showParts, function (id) { return L.buyPart(g, id) || 'Bought. It\'s on your garage shelf.'; }),

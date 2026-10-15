@@ -15,7 +15,11 @@
 
     // Every part comes in four classes. Stock is what a car leaves the factory with; the
     // speed shop sells the other three, though not every class is in stock every week.
-    L.CLASSES = ['Stock', 'Better', 'Best', 'Bestest'];
+    // Above those, Bestest+ (class 4) only just beats Bestest for five times the money, and
+    // Legendary parts (class 5) turn up now and then: as quick as Bestest+, twice the price
+    // again, and each one on the car widens the green shift zone. Both are there to spend
+    // the winnings of a car that's already built.
+    L.CLASSES = ['Stock', 'Better', 'Best', 'Bestest', 'Bestest+', 'Legendary'];
 
     // Engines belong to a family, and carbs, intakes, cams and exhausts only fit their own
     // family's engines. Transmissions, rear ends and tires fit anything.
@@ -128,6 +132,32 @@
         p.price = round5(p.price * L.PART_PRICE);
     });
 
+    // Bestest+ and Legendary: made from each Bestest part, a hair better. Rebuilding one costs
+    // what the Bestest's rebuild does (basePrice).
+    L.PLUS_PRICE = 5;          // Bestest+ costs this times the Bestest
+    L.LEGEND_PRICE = 2;        // and a Legendary part this times the Bestest+
+    L.ZONE_PER_LEGEND = 0.3;   // each Legendary part widens the green shift zone by this share
+    var PLUS_NAME = { engine: ', blueprinted', trans: ', blueprinted', rear: ' with Positraction', tires: ', hand-trued' };
+    function better(p) {
+        var x = Object.assign({}, p, { cls: 4, price: round5(p.price * L.PLUS_PRICE) });
+        x.name = p.name + (PLUS_NAME[p.slot] || ', blueprinted');
+        if (p.slot === 'engine') x.tqLbft = Math.round(p.tqLbft * 1.015);
+        else if (p.tq) x.tq = Math.round((p.tq + 0.005) * 1000) / 1000;
+        if (p.slot === 'trans') x.shift = 0.65;
+        if (p.slot === 'rear') x.drive = 1.01;
+        if (p.slot === 'tires') x.mu = p.mu + 0.02;
+        return x;
+    }
+    Object.keys(L.PARTS).filter(function (id) { return L.PARTS[id].cls === 3; }).forEach(function (id) {
+        var plus = better(L.PARTS[id]);
+        var base = id.slice(-2) === '_3' ? id.slice(0, -2) : id;
+        L.PARTS[base + (base === id ? '_plus' : '_4')] = plus;
+        L.PARTS[base + (base === id ? '_legend' : '_5')] = Object.assign({}, plus, {
+            cls: 5, name: 'Legendary ' + L.PARTS[id].name.replace(/^(?!GMC|Chevy|Ford|Ardun)[A-Z]/, function (c) { return c.toLowerCase(); }),
+            price: round5(plus.price * L.LEGEND_PRICE), legend: true
+        });
+    });
+
     // The stock part for a slot on a car with this engine
     L.stockPart = function (engineId, slot) {
         if (L.BOLT_ONS.indexOf(slot) >= 0) return slot + '_' + L.PARTS[engineId].fam + '_0';
@@ -145,8 +175,10 @@
         return !part.fam || part.slot === 'engine' || part.fam === L.PARTS[engineId].fam;
     };
 
-    // Chance a class is on the speed shop's shelf in a given week
-    L.IN_STOCK = [0, 0.8, 0.55, 0.3];
+    // Chance a class is on the speed shop's shelf in a given week. Legendary parts don't come
+    // in by the week: LEGEND_ODDS is the chance one turns up, at random.
+    L.IN_STOCK = [0, 0.8, 0.55, 0.3, 0.15, 0];
+    L.LEGEND_ODDS = 0.2;
 
     function stock(engine, classes) {
         var parts = { engine: engine };
