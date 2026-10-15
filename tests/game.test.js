@@ -124,7 +124,9 @@ test('installing parts takes hours, and an engine swap brings its own bolt-ons',
     assert.strictEqual(L.installPart(g, 0), null);
     assert.strictEqual(g.hours, L.HOURS_PER_WEEK - L.JOB_HOURS.tires);
     assert.deepStrictEqual(g.inventory, ['tires_0']);         // the old stock tires go on the shelf
-    L.sellPart(g, 0);                                          // and are worth nothing: binned
+    const cash = g.cash;
+    L.sellPart(g, 0);                                          // and sell for half their junkyard price
+    assert.strictEqual(g.cash - cash, L.WEAR.tires.junk / 2);
     assert.deepStrictEqual(g.inventory, []);
 
     L.buyPart(g, 'carb_small_1');
@@ -476,6 +478,27 @@ test('a part taken off goes on the shelf, unless it is shot', () => {
     assert.strictEqual(L.installPart(g, g.inventory.indexOf('exhaust_flat_1'), out), null);
     assert.deepStrictEqual(out.binned, [L.PARTS.exhaust_flat_0.name]);
     assert.ok(!g.inventory.includes('exhaust_flat_0'));
+});
+
+test('a worn part on the shelf can be rebuilt with spare hours, and sells for more', () => {
+    const g = garage('ford48', null, 80, 50);
+    g.inventory = ['flathead', 'carb_flat_2', 'tires_0', 'cam_flat_0'];
+    g.shelfCond = [50, 40, 30, 100];
+    const before = L.partValue(g, 1);
+    const job = L.shelfRebuild(g, 1);
+    assert.deepStrictEqual(job, { cost: Math.ceil(60 * L.WEAR.carb.repair), hours: L.JOB_HOURS.carb });
+    assert.strictEqual(L.rebuildShelf(g, 1), null);
+    assert.strictEqual(L.shelfCondition(g, 1), 100);
+    assert.strictEqual(g.hours, L.HOURS_PER_WEEK - L.JOB_HOURS.carb);
+    assert.ok(L.partValue(g, 1) > before);
+    // The engine rebuild costs what the same engine's rebuild costs on a car
+    assert.strictEqual(L.shelfRebuild(g, 0).cost, L.repairCost(L.activeCar(g)));
+    assert.strictEqual(L.shelfRebuild(g, 0).hours, L.REBUILD_HOURS);
+    assert.ok(L.partValue(g, 0) > 0);                          // a stock engine sells too
+    assert.strictEqual(L.shelfRebuild(g, 2), null);            // tires can't be rebuilt
+    assert.match(L.canRebuildShelf(g, 3), /like new/);
+    g.hours = 5;
+    assert.ok(L.canRebuildShelf(g, 0));                        // not enough hours left
 });
 
 test('records: quickest run and reaction, longest streak, most cash on hand', () => {

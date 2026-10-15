@@ -264,6 +264,7 @@
     L.BODY_PER_POINT = 2.5;
     L.BODY_POINTS_PER_HOUR = 8;
 
+    L.JUNK_ENGINE = 150;   // a used stock engine at the junkyard; a used stock part sells for half its junk price
     L.SHOT = 20;
     L.JUNK_CONDITION = 75;
     L.WEAR = {
