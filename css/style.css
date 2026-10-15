@@ -258,6 +258,13 @@ button.danger { background: var(--bad); color: #fff; border-bottom-color: #a01f1
 .cls1 { background: var(--good); }
 .cls2 { background: #4fc3ff; }
 .cls3 { background: #d68cff; }
+/* Part names in the garage, shelf and Fix car, coloured like their class's badge */
+.tier.t0 { color: var(--muted); }
+.tier.t1 { color: #3bff6e; }
+.tier.t2 { color: #4fc3ff; }
+.tier.t3 { color: #d68cff; }
+.tier.t4 { color: #ff8c42; }
+.tier.t5 { color: #ffd23f; text-shadow: 0 0 6px rgba(255, 210, 63, 0.6); }
 .row.out { opacity: 0.55; }
 .soldout { color: var(--muted); font-weight: bold; }
 
