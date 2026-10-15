@@ -22,7 +22,11 @@ function garage(body, parts, condition, engineCondition, partCondition) {
 
 test('every car body and rival build uses real parts in the right slots, and they fit', () => {
     const builds = Object.keys(L.BODIES).map((id) => [id, L.BODIES[id].parts]);
-    L.RIVAL_BUILDS.forEach((b, tier) => builds.push(['tier ' + tier, L.rivalParts('ford48', tier)]));
+    L.ERA_BUILDS.forEach((list, era) => list.forEach((b, tier) => builds.push(['era ' + era + ' tier ' + tier, L.rivalParts('ford48', tier, era)])));
+    for (const id of Object.keys(L.BODIES)) {
+        const era = L.BODIES[id].era;
+        assert.ok(L.SLOTS.every((slot) => L.PARTS[L.BODIES[id].parts[slot]].era === era), id + ' comes with its own era\'s parts');
+    }
     for (const [name, parts] of builds) {
         for (const slot of L.SLOTS) {
             assert.ok(L.PARTS[parts[slot]], `${name} ${slot}`);
@@ -95,17 +99,21 @@ test('every engine family has three upgrade engines', () => {
     });
 });
 
-test('every week the shop has something for every engine family in every slot, but not everything', () => {
-    const g = L.newGame();
-    const all = Object.keys(L.PARTS).filter((id) => L.PARTS[id].price > 0);
-    for (let w = 0; w < 300; w++) {
-        L.newWeek(g);
-        Object.keys(L.FAMILIES).forEach((fam) => ['engine'].concat(L.BOLT_ONS).forEach((slot) => {
-            assert.ok(g.shopStock.some((id) => L.PARTS[id].slot === slot && L.PARTS[id].fam === fam), 'week ' + w + ': no ' + fam + ' ' + slot);
-        }));
-        ['trans', 'rear', 'tires'].forEach((slot) => assert.ok(g.shopStock.some((id) => L.PARTS[id].slot === slot), slot));
-        assert.ok(g.shopStock.length < all.length, 'some parts sell out');
-    }
+test('every week the shop has something for every engine family so far in every slot, but not everything', () => {
+    L.ERAS.forEach((e, era) => {
+        const g = L.newGame();
+        g.era = era;
+        const all = Object.keys(L.PARTS).filter((id) => L.PARTS[id].price > 0 && L.PARTS[id].era <= era);
+        for (let w = 0; w < 300; w++) {
+            L.newWeek(g);
+            assert.ok(g.shopStock.every((id) => L.PARTS[id].era <= era), 'no parts from eras still to come');
+            Object.keys(L.FAMILIES).filter((fam) => L.FAMILIES[fam].era <= era).forEach((fam) => ['engine'].concat(L.BOLT_ONS).forEach((slot) => {
+                assert.ok(g.shopStock.some((id) => L.PARTS[id].slot === slot && L.PARTS[id].fam === fam), 'week ' + w + ': no ' + fam + ' ' + slot);
+            }));
+            ['trans', 'rear', 'tires'].forEach((slot) => assert.ok(g.shopStock.some((id) => L.PARTS[id].slot === slot), slot));
+            assert.ok(g.shopStock.length < all.length, 'some parts sell out');
+        }
+    });
 });
 
 test('the stock rotates weekly and the better classes are scarcer', () => {
@@ -426,7 +434,7 @@ test('a full build costs several weeks of cash-race winnings', () => {
         const parts = L.stockParts(top, { carb: 3, intake: 3, cam: 3, exhaust: 3, trans: 3, rear: 3, tires: 3 });
         const cost = L.SLOTS.reduce((sum, slot) => sum + L.PARTS[parts[slot]].price, 0);
         // A Friday night's three cash races win at most 3 x RIVAL_PRIZE
-        assert.ok(cost > 3 * L.RIVAL_PRIZE, `${fam} build costs ${cost}`);
+        assert.ok(cost > 3 * L.RIVAL_PRIZE * L.ERAS[L.FAMILIES[fam].era].money, `${fam} build costs ${cost}`);
     }
     assert.strictEqual(L.repairCost({ parts: { engine: 'v8_427' }, engineCondition: 0 }), Math.ceil(100 * L.REPAIR_PER_POINT * (1 + 1150 / 1000)),
         'an engine rebuild costs what it did before the price rise');
@@ -444,7 +452,7 @@ test('the paint shop changes the colour and livery for a price, and only on a so
     assert.strictEqual(L.paintCost(car, 'red', 'flames', 'white'), L.PAINTS.red.price + L.LIVERIES.flames.price);
     assert.strictEqual(L.paintCar(g, 'red', 'flames', 'white'), null);
     assert.strictEqual(g.cash, 10000 - L.PAINTS.red.price - L.LIVERIES.flames.price);
-    assert.deepStrictEqual(L.carLook(car), { color: L.PAINTS.red.hex, livery: 'flames', trim: '#f2f2ea' });
+    assert.deepStrictEqual(L.carLook(car), { color: L.PAINTS.red.hex, livery: 'flames', trim: '#f2f2ea', shape: 'coupe' });
     assert.match(L.canPaint(g, null, 'flames', 'white'), /already/);
     // A new stripe colour costs the livery again; the paint stays
     assert.strictEqual(L.paintCost(car, null, 'stripes', 'blue'), L.LIVERIES.stripes.price);
@@ -556,4 +564,72 @@ test('a full Bestest V8 build has an even shot at The King, and Bestest+ the edg
         assert.ok(L.odds(build(engine + '_plus', 4), king) > 0.5);
     }
     assert.ok(L.odds(build('ardun296', 3), king) < 0.35);      // a flathead still needs a V8 swap
+});
+
+test('1973: beating The King brings the next era the week after, its cars, parts and rivals joining 1963\'s', () => {
+    const g = garage('ford48', FULL, 90, 90);
+    g.wins = L.KING_WINS;
+    L.newWeek(g);
+    const i = g.rivals.findIndex((r) => r.king);
+    const cash = g.cash;
+    assert.match(L.settleRace(g, i, 'pinks', 'win', 0), /Next week it's 1973/);
+    assert.strictEqual(g.cash, cash + L.KING_PRIZE);
+    L.newWeek(g);
+    assert.strictEqual(L.eraOf(g), 1);
+    assert.ok(g.newEra);
+    assert.strictEqual(L.eraWins(g), 0);
+    assert.ok(g.cars.length === 2 && g.cash >= cash, 'cars and cash come along');
+    assert.deepStrictEqual(g.ads.map((ad) => L.BODIES[ad.body].era), [1, 1, 1, 0, 0], 'mostly muscle cars in the paper');
+    const now = g.rivals.filter((r) => r.era === 1), then = g.rivals.filter((r) => r.era === 0);
+    assert.ok(now.length === 3 && now.every((r) => r.tier === 0 && !r.king), 'the easy 1973 crowd');
+    assert.strictEqual(then.length, 1, 'and one from 1963');
+    const shop = L.catalogFor(g, L.activeCar(g)).map((x) => L.PARTS[x.id].era);
+    assert.ok(shop.includes(0) && shop.includes(1), 'both eras\' parts in the shop');
+    assert.strictEqual(L.rivalPrize(g), 2500);
+    assert.strictEqual(L.cashBet(g, then[0]), 1000, 'a 1963 rival bets 1963 money');
+    assert.strictEqual(L.cashBet(g, now[0]), 2500);
+    assert.strictEqual(L.kingPrize(g), 25000);
+    assert.strictEqual(L.funPrize(now[0]), 125);
+    assert.strictEqual(L.funPrize(then[0]), L.FUN_PRIZE[then[0].tier]);
+    // Ten wins in 1973 bring its King, who pays 1973 money and his 'Cuda
+    for (let w = 0; w < L.KING_WINS; w++) { L.settleRace(g, 0, 'fun', 'win', 0); g.rivals[0].funDone = false; }
+    L.newWeek(g);
+    const k = g.rivals.findIndex((r) => r.king);
+    assert.ok(k >= 0 && g.rivals[k].name === L.KINGS[1].name);
+    const before = g.cash;
+    assert.doesNotMatch(L.settleRace(g, k, 'pinks', 'win', 0), /Next week/);   // the last era so far
+    assert.strictEqual(g.cash, before + 25000);
+    assert.strictEqual(g.cars[g.cars.length - 1].body, 'cuda70');
+    L.newWeek(g);
+    assert.strictEqual(L.eraOf(g), 1);
+    assert.ok(!g.rivals.some((r) => r.king));
+});
+
+test('a save from before eras that already beat The King moves on to 1973', () => {
+    const g = garage('ford48', null, 90, 90);
+    delete g.era;
+    g.kingBeaten = true;
+    g.wins = 30;
+    L.newWeek(g);
+    assert.strictEqual(L.eraOf(g), 1);
+    assert.ok(g.rivals.filter((r) => r.era === 1).every((r) => r.tier === 0));
+});
+
+test('1973 needs a 1973 build: Bestest muscle has an even shot at its King, and a 1963 Bestest build a slim one', () => {
+    const king = Object.assign({}, L.KINGS[1], { engineCondition: 90 });
+    const build = (body, engine, c) => ({ body, condition: 100, engineCondition: 100, partCondition: {},
+        parts: L.stockParts(engine, { carb: c, intake: c, cam: c, exhaust: c, trans: c, rear: c, tires: c }) });
+    for (const body of ['camaro69', 'mustang67', 'charger69']) {
+        for (const engine of ['ls6_454', 'boss429', 'hemi426']) {
+            const odds = L.odds(build(body, engine, 3), king);
+            assert.ok(odds > 0.4 && odds < 0.58, `${body} ${engine}: ${odds}`);
+        }
+    }
+    assert.ok(L.odds(build('ford48', 'v8_427', 3), king) < 0.2);
+    let last = Infinity;
+    L.ERA_BUILDS[1].forEach((b, tier) => {
+        const et = L.estimate(L.spec(car('torino70', L.rivalParts('torino70', tier, 1)))).et;
+        assert.ok(et < last, `1973 tier ${tier}: ${et} < ${last}`);
+        last = et;
+    });
 });

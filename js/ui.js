@@ -77,7 +77,7 @@
         }
         return '<div class="status">' +
             gauge('Cash', money(g.cash), 'cash') +
-            gauge('Week', g.week) +
+            gauge(L.eraOf(g) ? 'Week, ' + L.ERAS[L.eraOf(g)].year : 'Week', g.week) +
             (g.friday ? gauge('Tonight', 'Racing', 'friday') : gauge('Hours', g.hours + ' h')) +
             gauge('Record', g.wins + '–' + g.losses) +
             '</div>';
@@ -469,7 +469,13 @@
                     ask('Head out to the burger stand? It\'s Friday night, so the garage is closed till next week. You still have ' +
                         g.hours + ' hours left.', 'Go racing', function () { L.goFriday(g); L.save(g); L.showStand(); }, L.showHub);
                 },
-                week: function () { L.newWeek(g); L.save(g); L.showHub('A new week. New ads, a restocked speed shop, new faces at the burger stand.'); },
+                week: function () {
+                    L.newWeek(g);
+                    var news = g.newEra ? L.ERAS[L.eraOf(g)].intro : 'A new week. New ads, a restocked speed shop, new faces at the burger stand.';
+                    delete g.newEra;
+                    L.save(g);
+                    L.showHub(news);
+                },
                 quit: function () { L.showTitle(); }
             }
         );
@@ -523,7 +529,7 @@
         render(
             status() + flash(msg) +
             '<div class="paper news">' +
-            '<header class="masthead"><p class="dateline"><span>Week ' + g.week + ', summer 1963</span><span>Five cents</span></p>' +
+            '<header class="masthead"><p class="dateline"><span>Week ' + g.week + ', summer ' + L.ERAS[L.eraOf(g)].year + '</span><span>Five cents</span></p>' +
             '<h2>The Lemon Gazette</h2>' +
             '<p class="section">Classified · Automobiles for sale</p></header>' +
             (rows ? '<div class="ads">' + rows + '</div>' : '<p class="empty">No autos this week. Try again next week.</p>') +
@@ -539,7 +545,7 @@
         app.querySelectorAll('canvas.ad-car').forEach(function (c) {
             var ad = g.ads[+c.getAttribute('data-ad')];
             var paint = L.art.mix(L.BODIES[ad.body].color, '#7a4a2a', (100 - ad.condition) / 100 * 0.7);
-            L.drawCar(c.getContext('2d'), 4, 2, paint, { scale: 2 });
+            L.drawCar(c.getContext('2d'), 4, 2, paint, { scale: 2, shape: L.BODIES[ad.body].shape });
         });
     };
 
@@ -579,9 +585,18 @@
         // Your engine's family, then what fits anything, then the other families folded away
         // for a swap
         var mine = car ? L.PARTS[car.parts.engine].fam : null;
-        var others = Object.keys(L.FAMILIES).filter(function (fam) { return fam !== mine; });
+        // Newest era first: its families and its parts that fit anything
+        var eras = [];
+        for (var e = L.eraOf(g); e >= 0; e--) eras.push(e);
+        var others = [];
+        eras.forEach(function (e) {
+            Object.keys(L.FAMILIES).forEach(function (fam) { if (fam !== mine && L.FAMILIES[fam].era === e) others.push(fam); });
+        });
         var html = (mine ? family(mine) : '') +
-            group('Fits anything', catalog.filter(function (x) { return !L.PARTS[x.id].fam; }), true) +
+            eras.map(function (e, n) {
+                return group('Fits anything' + (eras.length > 1 ? ', ' + L.ERAS[e].year : ''),
+                    catalog.filter(function (x) { return !L.PARTS[x.id].fam && L.PARTS[x.id].era === e; }), n === 0);
+            }).join('') +
             others.map(family).join('');
         var intro = car
             ? 'Your ' + esc(L.carName(car)) + ' has the ' + esc(L.PARTS[car.parts.engine].name) + '. Carbs, intakes, cams and exhausts only fit their own engine family; engines and the rest fit anything.'
@@ -885,23 +900,23 @@
 
     L.showStand = function (msg) {
         var car = L.activeCar(g);
-        var bet = L.cashBet(g);
         var myEt = car ? L.estimate(L.spec(car)).et : null;
         var rows = g.rivals.map(function (r, i) {
+            var bet = L.cashBet(g, r);
             var funErr = L.canRace(g, r, 'fun');
             var cashErr = L.canRace(g, r, 'cash');
             var pinkErr = L.canRace(g, r, 'pinks');
             var buttons = r.king
-                ? '<button data-act="pinks" data-arg="' + i + '" class="danger"' + (pinkErr ? ' disabled' : '') + '>Race for his crown: pinks and ' + money(L.KING_PRIZE) + '</button>'
+                ? '<button data-act="pinks" data-arg="' + i + '" class="danger"' + (pinkErr ? ' disabled' : '') + '>Race for his crown: pinks and ' + money(L.kingPrize(g)) + '</button>'
                 : '<button data-act="fun" data-arg="' + i + '" class="minor"' + (funErr ? ' disabled' : '') + '>' +
                     (r.funDone ? 'Raced for fun this week' : 'Just for fun (win ' + money(L.funPrize(r)) + ')') + '</button>' +
                   '<button data-act="cash" data-arg="' + i + '"' + (cashErr ? ' disabled title="' + esc(cashErr) + '"' : '') + '>' +
-                    (bet >= L.RIVAL_PRIZE ? 'Bet ' + money(bet) : 'Bet it all: ' + money(bet)) + '</button>' +
+                    (bet >= L.rivalPrize(g, r) ? 'Bet ' + money(bet) : 'Bet it all: ' + money(bet)) + '</button>' +
                   '<button data-act="pinks" data-arg="' + i + '" class="danger"' + (pinkErr ? ' disabled' : '') + '>Pink slips</button>';
             var theirEt = L.estimate(L.spec(L.rivalCar(r))).et;
             return '<div class="rival' + (r.king ? ' king' : '') + '">' +
                 '<div class="rival-car"><canvas class="stand-car" width="96" height="48" data-rival="' + i + '" aria-hidden="true"></canvas>' +
-                '<span class="plate">' + (r.king ? 'KING' : 'TIER ' + (r.tier + 1)) + '</span></div>' +
+                '<span class="plate">' + (r.king ? 'KING' : ((r.era || 0) < L.eraOf(g) ? L.ERAS[r.era || 0].year + ' · ' : '') + 'TIER ' + (r.tier + 1)) + '</span></div>' +
                 '<div class="rival-info"><h3>' + (r.king ? '<span class="crown" aria-hidden="true">♛</span> ' : '') + esc(r.name) + '</h3>' +
                 '<p class="rival-ride">' + esc(L.BODIES[r.body].name) + '</p>' +
                 '<p class="quote">"' + esc(r.line) + '"</p>' +
@@ -917,12 +932,13 @@
             '<div class="panel stand"><header class="stand-sign"><h2>The Burger Stand</h2><p>Friday night. Engines idling, everybody watching.</p></header>' +
             '<div class="rivals">' + rows + '</div></div>' +
             '<details class="stand-help"><summary>How a race works</summary><p>Press Space, Enter or the big button when the start light turns green, then again each time the SHIFT light goes green. Keep out of the red.</p>' +
-            '<p>A race just for fun risks nothing and pays a little. A cash race bets all your cash, up to ' + money(L.RIVAL_PRIZE) + ', against the same. Pink slips are for the cars.</p>' +
+            '<p>A race just for fun risks nothing and pays a little. A cash race bets all your cash, up to ' + money(L.rivalPrize(g)) + ', against the same. Pink slips are for the cars.</p>' +
             '<p>The times are each car\'s best quarter mile with a perfect launch and shifts. The odds count an average driver for you and the rival\'s own skill.</p></details>' +
             backBar('Back'),
             {
                 cash: function (i) {
                     var r = g.rivals[+i];
+                    var bet = L.cashBet(g, r);
                     if (bet < g.cash) return race(+i, 'cash');
                     ask('Bet all ' + money(bet) + ' you have on beating ' + r.name + '? Lose and you are broke.',
                         'Bet it all', function () { race(+i, 'cash'); }, L.showStand);
@@ -930,7 +946,7 @@
                 fun: function (i) { race(+i, 'fun'); },
                 pinks: function (i) {
                     var r = g.rivals[+i];
-                    ask('Race ' + r.name + ' for pink slips? Win and you take their ' + L.BODIES[r.body].name + (r.king ? ' and ' + money(L.KING_PRIZE) : '') +
+                    ask('Race ' + r.name + ' for pink slips? Win and you take their ' + L.BODIES[r.body].name + (r.king ? ' and ' + money(L.kingPrize(g)) : '') +
                         '. Lose and they keep your ' + L.carName(L.activeCar(g)) + '.',
                         'Race for pinks', function () { race(+i, 'pinks'); }, L.showStand);
                 },
@@ -970,7 +986,7 @@
         if (err) return L.showStand(err);
         var car = L.activeCar(g);
         render('<div class="race-controls"><button class="go" id="go">GO / SHIFT</button>' +
-            '<p class="hint">Racing ' + esc(rival.name) + ' ' + (pinks ? 'for pink slips' : stake === 'fun' ? 'just for fun' : 'for ' + money(L.cashBet(g))) +
+            '<p class="hint">Racing ' + esc(rival.name) + ' ' + (pinks ? 'for pink slips' : stake === 'fun' ? 'just for fun' : 'for ' + money(L.cashBet(g, rival))) +
             '. Shift when the SHIFT light goes green.</p>' +
             '<button data-act="sound" class="minor" id="sound">Sound: ' + (L.sound.on ? 'on' : 'off') + '</button></div>', {
             sound: function () { document.getElementById('sound').textContent = 'Sound: ' + (L.sound.toggle() ? 'on' : 'off'); L.sound.begin(); L.sound.engineOn(); }
