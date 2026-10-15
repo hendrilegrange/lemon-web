@@ -105,6 +105,51 @@
         };
     };
 
+    // How a car looks: its paint (the factory colour until the paint shop changes it) and
+    // its livery with the livery's trim colour
+    L.carColor = function (car) {
+        return car.paint && L.PAINTS[car.paint] ? L.PAINTS[car.paint].hex : L.BODIES[car.body].color;
+    };
+    L.carLook = function (car) {
+        var livery = car.livery && L.LIVERIES[car.livery] && car.livery !== 'none' ? car.livery : null;
+        return { color: L.carColor(car), livery: livery, trim: L.PAINTS[car.trim] ? L.PAINTS[car.trim].hex : '#f2f2ea' };
+    };
+
+    // What a paint shop job costs: the paint if the colour changes, the livery if it or its
+    // trim changes. paint is a L.PAINTS id or null to keep the colour.
+    L.paintCost = function (car, paint, livery, trim) {
+        var cost = 0;
+        if (paint && paint !== car.paint) cost += L.PAINTS[paint].price;
+        var oldLivery = car.livery || 'none';
+        var trimMatters = livery !== 'none' && !L.LIVERIES[livery].ownColors;
+        if (livery !== oldLivery || (trimMatters && trim !== car.trim)) cost += L.LIVERIES[livery].price;
+        return cost;
+    };
+
+    L.canPaint = function (g, paint, livery, trim) {
+        var car = L.activeCar(g);
+        if (!car) return 'You need a car first.';
+        if (paint && !L.PAINTS[paint]) return 'No such paint.';
+        if (!L.LIVERIES[livery]) return 'No such livery.';
+        if (livery !== 'none' && !L.LIVERIES[livery].ownColors && !L.PAINTS[trim]) return 'Pick a colour for the ' + L.LIVERIES[livery].name.toLowerCase() + '.';
+        if (car.condition < L.MIN_BODY) return "Paint won't stick to rust. Get the body to " + L.MIN_BODY + '% first.';
+        var cost = L.paintCost(car, paint, livery, trim);
+        if (!cost && (livery === (car.livery || 'none')) && (!paint || paint === car.paint)) return "That's how she looks already.";
+        if (g.cash < cost) return "You can't afford that paint job.";
+        return null;
+    };
+
+    L.paintCar = function (g, paint, livery, trim) {
+        var err = L.canPaint(g, paint, livery, trim);
+        if (err) return err;
+        var car = L.activeCar(g);
+        g.cash -= L.paintCost(car, paint, livery, trim);
+        if (paint) car.paint = paint;
+        car.livery = livery;
+        if (livery !== 'none' && !L.LIVERIES[livery].ownColors) car.trim = trim;
+        return null;
+    };
+
     // A new week: fresh classified ads, a restocked speed shop, a week of garage hours and
     // fresh rivals at the burger stand
     L.newWeek = function (g, first) {

@@ -323,6 +323,10 @@
             '.cccccccccc.', '.mmmmmmmmmm.', '.mmmmmmmmmm.', '.bbbbbbbbbb.', '..BBBBBBBB..', '............'] }
     };
 
+    ICONS.paint = { k: '#1d1a14', c: '#a0a8b8', h: '#e0e6f0', r: '#d7263d', R: '#8a1424', s: '#ffd23f', rows: [
+        '.........s..', '..kk...s.s..', '..cc..s.....', '..hc.....s..', '.rrrr.......', '.rRrr.......',
+        '.rRrr.......', '.rRrr.......', '.rRrr.......', '.rRrr.......', '.rrrr.......', '.kkkk.......'] };
+
     function icon(name) {
         var ic = ICONS[name], out = '';
         ic.rows.forEach(function (row, y) {
@@ -347,7 +351,7 @@
         var carHtml;
         if (car) {
             var st = carStats(car);
-            var paint = L.BODIES[car.body].color;
+            var paint = L.carColor(car);
             carHtml = '<div class="card car-card"><h3><span class="swatch" style="background:' + paint + '"></span>' + esc(L.carName(car)) + '</h3>' +
                 '<div class="chips"><span class="chip"><b>' + st.hp + '</b> hp</span>' +
                 '<span class="chip"><b>' + st.et.toFixed(1) + '</b> s quarter mile</span>' +
@@ -367,8 +371,9 @@
             tile('ads', 'ads', 'Classifieds', plural(g.ads.length, 'car') + ' for sale') +
             tile('parts', 'parts', 'Speed shop', stocked + (car ? ' parts for your car' : ' parts') + ' in stock') +
             tile('garage', 'garage', 'Garage', plural(g.cars.length, 'car') + ' · ' + plural(g.inventory.length, 'part') + ' on the shelf') +
+            tile('paint', 'paint', 'Paint shop', car ? 'Colours, stripes and flames' : 'Bring a car') +
             tile('stand', 'stand', 'Burger stand',
-                g.friday || g.hours === 0 ? 'Racing tonight' : 'Friday night: closes the garage', g.friday ? 'hot' : '') +
+                g.friday || g.hours === 0 ? 'Racing tonight' : 'Friday night: closes the garage', 'wide' + (g.friday ? ' hot' : '')) +
             '</nav>' +
             '<div class="hub-foot">' +
             '<button data-act="week">Next week</button>' +
@@ -381,6 +386,7 @@
                 ads: function () { L.showAds(); },
                 parts: function () { L.showParts(); },
                 garage: function () { L.showGarage(); },
+                paint: function () { L.showPaint(); },
                 stand: function () {
                     if (g.friday || g.hours === 0) { L.goFriday(g); L.save(g); return L.showStand(); }
                     ask('Head out to the burger stand? It\'s Friday night, so the garage is closed till next week. You still have ' +
@@ -392,7 +398,7 @@
         );
         var scene = document.getElementById('hub-scene');
         var sctx = scene.getContext('2d');
-        L.drawHubScene(sctx, 320, 120, car ? L.BODIES[car.body].color : null, g.friday);
+        L.drawHubScene(sctx, 320, 120, car ? L.carLook(car) : null, g.friday);
     };
 
     // ── Classifieds ───────────────────────────────────────────────────────
@@ -511,6 +517,67 @@
                 back: function () { L.showHub(); }
             }
         );
+    };
+
+    // ── Paint shop ────────────────────────────────────────────────────────
+
+    // What you've picked so far; a fresh visit starts from how the car looks now
+    var pick = null;
+
+    L.showPaint = function (msg) {
+        var car = L.activeCar(g);
+        if (!car) return L.showHub('You need a car first.');
+        if (!pick || pick.car !== car.id) pick = { car: car.id, paint: null, livery: car.livery || 'none', trim: car.trim || 'white' };
+        var preview = { body: car.body, paint: pick.paint || car.paint, livery: pick.livery, trim: pick.trim };
+        var usesTrim = pick.livery !== 'none' && !L.LIVERIES[pick.livery].ownColors;
+        var cost = L.paintCost(car, pick.paint, pick.livery, pick.trim);
+        var err = L.canPaint(g, pick.paint, pick.livery, pick.trim);
+
+        function swatches(act, chosen, priced) {
+            return '<div class="swatches">' + Object.keys(L.PAINTS).map(function (id) {
+                var p = L.PAINTS[id];
+                return '<button data-act="' + act + '" data-arg="' + id + '" class="swatch-btn' + (id === chosen ? ' on' : '') + '" aria-pressed="' + (id === chosen) + '">' +
+                    '<span class="swatch" style="background:' + p.hex + '"></span><span>' + esc(p.name) +
+                    (priced ? '<small>' + (id === car.paint ? 'yours now' : money(p.price)) + '</small>' : '') + '</span></button>';
+            }).join('') + '</div>';
+        }
+
+        render(
+            status() + flash(msg) +
+            '<div class="panel paint-shop"><h2>Paint shop</h2>' +
+            '<p class="sub">Sal\'s Custom Paint does it while you wait, so it takes none of your garage hours. It only changes the looks, not what she\'s worth.</p>' +
+            '<canvas class="paint-preview" id="paint-preview" width="192" height="96" aria-label="How the car will look"></canvas>' +
+            '<h3>Colour</h3>' + swatches('paint', pick.paint || car.paint || null, true) +
+            '<h3>Livery</h3><div class="swatches">' + Object.keys(L.LIVERIES).map(function (id) {
+                var lv = L.LIVERIES[id];
+                return '<button data-act="livery" data-arg="' + id + '" class="swatch-btn' + (id === pick.livery ? ' on' : '') + '" aria-pressed="' + (id === pick.livery) + '">' +
+                    '<span>' + esc(lv.name) + '<small>' + (id === (car.livery || 'none') ? 'yours now' : lv.price ? money(lv.price) : 'free') + '</small></span></button>';
+            }).join('') + '</div>' +
+            (usesTrim ? '<h3>' + esc(L.LIVERIES[pick.livery].name) + ' colour</h3>' + swatches('trim', pick.trim, false) : '') +
+            '<div class="paint-total"><span>' + (cost ? 'Total ' + money(cost) : 'Nothing to pay') + '</span>' +
+            '<button data-act="go"' + (err ? ' disabled' : '') + '>Paint it</button></div>' +
+            (err && err.indexOf('already') < 0 ? '<p class="sub">' + esc(err) + '</p>' : '') +
+            '</div>' + backBar('Back'),
+            {
+                paint: function (id) { pick.paint = id === car.paint ? null : id; keepScroll = true; L.showPaint(); },
+                livery: function (id) { pick.livery = id; keepScroll = true; L.showPaint(); },
+                trim: function (id) { pick.trim = id; keepScroll = true; L.showPaint(); },
+                go: function () {
+                    var e = L.paintCar(g, pick.paint, pick.livery, pick.trim);
+                    if (!e) { L.sound.cash(); L.sound.spray(1.2); pick = null; L.save(g); }
+                    keepScroll = true;
+                    L.showPaint(e || 'Fresh from the booth. She looks sharp.');
+                },
+                back: function () { pick = null; L.showHub(); }
+            }
+        );
+        var cv = document.getElementById('paint-preview');
+        var ctx = cv.getContext('2d');
+        ctx.fillStyle = '#1f1f38';
+        ctx.fillRect(0, 0, 192, 96);
+        ctx.fillStyle = '#3a3a3e';
+        ctx.fillRect(0, 84, 192, 12);
+        L.drawCar(ctx, 8, 2, L.carLook(preview), { scale: 4 });
     };
 
     // ── Garage ────────────────────────────────────────────────────────────
@@ -649,7 +716,7 @@
             var spec = L.bodyJob(car, target);
             bench(function (canvas, onLine, done) {
                 return L.startBodywork(canvas, {
-                    spots: spec.spots, color: L.BODIES[car.body].color, onLine: onLine,
+                    spots: spec.spots, color: L.carLook(car), onLine: onLine,
                     title: (target === 100 ? 'Restoring the ' : 'Patching up the ') + L.carName(car)
                 }, done);
             }, act(L.showFix, function () {
@@ -772,7 +839,7 @@
         L.startRace(
             L.canvas,
             document.getElementById('go'),
-            { spec: L.spec(car), color: L.BODIES[car.body].color, condition: car.engineCondition },
+            { spec: L.spec(car), color: L.carLook(car), condition: car.engineCondition },
             { spec: L.spec(rcar), color: '#e8e8e8', skill: rival.skill },
             function (result, damage, sum) {
                 var line = L.settleRace(g, i, stake, result, damage);

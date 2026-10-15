@@ -306,9 +306,9 @@
             ctx.fillStyle = '#333';
             ctx.fillRect(px, 168, pw, 2);
             ctx.fillRect(px, 184, pw, 2);
-            ctx.fillStyle = rival.color;
+            ctx.fillStyle = L.lookColor(rival.color);
             ctx.fillRect(px + Math.min(1, state.them.run.x / L.QUARTER_MILE) * (pw - 4), 165, 4, 8);
-            ctx.fillStyle = player.color;
+            ctx.fillStyle = L.lookColor(player.color);
             ctx.fillRect(px + Math.min(1, me.run.x / L.QUARTER_MILE) * (pw - 4), 181, 4, 8);
             ctx.fillStyle = '#8a8aa8';
             L.text(ctx, 'THEM', px, 162);

@@ -299,6 +299,19 @@ canvas.scene {
 .menu button.tile.hot { border-color: #ff4fa0; box-shadow: 0 0 12px rgba(255, 79, 160, 0.35); }
 .tile.hot .tile-title { color: #ff7ab8; }
 
+.menu button.tile.wide { grid-column: 1 / -1; }
+
+/* The paint shop: a big preview, then colour and livery swatches */
+.paint-preview { display: block; width: 100%; max-width: 576px; margin: 8px auto 12px; image-rendering: pixelated; border: 2px solid var(--line); }
+.paint-shop h3 { margin: 14px 0 6px; color: var(--accent); font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.menu .swatch-btn, .swatch-btn { display: flex; align-items: center; gap: 8px; margin: 0; padding: 6px 8px; text-align: left; font-weight: normal; background: var(--bg); color: var(--text); border: 2px solid var(--line); }
+.swatch-btn > span:last-child { display: flex; flex-direction: column; min-width: 0; }
+.swatch-btn small { color: var(--muted); }
+.swatch-btn.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.paint-total { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 14px; font-weight: bold; }
+.paint-total button { margin: 0; }
+
 .hub-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
 .hub-foot > button { margin: 0; }
 .hub-foot .toggles { margin: 0 0 0 auto; }
