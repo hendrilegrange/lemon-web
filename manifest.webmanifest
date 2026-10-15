@@ -1,0 +1,16 @@
+{
+    "name": "Lemon: a Street Rod remake",
+    "short_name": "Lemon",
+    "description": "Buy a junker. Build a hot rod. Beat The King.",
+    "start_url": "./",
+    "scope": "./",
+    "display": "standalone",
+    "orientation": "any",
+    "background_color": "#0b0b1a",
+    "theme_color": "#0b0b1a",
+    "icons": [
+        { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+        { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+        { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    ]
+}
