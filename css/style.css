@@ -326,8 +326,10 @@ canvas.scene {
 }
 
 /* The way back: at the end of the screen, and pinned to the bottom on a phone */
-.backbar { margin-top: 12px; }
+.backbar { margin-top: 12px; display: flex; gap: 8px; }
 .backbar button { margin: 0; }
+.car-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.car-btns button { margin: 0; }
 @media (max-width: 600px) {
     .backbar {
         position: sticky;
@@ -338,7 +340,7 @@ canvas.scene {
         background: var(--bg);
         border-top: 2px solid var(--line);
     }
-    .backbar button { width: 100%; padding: 12px; }
+    .backbar button { flex: 1; padding: 12px; }
 }
 
 /* A message that would otherwise land out of sight */
