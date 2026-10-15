@@ -187,7 +187,18 @@
         '.ommmmoommmmmmmmmmmmmmmmmmmmmmmmmmmmmmoooo..',
         MUSCLE[7]
     ].concat(CAR.slice(8));
-    var SHAPES = { coupe: CAR, muscle: MUSCLE, eighties: EIGHTIES, nineties: NINETIES };
+    // A mid-2000s sedan: a high beltline, a small chopped greenhouse and a tall wing
+    var AUGHTS = [
+        '............................................',
+        '............................................',
+        '................oooooooo....................',
+        '..............oohhhhhhhhoo..................',
+        '.oooooo.....oolwwgwwwlwwgwoo................',
+        '...oo.....oommwwwwgwwwlwwwgwmmoooo..........',
+        '.ommmmmooommmmmmmmmmmmmmmmmmmmmmmmmmmmmoooo.',
+        MUSCLE[7]
+    ].concat(CAR.slice(8));
+    var SHAPES = { coupe: CAR, muscle: MUSCLE, eighties: EIGHTIES, nineties: NINETIES, aughts: AUGHTS };
     var GLASS = { w: '#4a7aa8', g: '#cfe8ff', c: '#d8d8e0', C: '#7a7a86', t: '#141414', T: '#3a3a3a', k: '#060606', r: '#e02020', y: '#fff3b0' };
     var PAINT = { o: 0, d: 1, m: 2, l: 3, h: 4 };
 
