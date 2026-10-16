@@ -235,6 +235,8 @@
     L.startBodywork = function (canvas, opts, done) {
         var ctx = canvas.getContext('2d');
         var spots = rustSpots(opts.spots);
+        var drop = L.shapeDrop(opts.color && opts.color.shape) * 5;     // a lower body: its panels sit lower
+        spots.forEach(function (p) { p.y += drop; });
         var st = { phase: 'work', clock: 0, paintAt: 0, last: null, stopped: false };
 
         function line(text) { if (opts.onLine) opts.onLine(text); }
