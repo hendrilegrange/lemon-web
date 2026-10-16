@@ -289,6 +289,35 @@
 
     // ── Buying and selling cars ──────────────────────────────────────────
 
+    // The dealership: every car from the eras you've reached, newest era first, brand new
+    // and stock. It opens once you've beaten a King.
+    L.dealerCars = function (g) {
+        var era = L.eraOf(g);
+        return Object.keys(L.BODIES).filter(function (id) { return (L.BODIES[id].era || 0) <= era; })
+            .sort(function (a, b) { return (L.BODIES[b].era || 0) - (L.BODIES[a].era || 0) || L.BODIES[a].price - L.BODIES[b].price; });
+    };
+    L.newCar = function (bodyId) {
+        return { body: bodyId, parts: Object.assign({}, L.BODIES[bodyId].parts), condition: 100, engineCondition: 100, partCondition: {} };
+    };
+    L.newCarPrice = function (bodyId) { return roundTo(L.carValue(L.newCar(bodyId)) * L.NEW_CAR_PRICE, 50); };
+
+    L.canBuyNew = function (g, bodyId) {
+        if (!L.beatAKing(g)) return 'Beat The King to open the dealership.';
+        if (L.dealerCars(g).indexOf(bodyId) < 0) return "The dealer doesn't sell that one.";
+        if (g.cars.length >= L.MAX_CARS) return 'Your garage is full. Sell a car first.';
+        if (g.cash < L.newCarPrice(bodyId)) return "You can't afford it.";
+        return null;
+    };
+
+    L.buyNew = function (g, bodyId) {
+        var err = L.canBuyNew(g, bodyId);
+        if (err) return err;
+        g.cash -= L.newCarPrice(bodyId);
+        g.cars.push(L.makeCar(g, bodyId, null, 100, 100));
+        if (g.active < 0) g.active = g.cars.length - 1;
+        return null;
+    };
+
     L.buyAd = function (g, index) {
         var ad = g.ads[index];
         if (!ad) return 'That ad is gone.';

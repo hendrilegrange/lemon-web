@@ -679,3 +679,14 @@ canvas.scene {
 .fix-all { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 8px 0 10px; border-bottom: 1px solid var(--line); }
 .fix-all button { margin: 0; }
 .fix-all.locked button { opacity: 0.55; border-style: dashed; }
+
+/* The dealership: a lot of new cars per era, each with its picture, numbers and price */
+.lot-era { margin: 16px 0 8px; padding: 4px 10px; background: var(--bg); border-left: 4px solid var(--accent); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; }
+.lot { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.lot-car { display: flex; flex-direction: column; gap: 4px; padding: 10px; background: var(--panel-hi); border: 1px solid var(--line); }
+.lot-car h4 { margin: 0; font-size: 0.95rem; }
+.lot-car p { margin: 0; }
+.lot-car .sub { font-size: 0.8rem; }
+.lot-pic { width: 100%; max-width: 192px; aspect-ratio: 2 / 1; image-rendering: pixelated; background: linear-gradient(transparent 80%, #3a3a3e 80%); align-self: center; }
+.lot-car button { margin: auto 0 0; padding: 6px 10px; }
+.tile.locked { opacity: 0.6; }
