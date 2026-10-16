@@ -729,24 +729,76 @@
                 : 'Already built with the Bestest ' + esc(p.family.toLowerCase()) + ' parts.') + '</p></div>';
     }
 
+    // A car's name coloured by its build (L.carTier), with a badge: grey for stock, a class's
+    // colour for a built car, gold and a crown for a King's car
+    function tierName(c) {
+        var t = L.carTier(c);
+        var cls = t === 'king' ? 'king' : 't' + t;
+        return '<span class="car-tier ' + cls + '"><span class="tier-badge">' + (t === 'king' ? '♛ King' : L.CLASSES[t]) + '</span> ' +
+            '<span class="car-name">' + esc(L.carName(c)) + '</span></span>';
+    }
+
+    // Each part on a car, coloured by class, with its condition
+    function partRows(car) {
+        return L.SLOTS.map(function (slot) {
+            return '<div class="row"><span><span class="slot">' + L.SLOT_NAMES[slot] + '</span>' + partName(car.parts[slot]) + '</span>' +
+                '<span>' + bar(L.partCondition(car, slot), 'Condition') + '</span></div>';
+        }).join('');
+    }
+
+    // A good look at one of your cars: its picture in its paint, the dyno, body and every part.
+    // Looking doesn't change which car you drive; Drive this one does.
+    L.showCar = function (i) {
+        var c = g.cars[i];
+        if (!c) return L.showGarage();
+        var st = carStats(c);
+        var t = L.carTier(c);
+        render(
+            status() +
+            '<div class="panel car-view ' + (t === 'king' ? 'king' : 't' + t) + '"><h2>' + tierName(c) + '</h2>' +
+            '<div class="car-stage"><canvas id="car-view" width="200" height="100" aria-label="' + esc(L.carName(c)) + '"></canvas></div>' +
+            (c.king ? '<p class="won-from">Won from ' + esc(c.king) + ' for pink slips.</p>' : '') +
+            '<div class="dyno">' +
+            '<p><b>' + st.hp + ' hp</b> at ' + st.hpRpm + ' rpm · redline ' + st.redline + '</p>' +
+            '<p>0-60 ' + (st.zeroSixty ? st.zeroSixty.toFixed(1) + ' s' : 'n/a') + ' · quarter mile ' + st.et.toFixed(2) + ' s at ' + Math.round(st.trap) + ' mph</p>' +
+            '<p>Body ' + bar(c.condition, 'Body condition') + ' · engine ' + bar(c.engineCondition, 'Engine condition') + '</p>' +
+            '<p class="sub">Sells for ' + money(L.carValue(c)) + ' as it is.</p></div>' +
+            partRows(c) +
+            '<div class="car-btns">' + (i === g.active ? '<span class="price">You\'re driving this one</span>' : '<button data-act="drive">Drive this one</button>') + '</div>' +
+            '</div>' + backBar('Back to the garage'),
+            {
+                drive: function () { g.active = i; L.save(g); L.showGarage('You\'re driving the ' + L.carName(c) + '.'); },
+                back: function () { L.showGarage(); }
+            }
+        );
+        var cv = document.getElementById('car-view');
+        var ctx = cv.getContext('2d');
+        ctx.fillStyle = '#1f1f38';
+        ctx.fillRect(0, 0, 200, 100);
+        ctx.fillStyle = '#3a3a3e';
+        ctx.fillRect(0, 88, 200, 12);
+        L.drawCar(ctx, 12, 2, L.carLook(c), { scale: 4 });
+    };
+
     L.showGarage = function (msg) {
         var car = L.activeCar(g);
         var cars = g.cars.map(function (c, i) {
             var p = L.carPotential(c);
-            return '<div class="row' + (i === g.active ? ' active' : '') + '"><span>' + esc(L.carName(c)) +
+            return '<div class="row' + (i === g.active ? ' active' : '') + '"><span>' + tierName(c) +
                 ' · sells for ' + money(L.carValue(c)) +
                 '<small class="potential">' + (p.fixCost ? 'Restoring earns ' + (p.margin >= 0 ? '+' + money(p.margin) : '−' + money(-p.margin)) + ' · ' : '') +
                 'built ' + p.builtEt.toFixed(2) + ' s</small></span>' +
+                '<span class="car-acts"><button data-act="view" data-arg="' + i + '" class="minor">View</button>' +
                 (i === g.active ? '<span class="price">Driving</span>' : '<button data-act="drive" data-arg="' + i + '">Drive</button>') +
                 '<button data-act="sell" data-arg="' + i + '" class="minor">Sell</button>' +
-                '<button data-act="strip" data-arg="' + i + '" class="minor">Strip</button></div>';
+                '<button data-act="strip" data-arg="' + i + '" class="minor">Strip</button></span></div>';
         }).join('') || '<p>No cars. Check the classifieds.</p>';
 
         var detail = '';
         if (car) {
             var st = carStats(car);
             var fix = L.fixAll(car);
-            detail = '<div class="panel"><h2>' + esc(L.carName(car)) + '</h2>' +
+            detail = '<div class="panel"><h2>' + tierName(car) + '</h2>' +
                 '<div class="dyno">' +
                 '<p><b>' + st.hp + ' hp</b> at ' + st.hpRpm + ' rpm · redline ' + st.redline + '</p>' +
                 '<p>0-60 ' + (st.zeroSixty ? st.zeroSixty.toFixed(1) + ' s' : 'n/a') + ' · quarter mile ' + st.et.toFixed(2) + ' s at ' + Math.round(st.trap) + ' mph</p>' +
@@ -755,11 +807,7 @@
                 (fix.cost ? '' : '<p class="sub">Everything is in good shape.</p>') +
                 '<div class="car-btns">' + (fix.cost ? '<button data-act="fix">Fix car (' + money(fix.cost) + ', ' + fix.hours + ' h for everything)</button>' : '') +
                 '<button data-act="shop">Shop for parts</button></div>' +
-                '</div>' + onceOver(car) +
-                L.SLOTS.map(function (slot) {
-                    return '<div class="row"><span><span class="slot">' + L.SLOT_NAMES[slot] + '</span>' + partName(car.parts[slot]) + '</span>' +
-                        '<span>' + bar(L.partCondition(car, slot), 'Condition') + '</span></div>';
-                }).join('') + '</div>';
+                '</div>' + onceOver(car) + partRows(car) + '</div>';
         }
 
         var shelf = g.inventory.map(function (id, i) {
@@ -778,6 +826,7 @@
             backBar('Back'),
             {
                 drive: act(L.showGarage, function (i) { g.active = +i; }),
+                view: function (i) { L.showCar(+i); },
                 sell: function (i) {
                     var c = g.cars[+i];
                     ask('Sell your ' + L.carName(c) + ' for ' + money(L.carValue(c)) + '?' +

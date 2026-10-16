@@ -740,6 +740,24 @@
         return points * (L.WEAR_RATE[part ? part.cls : 0] || 1);
     };
 
+    // A car's build by its parts: the class most of them are (ties go to the better class), so
+    // a car on mostly Best parts is a Best car. 'king' for a car won from a King.
+    L.carTier = function (car) {
+        if (car.king) return 'king';
+        // A King's car won before cars kept that: still his own body and parts
+        var was = L.KINGS.filter(function (k) {
+            if (k.body !== car.body) return false;
+            var parts = L.rivalParts(k.body, 5, k.era);
+            return L.SLOTS.every(function (slot) { return car.parts[slot] === parts[slot]; });
+        })[0];
+        if (was) { car.king = was.name; return 'king'; }
+        var count = [0, 0, 0, 0, 0, 0];
+        L.SLOTS.forEach(function (slot) { var p = L.PARTS[car.parts[slot]]; if (p) count[p.cls]++; });
+        var best = 0;
+        count.forEach(function (n, cls) { if (n && n >= count[best]) best = cls; });
+        return best;
+    };
+
     // Settle a race. result: 'win', 'lose' or 'foul' (jumped the light, which loses).
     // A race for fun pays a small prize for a win and costs nothing to lose; the rival stays
     // at the stand for a real race but won't race for fun again this week. Every race counts
@@ -780,6 +798,7 @@
                 g.cash += cash;
                 var prize = cash ? cashText + ' and ' : '';
                 var won = L.makeCar(g, rival.body, L.rivalParts(rival.body, rival.tier, rival.era), 80, rival.engineCondition, wornParts(rival.engineCondition));
+                if (rival.king) won.king = rival.name;      // a King's car, shown in gold in the garage
                 var next = L.ERAS[L.eraOf(g) + 1];
                 var crown = !rival.king ? '' : ' You are the new King of the strip!' +
                     (next ? ' Next week it\'s ' + next.year + ', and there\'s a new crowd at the burger stand.'

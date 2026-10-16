@@ -787,3 +787,20 @@ test('beating a King keeps the fewest weeks it took for that era\'s board', () =
     L.settleRace(g, 0, 'pinks', 'win', 0);
     assert.strictEqual(L.records(g).k0, 15);                  // a slower win keeps the best
 });
+
+test('a car\'s build is the class most of its parts are, and a King\'s car is his', () => {
+    const g = garage('ford48', null, 90, 90);
+    const c = L.activeCar(g);
+    assert.strictEqual(L.carTier(c), 0);
+    c.parts = L.stockParts(c.parts.engine, { carb: 2, intake: 2, cam: 2, exhaust: 2, trans: 1, rear: 1, tires: 3 });
+    assert.strictEqual(L.carTier(c), 2);
+    assert.strictEqual(L.carTier(L.makeCar(g, 'chevy57', FULL, 80, 90)), 3);
+    g.eraWins = L.KING_WINS;
+    L.newWeek(g);
+    const k = g.rivals.findIndex((r) => r.king);
+    L.settleRace(g, k, 'pinks', 'win', 0);
+    assert.strictEqual(L.carTier(g.cars[g.cars.length - 1]), 'king');
+    const old = L.makeCar(g, 'chevy57', L.rivalParts('chevy57', 5, 0), 80, 90);      // won before cars kept it
+    assert.strictEqual(L.carTier(old), 'king');
+    assert.strictEqual(old.king, 'The King');
+});
