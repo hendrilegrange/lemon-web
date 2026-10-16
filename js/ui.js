@@ -780,6 +780,35 @@
         L.drawCar(ctx, 12, 2, L.carLook(c), { scale: 4 });
     };
 
+    // The shelf grouped by slot in the car's order, each group headed by what's on your car now,
+    // best class and best condition first. A part that beats what's fitted says so; one that
+    // doesn't fit your engine says what it fits instead of offering to install.
+    function shelfGroups(car) {
+        if (!g.inventory.length) return '<p>Nothing on the shelf. Parts you buy and parts you take off land here.</p>';
+        return L.SLOTS.map(function (slot) {
+            var items = [];
+            g.inventory.forEach(function (id, i) { if (L.PARTS[id].slot === slot) items.push({ id: id, i: i, cls: L.PARTS[id].cls, cond: L.shelfCondition(g, i) }); });
+            if (!items.length) return '';
+            items.sort(function (a, b) { return b.cls - a.cls || b.cond - a.cond; });
+            var fitted = car && L.PARTS[car.parts[slot]];
+            return '<div class="shelf-group"><h3><span>' + L.SLOT_NAMES[slot] + ' <span class="count">' + items.length + '</span></span>' +
+                (fitted ? '<span class="on-car">On your car: ' + partName(car.parts[slot]) + '</span>' : '') + '</h3>' +
+                items.map(function (it) {
+                    var fits = !car || L.fits(it.id, car.parts.engine);
+                    var reb = L.shelfRebuild(g, it.i), value = L.partValue(g, it.i);
+                    var tag = !fits ? '<span class="shelf-tag no">Fits a ' + esc(L.FAMILIES[L.PARTS[it.id].fam].name.toLowerCase()) + '</span>'
+                        : fitted && it.cls > fitted.cls ? '<span class="shelf-tag up">▲ Upgrade</span>' : '';
+                    return '<div class="shelf-item' + (fits ? '' : ' nofit') + '">' +
+                        '<span class="shelf-name">' + partName(it.id) + ' <span class="shelf-cls t' + it.cls + '">' + L.CLASSES[it.cls] + '</span>' + tag + '</span>' +
+                        '<span class="shelf-cond">' + (it.cond < 100 ? bar(it.cond, 'Condition') : '<span class="like-new">Like new</span>') + '</span>' +
+                        '<span class="shelf-acts">' +
+                        (car && fits ? '<button data-act="install" data-arg="' + it.i + '">Install · ' + L.JOB_HOURS[slot] + ' h</button>' : '') +
+                        (reb ? '<button data-act="rebuild" data-arg="' + it.i + '" class="minor">Rebuild ' + money(reb.cost) + ' · ' + reb.hours + ' h</button>' : '') +
+                        '<button data-act="sellpart" data-arg="' + it.i + '" class="minor">' + (value ? 'Sell ' + money(value) : 'Bin it') + '</button></span></div>';
+                }).join('') + '</div>';
+        }).join('');
+    }
+
     L.showGarage = function (msg) {
         var car = L.activeCar(g);
         var cars = g.cars.map(function (c, i) {
@@ -810,19 +839,12 @@
                 '</div>' + onceOver(car) + partRows(car) + '</div>';
         }
 
-        var shelf = g.inventory.map(function (id, i) {
-            var p = L.PARTS[id];
-            var cond = L.shelfCondition(g, i);
-            return '<div class="row"><span><span class="slot">' + L.SLOT_NAMES[p.slot] + '</span> ' + partName(id) + (cond < 100 ? ' ' + bar(cond, 'Condition') : '') + '</span>' +
-                (car ? '<button data-act="install" data-arg="' + i + '">Install (' + L.JOB_HOURS[p.slot] + ' h)</button>' : '') +
-                (L.shelfRebuild(g, i) ? '<button data-act="rebuild" data-arg="' + i + '" class="minor">Rebuild (' + money(L.shelfRebuild(g, i).cost) + ', ' + L.shelfRebuild(g, i).hours + ' h)</button>' : '') +
-                '<button data-act="sellpart" data-arg="' + i + '" class="minor">' + (L.partValue(g, i) ? 'Sell ' + money(L.partValue(g, i)) : 'Bin it') + '</button></div>';
-        }).join('') || '<p>Nothing on the shelf. Parts you buy and parts you take off land here.</p>';
-
+        var shelf = shelfGroups(car);
         render(
             status() + flash(msg) +
             '<div class="panel"><h2>Your cars <span class="sub">' + g.cars.length + ' of ' + L.MAX_CARS + '</span></h2>' + cars + '</div>' + detail +
-            '<div class="panel"><h2>Shelf</h2>' + shelf + '</div>' +
+            '<div class="panel shelf"><h2>Shelf' + (g.inventory.length ? ' <span class="sub">' + plural(g.inventory.length, 'part') +
+                ' · worth ' + money(g.inventory.reduce(function (sum, id, i) { return sum + L.partValue(g, i); }, 0)) + '</span>' : '') + '</h2>' + shelf + '</div>' +
             backBar('Back'),
             {
                 drive: act(L.showGarage, function (i) { g.active = +i; }),
