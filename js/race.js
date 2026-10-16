@@ -10,15 +10,20 @@
 
     // Starts a race on the canvas. player/rival: { spec, color, condition, skill (rival only) }.
     // done(result, damage) gets 'win', 'lose' or 'foul' and the engine damage the player did.
-    L.startRace = function (canvas, button, player, rival, done) {
+    // A solo run has no rival (null) and opts.distance in m: 'win' is crossing the line, 'lose'
+    // blowing the engine or never launching.
+    L.startRace = function (canvas, button, player, rival, done, opts) {
         var ctx = canvas.getContext('2d');
+        var solo = !rival;
+        var dist = (opts && opts.distance) || L.QUARTER_MILE;
+        if (solo) rival = { spec: player.spec, color: player.color, skill: 1 };     // a stand-in that never runs
         var state = {
             clock: 0,                 // seconds since the tree started
             greenAt: 1.6 + L.random() * 0.8,
             phase: 'tree',            // tree, racing, finished
-            me: { run: L.newRun(player.spec), launchedAt: null, finishAt: null, damage: 0, blown: false },
+            me: { run: L.newRun(player.spec, dist), launchedAt: null, finishAt: null, damage: 0, blown: false },
             them: {
-                run: L.newRun(rival.spec), launchedAt: null, finishAt: null, blown: false,
+                run: L.newRun(rival.spec, dist), launchedAt: null, finishAt: null, blown: false,
                 reaction: 0.2 + (1 - rival.skill) * (0.25 + L.random() * 0.3),
                 shiftError: function () { return (1 - rival.skill) * (L.random() * 900 - 600); }
             },
@@ -124,10 +129,12 @@
             var result;
             if (state.foul) result = 'foul';
             else if (me.blown || me.finishAt === null) result = 'lose';
+            else if (solo) result = 'win';
             else if (them.blown || them.finishAt === null) result = 'win';
             else result = me.finishAt <= them.finishAt ? 'win' : 'lose';
             state.result = result;
-            state.message = { win: 'YOU WIN!', lose: 'YOU LOSE', foul: 'RED LIGHT!' }[result];
+            state.message = solo ? { win: 'FINISH!', lose: me.blown ? 'BLOWN!' : 'NO TIME', foul: 'RED LIGHT!' }[result]
+                : { win: 'YOU WIN!', lose: 'YOU LOSE', foul: 'RED LIGHT!' }[result];
             L.sound[result]();
             draw();
             setTimeout(function () { cleanup(); done(result, me.damage, summary()); }, 1800);
@@ -142,7 +149,7 @@
             }
             return {
                 me: state.foul ? 'jumped the light' : line(me),
-                them: line(them),
+                them: solo ? '' : line(them),
                 reaction: me.launchedAt === null ? null : (me.launchedAt - state.greenAt),
                 et: state.foul || me.blown || me.finishAt === null ? null : me.finishAt - state.greenAt
             };
@@ -165,7 +172,7 @@
             state.clock += dt;
             var me = state.me, them = state.them;
             if (state.phase === 'tree' && state.clock >= state.greenAt) state.message = 'GO!';
-            if (them.launchedAt === null && state.clock >= state.greenAt + them.reaction) them.launchedAt = state.clock;
+            if (!solo && them.launchedAt === null && state.clock >= state.greenAt + them.reaction) them.launchedAt = state.clock;
             if (state.phase === 'racing' && state.clock > state.greenAt + 0.6) state.message = '';
             var before = me.run.rpm, gear = me.run.gear;
             stepCar(me, player.spec, false, player.condition);
@@ -175,10 +182,10 @@
             stepCar(them, rival.spec, true);
             if (state.phase === 'racing') {
                 var meOver = me.run.done || me.blown;
-                var themOver = them.run.done || them.blown;
+                var themOver = solo || them.run.done || them.blown;
                 // Done when both are over the line, or one is and the other is hopelessly behind
-                if ((meOver && themOver) || state.clock - state.greenAt > 40 ||
-                    (me.run.done && state.clock - me.finishAt > 1.5) || (them.run.done && state.clock - them.finishAt > 4)) {
+                if ((meOver && themOver) || state.clock - state.greenAt > (solo ? 120 : 40) ||
+                    (me.run.done && state.clock - me.finishAt > 1.5) || (!solo && them.run.done && state.clock - them.finishAt > 4)) {
                     finish();
                 }
             }
@@ -237,7 +244,7 @@
             // Start and finish lines
             var startX = toScreen(0) + 44;
             if (startX > -4 && startX < W) { ctx.fillStyle = '#f4e9c8'; ctx.fillRect(startX, 91, 2, 56); }
-            var finishX = toScreen(L.QUARTER_MILE) + 44;
+            var finishX = toScreen(dist) + 44;
             if (finishX > -10 && finishX < W + 10) {
                 for (var fy = 91; fy < 147; fy += 4) {
                     ctx.fillStyle = (fy / 4) % 2 ? '#fff' : '#111';
@@ -247,7 +254,7 @@
                 }
             }
 
-            L.drawCar(ctx, toScreen(them.run.x), LANE_Y[0], rival.color, { smoke: them.run.spinning && them.run.v > 0 });
+            if (!solo) L.drawCar(ctx, toScreen(them.run.x), LANE_Y[0], rival.color, { smoke: them.run.spinning && them.run.v > 0 });
             L.drawCar(ctx, toScreen(me.run.x), LANE_Y[1], player.color, { smoke: (me.run.spinning && me.run.v > 0) || me.blown });
 
             drawTree();
@@ -255,7 +262,7 @@
 
             if (state.message) {
                 L.text(ctx, state.message, W / 2, 40, {
-                    color: state.message === 'GO!' || state.message === 'YOU WIN!' ? '#3bff6e' : state.message === 'STAGE' ? '#ffd23f' : '#ff3b3b',
+                    color: state.message === 'GO!' || state.message === 'YOU WIN!' || state.message === 'FINISH!' ? '#3bff6e' : state.message === 'STAGE' ? '#ffd23f' : '#ff3b3b',
                     scale: 3, align: 'center'
                 });
             }
@@ -328,12 +335,16 @@
             ctx.fillStyle = '#333';
             ctx.fillRect(px, 168, pw, 2);
             ctx.fillRect(px, 184, pw, 2);
-            ctx.fillStyle = L.lookColor(rival.color);
-            ctx.fillRect(px + Math.min(1, state.them.run.x / L.QUARTER_MILE) * (pw - 4), 165, 4, 8);
+            if (!solo) {
+                ctx.fillStyle = L.lookColor(rival.color);
+                ctx.fillRect(px + Math.min(1, state.them.run.x / dist) * (pw - 4), 165, 4, 8);
+            }
             ctx.fillStyle = L.lookColor(player.color);
-            ctx.fillRect(px + Math.min(1, me.run.x / L.QUARTER_MILE) * (pw - 4), 181, 4, 8);
+            ctx.fillRect(px + Math.min(1, me.run.x / dist) * (pw - 4), 181, 4, 8);
             ctx.fillStyle = '#8a8aa8';
-            L.text(ctx, 'THEM', px, 162);
+            // Solo: the clock in place of the rival
+            if (solo) L.text(ctx, me.launchedAt === null ? '0.00 S' : ((me.finishAt !== null ? me.finishAt : state.clock) - state.greenAt).toFixed(2) + ' S', px, 162, { color: '#ffd23f' });
+            else L.text(ctx, 'THEM', px, 162);
             L.text(ctx, 'YOU', px, 197);
         }
 

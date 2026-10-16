@@ -977,6 +977,35 @@
         return g.records;
     };
 
+    // The solo drags, open once you've beaten the game: just you, the tree and the clock, for
+    // the leaderboards. No money, no wear. key: the record and board it sets.
+    L.SOLO = [{ key: 'sq', name: 'Quarter mile', dist: 402.34 },
+              { key: 'sh', name: 'Half mile', dist: 804.67 },
+              { key: 'sm', name: 'Mile', dist: 1609.34 }];
+    L.soloOf = function (key) { return L.SOLO.filter(function (s) { return s.key === key; })[0]; };
+
+    // After a solo run in car: et in seconds, or null if it didn't finish. Each car keeps its own
+    // best (records.solo[key][car id], with the car's name, so a sold car's time still reads),
+    // and records[key] is the best of them. Returns false, or { car: true, overall } for a new
+    // best in this car, overall when it's also the player's best.
+    L.noteSolo = function (g, key, et, car) {
+        var r = L.records(g);
+        if (!L.beatTheGame(g) || !L.soloOf(key) || !car || typeof et !== 'number' || et <= 0) return false;
+        var t = Math.round(et * 1000) / 1000;
+        var cars = (r.solo = r.solo || {})[key] = r.solo[key] || {};
+        var mine = cars[car.id];
+        if (mine && t >= mine.t) return false;
+        cars[car.id] = { t: t, car: L.carName(car) };
+        var overall = typeof r[key] !== 'number' || t < r[key];
+        if (overall) r[key] = t;
+        return { car: true, overall: overall };
+    };
+    // A car's best solo time at key, or null
+    L.soloBest = function (g, key, car) {
+        var cars = car && g.records && g.records.solo && g.records.solo[key];
+        return cars && cars[car.id] ? cars[car.id].t : null;
+    };
+
     // After a race: et is the player's quarter mile from the green light (null if they didn't
     // finish or jumped the light), reaction from green to launch. Only a win counts toward the
     // quarter mile and reaction records. Returns the records it beat.
@@ -1019,7 +1048,10 @@
     // before only wins counted is cleared, so the boards start over from wins.
     L.fixSave = function (g) {
         if (!g || !g.cars) return g;
-        if (g.records && typeof g.records['k' + (L.ERAS.length - 1)] === 'number') g.gameBeaten = true;   // beat The Last King before it counted
+        if (g.records && typeof g.records['k' + (L.ERAS.length - 1)] === 'number' && !g.gameBeaten) {
+            g.gameBeaten = true;      // beat The Last King before it counted: the celebration he missed
+            g.celebrate = true;
+        }
         if (g.records && !g.records.winsOnly) { g.records.et = null; g.records.rt = null; g.records.winsOnly = true; }
         g.cars.forEach(function (c) {
             if (L.carTier(c) === 'king' && !c.paint && !c.livery) { c.paint = 'black'; c.livery = 'flames'; }

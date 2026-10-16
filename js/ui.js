@@ -223,6 +223,7 @@
                     g = saved;
                     var note = g.notice;          // what L.fixSave changed in an older save
                     if (note) { delete g.notice; L.save(g); }
+                    if (g.celebrate) return L.showCelebration();
                     L.showHub(note);
                 },
                 new: function () {
@@ -259,15 +260,18 @@
     // Kept on the server for signed-in players (api.php), so they only show when it answers
 
     var BOARDS = [
-        { key: 'et', name: 'Fastest quarter mile', fmt: function (v) { return v.toFixed(2) + ' s'; } },
-        { key: 'rt', name: 'Quickest reaction', fmt: function (v) { return v.toFixed(3) + ' s'; } },
-        { key: 'streak', name: 'Longest win streak', fmt: function (v) { return v + (v === 1 ? ' win' : ' wins'); } },
-        { key: 'cash', name: 'Most cash on hand', fmt: function (v) { return money(v); } }
+        { key: 'et', name: 'Quickest quarter mile', fmt: function (v) { return v.toFixed(2) + ' s'; } },
+        { key: 'rt', name: 'Fastest off the line', fmt: function (v) { return v.toFixed(3) + ' s'; } },
+        { key: 'streak', name: 'Longest unbeaten run', fmt: function (v) { return v + (v === 1 ? ' win' : ' wins'); } },
+        { key: 'cash', name: 'Fattest bankroll', fmt: function (v) { return money(v); } }
     ].concat(L.KINGS.map(function (k, i) {
         // Fewest weeks from a new game to beating each era's King; the title shows the first's
-        return { key: 'k' + i, name: 'Fewest weeks to ' + k.name, king: i, fmt: function (v) { return v + (v === 1 ? ' week' : ' weeks'); } };
+        return { key: 'k' + i, name: 'Quickest to dethrone ' + k.name, king: i, fmt: function (v) { return v + (v === 1 ? ' week' : ' weeks'); } };
+    })).concat(L.SOLO.map(function (s, i) {
+        // The solo drags, once you've beaten the game: each player's best in each car, with the car; the title shows the quarter mile's
+        return { key: s.key, name: 'Solo ' + s.name.toLowerCase(), solo: i, fmt: function (v) { return v.toFixed(2) + ' s'; } };
     }));
-    function titleBoards() { return BOARDS.filter(function (b) { return !b.king; }); }    // the first King's board has king 0
+    function titleBoards() { return BOARDS.filter(function (b) { return !b.king && !b.solo; }); }    // the first King's board has king 0, the quarter mile's solo 0
     function boardOf(key) { return BOARDS.filter(function (b) { return b.key === key; })[0]; }
 
     // The title's lines (the four boards and the first King's), each with the record holder; filled in once the server answers
@@ -286,17 +290,17 @@
                 var cell = document.getElementById('lead-' + b.key);
                 if (!cell) return;       // the player moved on
                 var top = res.boards && res.boards[b.key] && res.boards[b.key][0];
-                cell.textContent = res.error ? '' : top ? b.fmt(top.value) + ' · ' + top.name : 'nobody yet';
+                cell.textContent = res.error ? '' : top ? b.fmt(top.value) + ' · ' + top.name + (top.car ? ', ' + top.car : '') : 'nobody yet';
             });
         });
     }
 
     function leaderRows(b, rows) {
         var me = L.account.user && L.account.user.username;
-        if (!rows.length) return '<p class="sub">Nobody on this board yet. ' + (b.king !== undefined ? 'Beat this King and it\'s yours.' : 'Win some races and it\'s yours.') + '</p>';
+        if (!rows.length) return '<p class="sub">Nobody on this board yet. ' + (b.king !== undefined ? 'Dethrone him and it\'s yours.' : b.solo !== undefined ? 'Beat the game, then run it solo.' : 'Win some races and it\'s yours.') + '</p>';
         return '<ol class="board">' + rows.map(function (r, i) {
             return '<li' + (r.name === me ? ' class="you"' : '') + '><span class="rank">' + (i + 1) + '</span>' +
-                '<span class="name">' + esc(r.name) + '</span><span class="val">' + b.fmt(r.value) + '</span></li>';
+                '<span class="name">' + esc(r.name) + (r.car ? ' <small class="car">' + esc(r.car) + '</small>' : '') + '</span><span class="val">' + b.fmt(r.value) + '</span></li>';
         }).join('') + '</ol>';
     }
 
@@ -498,6 +502,10 @@
         '.....rr.....', '....rrrr....', '...rrRRrr...', '..rrRRRRrr..', '.rrRRRRRRrr.', 'rrrrrrrrrrrr',
         '.wwwwwwwwww.', '.wyywwwddww.', '.wyywwwddww.', '.wwwwwwddww.', '.WWWWWWddWW.', '.WWWWWWddWW.'] };
 
+    ICONS.solo = { k: '#1d1a14', c: '#a0a8b8', h: '#e0e6f0', w: '#f4e9c8', r: '#d7263d', s: '#ffd23f', rows: [
+        '....kkkk....', '.....cc.....', '...kkkkkk...', '..kwwwwwwk..', '.kwwwswwwwk.', '.kwwwswwwwk.',
+        '.kwwwsrrrwk.', '.kwwwwwwwwk.', '.kwwwwwwwwk.', '..kwwwwwwk..', '...kkkkkk...', '............'] };
+
     ICONS.dealer = { k: '#1d1a14', r: '#d7263d', R: '#8a1424', w: '#9ec8f0', s: '#ffd23f', t: '#3a3a3a', rows: [
         '.s.......s..', '...ssss.....', '..s....s....', '............', '...rrrrr....', '..rrwwwrr...',
         '.rrrrrrrrrr.', 'rRrrrrrrrrRr', 'rRRRRRRRRRRr', '.tt......tt.', '.kk......kk.', '............'] };
@@ -548,6 +556,7 @@
             tile('garage', 'garage', 'Garage', plural(g.cars.length, 'car') + ' · ' + plural(g.inventory.length, 'part') + ' on the shelf') +
             tile('paint', 'paint', 'Paint shop', car ? 'Colours, stripes and flames' : 'Bring a car') +
             tile('dealer', 'dealer', 'Dealership', L.beatAKing(g) ? 'Brand new cars, ' + L.dealerCars(g).length + ' on the lot' : '🔒 Beat The King to open', L.beatAKing(g) ? '' : 'locked') +
+            tile('solo', 'solo', 'Solo drags', L.beatTheGame(g) ? 'Quarter, half and 1 mile, for the leaderboards' : '🔒 Beat The Last King to open', L.beatTheGame(g) ? '' : 'locked') +
             tile('stand', 'stand', 'Burger stand',
                 g.friday || g.hours === 0 ? 'Racing tonight' : 'Friday night: closes the garage', g.friday ? 'hot' : '') +
             '</nav>' +
@@ -564,6 +573,7 @@
                 garage: GO.garage,
                 paint: GO.paint,
                 dealer: GO.dealer,
+                solo: function () { if (!L.beatTheGame(g)) return L.showHub('The solo drags open once you beat The Last King.'); L.showSolo(); },
                 stand: function () { GO.stand(L.showHub); },
                 week: function () {
                     L.newWeek(g);
@@ -1309,11 +1319,136 @@
                     '<p class="sub">You: ' + esc(sum.me) + (sum.reaction !== null && result !== 'foul' ? ' (reaction ' + sum.reaction.toFixed(3) + ' s)' : '') +
                     '<br>' + esc(rival.name) + ': ' + esc(sum.them) + '</p>' +
                     (best.length ? '<p class="record">New personal best: ' + best.join(', ') + '!</p>' : '') + '</div>' +
-                    backBar('Back to the burger stand', 'stand'),
-                    { stand: function () { L.showStand(); } }
+                    (g.celebrate ? backBar('Continue', 'party') : backBar('Back to the burger stand', 'stand')),
+                    { stand: function () { L.showStand(); }, party: function () { L.showCelebration(); } }
                 );
             }
         );
+    }
+
+    // ── Solo drags ────────────────────────────────────────────────────────
+    // Once you've beaten the game: just you, the tree and the clock, over a quarter, a half
+    // and a whole mile, for the leaderboards. Nothing to win or lose, no wear on the car.
+
+    L.showSolo = function (msg) {
+        if (!L.beatTheGame(g)) return L.showHub('The solo drags open once you beat The Last King.');
+        var car = L.activeCar(g), rec = L.records(g);
+        var spec = car && L.spec(car);
+        var runs = L.SOLO.map(function (s) {
+            var est = spec ? L.estimate(spec, s.dist) : null, mine = L.soloBest(g, s.key, car);
+            return '<div class="solo-run card"><h3>' + s.name + '</h3>' +
+                '<p class="solo-best">' + (car ? (mine !== null ? 'This car\'s best <b>' + mine.toFixed(2) + ' s</b>' : 'No time in this car yet') : 'No car') +
+                (typeof rec[s.key] === 'number' && rec[s.key] !== mine ? '<br><small>Your best in any car ' + rec[s.key].toFixed(2) + ' s</small>' : '') + '</p>' +
+                (est ? '<p class="sub">Your ' + esc(L.carName(car)) + ' could do about ' + est.et.toFixed(2) + ' s at ' + Math.round(est.trapMph) + ' mph with perfect shifts.</p>' : '') +
+                '<button data-act="run" data-arg="' + s.key + '"' + (car ? '' : ' disabled') + '>Run the ' + s.name.toLowerCase() + '</button></div>';
+        }).join('');
+        render(
+            status('solo') + flash(msg) +
+            '<div class="panel"><h2>Solo drags</h2><p class="sub">Just you, the tree and the clock. Each car\'s best time goes on the leaderboards' +
+            (L.account && L.account.user ? '' : ' once you sign in on the title screen') + '. Nothing to win or lose, and the car doesn\'t wear.</p>' +
+            (car ? '' : '<p class="shot">You need a car first.</p>') + '<div class="solo-runs">' + runs + '</div></div>' +
+            backBar('Back'),
+            { run: function (key) { soloRun(key); }, back: function () { L.showHub(); } }
+        );
+    };
+
+    function soloRun(key) {
+        var s = L.soloOf(key), car = L.activeCar(g);
+        if (!car) return L.showSolo('You need a car first.');
+        if (car.engineCondition <= 0) return L.showSolo('Your engine is blown. Rebuild it in the garage first.');
+        render('<div class="race-controls"><button class="go" id="go">GO / SHIFT</button>' +
+            '<p class="hint">Solo ' + s.name.toLowerCase() + '. Shift when the SHIFT light goes green.</p>' +
+            '<button data-act="sound" class="minor" id="sound">Sound: ' + (L.sound.on ? 'on' : 'off') + '</button></div>', {
+            sound: function () { document.getElementById('sound').textContent = 'Sound: ' + (L.sound.toggle() ? 'on' : 'off'); L.sound.begin(); L.sound.engineOn(); }
+        });
+        L.titleScreen(false);
+        L.showCanvas(true);
+        L.sound.scene('race');
+        L.startRace(L.canvas, document.getElementById('go'),
+            { spec: L.spec(car), color: L.carLook(car), condition: car.engineCondition }, null,
+            function (result, damage, sum) {
+                var best = result === 'win' && L.noteSolo(g, key, sum.et, car);
+                L.save(g);
+                L.showCanvas(false);
+                render(
+                    status('solo') +
+                    '<div class="panel result ' + result + '"><h2>' + (result === 'win' ? sum.et.toFixed(2) + ' s' : result === 'foul' ? 'Red light!' : 'No time') + '</h2>' +
+                    '<p>' + (result === 'win' ? 'Solo ' + s.name.toLowerCase() + ': ' + esc(sum.me) + '.' : result === 'foul' ? 'You jumped the light.' : 'You ' + esc(sum.me) + '. No harm done: solo runs don\'t wear the car.') + '</p>' +
+                    (sum.reaction !== null && result !== 'foul' ? '<p class="sub">Reaction ' + sum.reaction.toFixed(3) + ' s</p>' : '') +
+                    (best ? '<p class="record">' + (best.overall ? 'New personal best!' : 'New best for your ' + esc(L.carName(car)) + '!') + '</p>'
+                        : result === 'win' ? '<p class="sub">Your ' + esc(L.carName(car)) + '\'s best is ' + L.soloBest(g, key, car).toFixed(2) + ' s.</p>' : '') + '</div>' +
+                    backBar('Run it again', 'again', [['Solo drags', 'solo']]),
+                    { again: function () { soloRun(key); }, solo: function () { L.showSolo(); } }
+                );
+            }, { distance: s.dist });
+    }
+
+    // ── The end: you beat The Last King ───────────────────────────────────
+
+    L.showCelebration = function () {
+        delete g.celebrate;
+        L.save(g);
+        var car = L.activeCar(g), rec = L.records(g);
+        var kings = L.KINGS.map(function (k, i) {
+            var w = rec['k' + i];
+            return '<li><span>' + esc(k.name) + ' <small>' + L.ERAS[i].year + '</small></span><b>' + (typeof w === 'number' ? 'week ' + w : '✓') + '</b></li>';
+        }).join('');
+        render(
+            '<div class="panel celebrate">' +
+            '<canvas class="scene" id="party" width="320" height="140" aria-hidden="true"></canvas>' +
+            '<h2>You beat the game!</h2>' +
+            '<p class="lead">Sixty years of Kings, from ' + L.ERAS[0].year + ' to ' + L.ERAS[L.ERAS.length - 1].year + ', and every one of them went home without his car. ' +
+            'You started with ' + money(L.START_CASH) + ' and a driver\'s license. Now you\'re the last King of the strip.</p>' +
+            '<div class="chips"><span class="chip"><b>' + g.week + '</b> weeks</span><span class="chip"><b>' + g.wins + '–' + g.losses + '</b> record</span>' +
+            '<span class="chip"><b>' + money(g.cash) + '</b> in the bank</span><span class="chip"><b>' + g.cars.length + '</b> ' + (g.cars.length === 1 ? 'car' : 'cars') + '</span></div>' +
+            '<h3>Every King you beat</h3><ol class="kings">' + kings + '</ol>' +
+            '<h3>Unlocked</h3><ul class="unlocks">' +
+            '<li><b>Solo drags.</b> Quarter mile, half mile and the full mile, just you and the clock, each with its own leaderboard.</li>' +
+            '<li><b>A full speed shop.</b> Every part is in stock every week. Legendary parts still turn up when they please.</li></ul>' +
+            '<div class="car-btns"><button data-act="solo">Try the solo drags</button><button data-act="hub" class="minor">Back to the garage</button></div></div>',
+            { solo: function () { L.showSolo(); }, hub: function () { L.showHub(); } }
+        );
+        L.titleScreen(false);
+        L.sound.win();
+        party(document.getElementById('party'), car ? L.carLook(car) : null);
+    };
+
+    // Fireworks over the strip, your car parked in front, until the screen goes
+    function party(canvas, look) {
+        var ctx = canvas.getContext('2d'), W = canvas.width, H = canvas.height;
+        var COLORS = ['#ffd23f', '#ff4fa0', '#3bff6e', '#4fc3ff', '#ff7a2f', '#f4e9c8'];
+        var sparks = [], t = 0, last = null, next = 0;
+        function burst() {
+            var x = 30 + Math.random() * (W - 60), y = 15 + Math.random() * 50, c = COLORS[Math.floor(Math.random() * COLORS.length)];
+            for (var i = 0; i < 28; i++) {
+                var a = i / 28 * Math.PI * 2, sp = 18 + Math.random() * 22;
+                sparks.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1.2 + Math.random() * 0.6, c: c });
+            }
+        }
+        function frame(now) {
+            if (!document.body.contains(canvas)) return;
+            var dt = last === null ? 0 : Math.min(0.05, (now - last) / 1000);
+            last = now; t += dt;
+            if (t >= next) { burst(); next = t + 0.5 + Math.random() * 0.7; }
+            ctx.fillStyle = '#0b0b1a'; ctx.fillRect(0, 0, W, H);
+            ctx.fillStyle = '#f4e9c8';
+            for (var s = 0; s < 24; s++) ctx.fillRect((s * 73 + 11) % W, (s * 29 + 5) % 70, 1, 1);
+            sparks = sparks.filter(function (p) { return (p.life -= dt) > 0; });
+            sparks.forEach(function (p) {
+                p.vy += 20 * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+                ctx.globalAlpha = Math.min(1, p.life);
+                ctx.fillStyle = p.c;
+                ctx.fillRect(Math.round(p.x), Math.round(p.y), 2, 2);
+            });
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#2a2a2a'; ctx.fillRect(0, 112, W, 28);
+            ctx.fillStyle = '#ffd23f';
+            for (var d = 0; d < W; d += 24) ctx.fillRect(d, 126, 12, 2);
+            if (look) L.drawCar(ctx, W / 2 - 44, 70, look, { scale: 2 });
+            L.text(ctx, 'KING OF THE STRIP', W / 2, 20, { color: '#ffd23f', scale: 2, align: 'center' });
+            requestAnimationFrame(frame);
+        }
+        requestAnimationFrame(frame);
     }
 
     L.initUi = function (root) { app = root; };

@@ -51,6 +51,12 @@ const BOARDS = ['et' => ['ASC', 5, 60], 'rt' => ['ASC', 0, 2], 'streak' => ['DES
                 // fewest weeks from a new game to beating each era's King
                 'k0' => ['ASC', 1, 100000], 'k1' => ['ASC', 1, 100000], 'k2' => ['ASC', 1, 100000],
                 'k3' => ['ASC', 1, 100000], 'k4' => ['ASC', 1, 100000], 'k5' => ['ASC', 1, 100000]];
+// The boards kept in seconds, to the thousandth
+const TIMED_BOARDS = ['et', 'rt'];
+// The solo drags, open once you've beaten the game: quarter, half and 1 mile, in seconds
+// [lowest, highest believed]. Kept in lemon_solo, a time per player per car, with the car's name.
+const SOLO_BOARDS = ['sq' => [5, 60], 'sh' => [8, 100], 'sm' => [12, 200]];
+const SOLO_CARS_PER_SAVE = 200;     // the most cars one save's times are read for, per board
 // The quarter mile and reaction boards started over from wins only: their own columns, filled
 // only from saves marked winsOnly (the old et and rt columns, which counted losses, are left be)
 const WIN_COLUMNS = ['et' => 'et_win', 'rt' => 'rt_win'];
@@ -126,6 +132,18 @@ function createTables(PDO $db): void {
     $adds[] = 'ADD COLUMN IF NOT EXISTS et_win DECIMAL(6,3) NULL, ADD COLUMN IF NOT EXISTS et_win_at DATETIME NULL';
     $adds[] = 'ADD COLUMN IF NOT EXISTS rt_win DECIMAL(5,3) NULL, ADD COLUMN IF NOT EXISTS rt_win_at DATETIME NULL';
     $db->exec('ALTER TABLE lemon_records ' . implode(', ', $adds));
+    // The solo drags' best time for each of a player's cars (car_id is the save's car id)
+    $db->exec("CREATE TABLE IF NOT EXISTS lemon_solo (
+        user_id INT UNSIGNED NOT NULL,
+        board CHAR(2) NOT NULL,
+        car_id INT UNSIGNED NOT NULL,
+        car VARCHAR(40) NOT NULL,
+        t DECIMAL(7,3) NOT NULL,
+        t_at DATETIME NOT NULL,
+        PRIMARY KEY (user_id, board, car_id),
+        KEY board_t (board, t),
+        FOREIGN KEY (user_id) REFERENCES lemon_users (id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     $db->exec("CREATE TABLE IF NOT EXISTS lemon_rate_limits (
         ip VARCHAR(45) NOT NULL,
         action VARCHAR(20) NOT NULL,
@@ -227,6 +245,28 @@ function updateRecords(PDO $db, int $userId, array $game): void {
     if (!$best) $db->prepare('INSERT IGNORE INTO lemon_records (user_id) VALUES (?)')->execute([$userId]);
     $values[] = $userId;
     $db->prepare('UPDATE lemon_records SET ' . implode(', ', $sets) . ' WHERE user_id = ?')->execute($values);
+}
+
+// Keeps the solo drag times in a saved game ($game['records']['solo'][board][car id] = {t, car})
+// that beat that car's best so far
+function updateSolo(PDO $db, int $userId, array $game): void {
+    $solo = $game['records']['solo'] ?? null;
+    if (!is_array($solo) || !empty($game['smokeTest'])) return;
+    $stmt = $db->prepare('INSERT INTO lemon_solo (user_id, board, car_id, car, t, t_at) VALUES (?, ?, ?, ?, ?, NOW())
+                          ON DUPLICATE KEY UPDATE car = IF(VALUES(t) < t, VALUES(car), car),
+                          t_at = IF(VALUES(t) < t, NOW(), t_at), t = LEAST(t, VALUES(t))');
+    foreach (SOLO_BOARDS as $key => [$min, $max]) {
+        if (!is_array($solo[$key] ?? null)) continue;
+        foreach (array_slice($solo[$key], 0, SOLO_CARS_PER_SAVE, true) as $carId => $run) {
+            $t = $run['t'] ?? null;
+            $car = $run['car'] ?? null;
+            if (!ctype_digit((string)$carId) || (int)$carId < 1 || (int)$carId > 4000000000) continue;
+            if (!is_int($t) && !is_float($t) || $t < $min || $t > $max || !is_string($car)) continue;
+            $car = mb_substr(trim(preg_replace('/[\x00-\x1F\x7F]/u', '', $car) ?? ''), 0, 40);
+            if ($car === '') continue;
+            $stmt->execute([$userId, $key, (int)$carId, $car, round($t, 3)]);
+        }
+    }
 }
 
 function badPassword(string $password): ?string {
@@ -393,19 +433,27 @@ function handle(PDO $db, string $action): never {
                           ON DUPLICATE KEY UPDATE game = VALUES(game), saved_at = VALUES(saved_at), week = VALUES(week), cash = VALUES(cash)')
                ->execute([$user['id'], json_encode($game, JSON_UNESCAPED_UNICODE), (int)$game['savedAt'], (int)$game['week'], (int)$game['cash']]);
             updateRecords($db, (int)$user['id'], $game);
+            updateSolo($db, (int)$user['id'], $game);
             respond(['ok' => true, 'save' => saveSummary($db, (int)$user['id'])]);
 
         case 'leaders':
             $board = (string)($_GET['board'] ?? '');
-            if ($board !== '' && !isset(BOARDS[$board])) respond(['error' => 'No such leaderboard.'], 400);
+            if ($board !== '' && !isset(BOARDS[$board]) && !isset(SOLO_BOARDS[$board])) respond(['error' => 'No such leaderboard.'], 400);
             $limit = $board === '' ? 10 : 100;
             $boards = [];
-            foreach ($board === '' ? array_keys(BOARDS) : [$board] as $key) {
+            foreach ($board === '' ? array_merge(array_keys(BOARDS), array_keys(SOLO_BOARDS)) : [$board] as $key) {
+                if (isset(SOLO_BOARDS[$key])) {      // a row per car: the same player can be on it many times
+                    $stmt = $db->prepare("SELECT u.username, s.car, s.t FROM lemon_solo s JOIN lemon_users u ON u.id = s.user_id
+                                          WHERE s.board = ? ORDER BY s.t, s.t_at, s.user_id, s.car_id LIMIT $limit");
+                    $stmt->execute([$key]);
+                    $boards[$key] = array_map(fn($row) => ['name' => $row['username'], 'car' => $row['car'], 'value' => (float)$row['t']], $stmt->fetchAll());
+                    continue;
+                }
                 $order = BOARDS[$key][0];
                 $col = boardColumn($key);
                 $rows = $db->query("SELECT u.username, r.$col AS v FROM lemon_records r JOIN lemon_users u ON u.id = r.user_id
                                     WHERE r.$col IS NOT NULL ORDER BY r.$col $order, r.{$col}_at, r.user_id LIMIT $limit")->fetchAll();
-                $boards[$key] = array_map(fn($row) => ['name' => $row['username'], 'value' => $key === 'et' || $key === 'rt' ? (float)$row['v'] : (int)$row['v']], $rows);
+                $boards[$key] = array_map(fn($row) => ['name' => $row['username'], 'value' => in_array($key, TIMED_BOARDS, true) ? (float)$row['v'] : (int)$row['v']], $rows);
             }
             respond(['boards' => $boards]);
     }

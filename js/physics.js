@@ -81,8 +81,9 @@
         return s.redline;
     };
 
-    L.newRun = function (s) {
-        return { t: 0, x: 0, v: 0, gear: 0, rpm: LAUNCH_RPM, shiftLeft: 0, spinning: false, overRev: 0, done: false };
+    // A run down the strip: a quarter mile unless dist (m) says otherwise
+    L.newRun = function (s, dist) {
+        return { t: 0, x: 0, v: 0, gear: 0, rpm: LAUNCH_RPM, shiftLeft: 0, spinning: false, overRev: 0, done: false, dist: dist || QUARTER };
     };
 
     // Advance a run by dt seconds. Returns engine damage done (points of condition).
@@ -117,7 +118,7 @@
             run.overRev += dt;
             damage = (run.rpm - s.redline) / 100 * dt * 4;
         }
-        if (run.x >= QUARTER && !run.done) {
+        if (run.x >= (run.dist || QUARTER) && !run.done) {
             run.done = true;
             run.et = run.t;
             run.trap = run.v;
@@ -132,12 +133,12 @@
         return true;
     };
 
-    // A whole quarter mile with perfect shifts: the garage's time slip
-    L.estimate = function (s) {
-        var run = L.newRun(s);
+    // A whole quarter mile (or dist m) with perfect shifts: the garage's time slip
+    L.estimate = function (s, dist) {
+        var run = L.newRun(s, dist);
         var dt = 1 / 120;
         var zeroSixty = null;
-        while (!run.done && run.t < 60) {
+        while (!run.done && run.t < 200) {
             if (run.shiftLeft <= 0 && run.rpm >= L.shiftRpm(s, run.gear)) L.shift(s, run);
             L.step(s, run, dt);
             if (zeroSixty === null && run.v >= 26.82) zeroSixty = run.t;
