@@ -422,11 +422,12 @@
         return typeof c === 'number' ? c : 100;
     };
 
-    // Half what it costs new, by its condition. A stock part fetches half its junkyard price.
-    L.partValue = function (g, invIndex) {
+    // PART_RESALE of what it costs new, by its condition (or by cond, to see what it would
+    // fetch rebuilt). A stock part fetches the same share of its junkyard price.
+    L.partValue = function (g, invIndex, cond) {
         var part = L.PARTS[g.inventory[invIndex]];
         var whole = part.price || (part.slot === 'engine' ? L.JUNK_ENGINE : L.WEAR[part.slot].junk);
-        return Math.floor(whole / 2 * L.shelfCondition(g, invIndex) / 100);
+        return Math.floor(whole * L.PART_RESALE * (cond == null ? L.shelfCondition(g, invIndex) : cond) / 100);
     };
 
     // A repair or rebuild takes the job's full hours for a part worn right out, and less the
@@ -434,6 +435,16 @@
     // full hours whatever its state.
     L.repairHours = function (fullHours, condition) {
         return Math.max(1, Math.ceil(fullHours * (100 - condition) / 100));
+    };
+
+    // Seconds a job takes off the car's quarter mile. how: 'repair' (the part as new), 'new'
+    // (a new one of the same part) or 'junk' (a used stock part at JUNK_CONDITION)
+    L.jobGain = function (car, slot, how) {
+        var after = JSON.parse(JSON.stringify(car));
+        if (how === 'junk') { after.parts[slot] = L.stockPart(car.parts.engine, slot); after.partCondition[slot] = L.JUNK_CONDITION; }
+        else if (slot === 'engine') after.engineCondition = 100;
+        else after.partCondition[slot] = 100;
+        return L.estimate(L.spec(car)).et - L.estimate(L.spec(after)).et;
     };
 
     // Rebuilding a worn part on the shelf, a way to use spare hours: { cost, hours }, priced
@@ -446,7 +457,7 @@
         if (part.slot === 'engine') return { cost: engineRebuildCost(partId, c), hours: L.repairHours(L.REBUILD_HOURS, c) };
         var wear = L.WEAR[part.slot];
         if (!wear.repair) return null;
-        return { cost: Math.max(5, Math.ceil((100 - c) * wear.repair)), hours: L.repairHours(L.JOB_HOURS[part.slot], c) };
+        return { cost: Math.max(5, Math.ceil((100 - c) * wear.repair)), hours: L.repairHours(L.JOB_HOURS[part.slot] * L.REPAIR_SHARE, c) };
     };
 
     L.canRebuildShelf = function (g, invIndex) {
@@ -666,7 +677,7 @@
             } else if (wear.repair && c < 95) {
                 d.action = 'repair';
                 d.cost = Math.max(5, Math.ceil((100 - c) * wear.repair));
-                d.hours = L.repairHours(d.hours, c);
+                d.hours = L.repairHours(d.hours * L.REPAIR_SHARE, c);
             }
             return d;
         });

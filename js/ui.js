@@ -1032,6 +1032,11 @@
             if (!items.length) return '';
             items.sort(function (a, b) { return b.cls - a.cls || b.cond - a.cond; });
             var fitted = car && L.PARTS[car.parts[slot]];
+            // What a rebuild adds to a part's value, less its cost, when that's a profit
+            function rebuildGain(i, cost) {
+                var up = L.partValue(g, i, 100) - L.partValue(g, i) - cost;
+                return up > 0 ? ' · +' + money(up) + ' value' : '';
+            }
             return '<div class="shelf-group"><h3><span>' + L.SLOT_NAMES[slot] + ' <span class="count">' + items.length + '</span></span>' +
                 (fitted ? '<span class="on-car">On your car: ' + partName(car.parts[slot]) + '</span>' : '') + '</h3>' +
                 items.map(function (it) {
@@ -1046,7 +1051,7 @@
                         '<span class="shelf-cond">' + (it.cond < 100 ? bar(it.cond, 'Condition') : '<span class="like-new">Like new</span>') + '</span>' +
                         '<span class="shelf-acts">' +
                         (car && fits ? '<button data-act="install" data-arg="' + it.i + '"' + off(L.canInstall(g, it.i)) + '>Install · ' + L.JOB_HOURS[slot] + ' h</button>' : '') +
-                        (reb ? '<button data-act="rebuild" data-arg="' + it.i + '" class="minor"' + off(L.canRebuildShelf(g, it.i)) + '>Rebuild ' + money(reb.cost) + ' · ' + reb.hours + ' h</button>' : '') +
+                        (reb ? '<button data-act="rebuild" data-arg="' + it.i + '" class="minor"' + off(L.canRebuildShelf(g, it.i)) + '>Rebuild ' + money(reb.cost) + ' · ' + reb.hours + ' h' + rebuildGain(it.i, reb.cost) + '</button>' : '') +
                         '<button data-act="sellpart" data-arg="' + it.i + '" class="minor">' + (value ? 'Sell ' + money(value) : 'Bin it') + '</button></span></div>';
                 }).join('') + '</div>';
         }).join('');
@@ -1112,7 +1117,7 @@
                     if (err) return L.showGarage(err);
                     var part = L.PARTS[g.inventory[+i]];
                     function go() {
-                        wrench(part.slot, 'Installing: ' + part.name, L.PARTS[car.parts[part.slot]].name, part.name,
+                        wrench(part.slot, 'Installing: ' + part.name, L.PARTS[car.parts[part.slot]].name, part.name, 1,
                             act(L.showGarage, function () {
                                 var out = {};
                                 return L.installPart(g, +i, out) || 'Installed the ' + part.name + '.' +
@@ -1150,6 +1155,11 @@
         if (!car) return L.showGarage('You need a car first.');
         var total = L.fixAll(car);
         function cost(dollars, hours) { return money(dollars) + ' · ' + hours + ' h'; }
+        // What a job takes off the quarter mile, put first on its button
+        function gain(slot, how) {
+            var s = L.jobGain(car, slot, how);
+            return s >= 0.005 ? '−' + s.toFixed(2) + ' s · ' : '';
+        }
         // Why a job can't be done right now, or '' when it can
         function why(dollars, hours) {
             if (garageClosed()) return 'The garage is closed till next week. Race tonight, or start next week.';
@@ -1173,13 +1183,13 @@
                 btns = '<span class="price">Good</span>';
             } else if (d.action === 'repair') {
                 btns = '<button data-act="repair" data-arg="' + d.slot + '"' + off(why(d.cost, d.hours)) + '>' +
-                    (d.slot === 'engine' ? 'Rebuild ' : 'Repair ') + cost(d.cost, d.hours) + '</button>';
+                    (d.slot === 'engine' ? 'Rebuild ' : 'Repair ') + gain(d.slot, 'repair') + cost(d.cost, d.hours) + '</button>';
             } else {
                 var stocked = L.inStock(g, d.part);
                 btns = '<span class="shot">' + (d.slot === 'tires' ? 'Worn out' : 'Shot, replace it') + '</span>' +
-                    '<button data-act="junk" data-arg="' + d.slot + '"' + off(why(d.junk, d.hours)) + '>Used stock ' + cost(d.junk, d.hours) + '</button>' +
+                    '<button data-act="junk" data-arg="' + d.slot + '"' + off(why(d.junk, d.hours)) + '>Used stock ' + gain(d.slot, 'junk') + cost(d.junk, d.hours) + '</button>' +
                     (d.fresh ? '<button data-act="new" data-arg="' + d.slot + '" class="minor"' + off(stocked ? why(d.fresh, d.hours) : 'The speed shop is sold out of a new one this week. Fit a used one, or try next week.') + '>' +
-                        (stocked ? 'New ' + cost(d.fresh, d.hours) : 'New: sold out this week') + '</button>' : '');
+                        (stocked ? 'New ' + gain(d.slot, 'new') + cost(d.fresh, d.hours) : 'New: sold out this week') + '</button>' : '');
             }
             return '<div class="row fix"><span><span class="slot">' + L.SLOT_NAMES[d.slot] + '</span>' + name + '<br>' +
                 bar(d.condition, 'Condition') + '</span>' + btns + '</div>';
@@ -1199,7 +1209,10 @@
             else if (how === 'repair') { title = 'Repairing the ' + part.name; newName = 'rebuilt ' + part.name; }
             else if (how === 'new') { title = 'Replacing the ' + part.name; newName = 'new ' + part.name; }
             else { title = 'Fitting a junkyard part'; newName = 'used ' + L.PARTS[L.stockPart(car.parts.engine, slot)].name; }
-            wrench(slot === 'engine' ? 'rebuild' : slot, title, oldName, newName, act(L.showFix, function () {
+            // A repair only needs as many bolts as the wear: a lightly worn part is a quick job
+            var d = L.diagnose(car).filter(function (x) { return x.slot === slot; })[0];
+            var bolts = how === 'repair' ? 1 - d.condition / 100 : 1;
+            wrench(slot === 'engine' ? 'rebuild' : slot, title, oldName, newName, bolts, act(L.showFix, function () {
                 var e = how === 'repair' ? L.repairPart(g, slot) : L.replacePart(g, slot, how);
                 return e || (slot === 'engine' ? 'Engine rebuilt. Good as new.' : 'The ' + L.SLOT_NAMES[slot].toLowerCase() + ' is sorted.');
             }), L.showFix);
@@ -1261,9 +1274,9 @@
     }
 
     // Bolts out and back in for a part
-    function wrench(job, title, oldName, newName, finish, back) {
+    function wrench(job, title, oldName, newName, share, finish, back) {
         bench(function (canvas, onLine, done) {
-            return L.startWrench(canvas, { job: job, title: title, oldName: oldName, newName: newName, onLine: onLine }, done);
+            return L.startWrench(canvas, { job: job, title: title, oldName: oldName, newName: newName, share: share, onLine: onLine }, done);
         }, finish, back);
     }
 

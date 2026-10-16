@@ -61,12 +61,15 @@
         }
     };
 
-    // Starts a job on the canvas. opts: { job, oldName, newName, title, onLine(text) }.
+    // Starts a job on the canvas. opts: { job, oldName, newName, title, share, onLine(text) }.
     // done(true) when the part is on and bolted down; returns a function that cancels.
     L.startWrench = function (canvas, opts, done) {
         var ctx = canvas.getContext('2d');
         var job = L.WRENCH[opts.job];
-        var bolts = job.bolts.map(function (b) {
+        // opts.share (0-1): how much of the job a repair needs, so a lightly worn part only
+        // has a couple of its bolts to undo. A swap undoes them all.
+        var need = Math.max(2, Math.ceil(job.bolts.filter(function (b) { return !b[2]; }).length * (opts.share == null ? 1 : opts.share)));
+        var bolts = job.bolts.filter(function (b) { return b[2] || need-- > 0; }).map(function (b) {
             return { x: b[0], y: b[1], reason: b[2] || null, out: false, anim: null, wrong: null };
         });
         var st = { phase: 'off', clock: 0, swapAt: 0, doneAt: 0, last: null, stopped: false };

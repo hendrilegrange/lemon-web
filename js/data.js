@@ -796,11 +796,12 @@
     // repair: dollars per point of condition restored (tires can't be repaired, only replaced);
     // junk: a used stock part from the junkyard, which goes on at JUNK_CONDITION.
     // Time: the hours you can spend in the garage each week before Friday night's races,
-    // and what each job takes. Repairing or replacing a part takes its slot's hours; an engine
-    // swap the engine's; a rebuild REBUILD_HOURS; bodywork an hour per BODY_POINTS_PER_HOUR.
+    // and what each job takes. Replacing a part takes its slot's hours, repairing it
+    // REPAIR_SHARE of them; an engine swap the engine's; a rebuild REBUILD_HOURS; bodywork an hour per BODY_POINTS_PER_HOUR.
     L.HOURS_PER_WEEK = 30;
     L.JOB_HOURS = { engine: 10, carb: 2, intake: 3, cam: 5, exhaust: 3, trans: 6, rear: 4, tires: 1 };
     L.REBUILD_HOURS = 12;
+    L.REPAIR_SHARE = 0.5;   // repairing a part takes half the hours of swapping it, less the less it's worn
 
     // Bodywork: the body must be at least MIN_BODY to race. Each point restored costs
     // BODY_PER_POINT dollars.
@@ -808,7 +809,8 @@
     L.BODY_PER_POINT = 2.5;
     L.BODY_POINTS_PER_HOUR = 8;
 
-    L.JUNK_ENGINE = 150;   // a used stock engine at the junkyard; a used stock part sells for half its junk price
+    L.JUNK_ENGINE = 150;   // a used stock engine at the junkyard
+    L.PART_RESALE = 0.75;  // a shelf part sells for this share of its price new (a stock part's junk price), by condition
     L.SHOT = 20;
     L.JUNK_CONDITION = 75;
     // Better parts wear slower: a race's wear times this rate by the part's class (Stock,
