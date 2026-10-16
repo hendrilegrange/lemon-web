@@ -1069,3 +1069,15 @@ test('the Loan Shark charges 50% a week and ends the game after four weeks unpai
     for (let i = 0; i < 8; i++) L.newWeek(h);
     assert.ok(!h.over);
 });
+
+test('the story panels all draw, and every tip Mac gives is written', () => {
+    const ctx = { fillRect() {}, clearRect() {}, set fillStyle(v) {}, get fillStyle() { return ''; } };
+    assert.ok(L.INTRO.length >= 4);
+    L.INTRO.forEach((p, i) => {
+        assert.ok(p.text.length > 20, `panel ${i} has no text`);
+        [0, 0.7, 2, 5].forEach(t => p.draw(ctx, 320, 120, t));
+    });
+    for (const key of ['hub-start', 'ads', 'hub-car', 'garage', 'fix', 'parts', 'hub-ready', 'stand', 'result']) {
+        assert.ok(typeof L.COACH[key] === 'string' && L.COACH[key].length > 20, key);
+    }
+});
