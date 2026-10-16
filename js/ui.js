@@ -263,12 +263,16 @@
             (saved ? '<button data-act="cont">' + (saved.over ? 'Continue (game over, week ' + saved.over.week + ')' : 'Continue (week ' + saved.week + ', ' + money(saved.cash) + ')') + '</button>' : '') +
             '<button data-act="new">New game</button>' +
             '<p class="hint">Summer, 1963. You have ' + money(L.START_CASH) + ' and a driver\'s license.</p>' +
+            '<div class="toggles"><button data-act="sound" class="minor" id="sound">Sound: ' + (L.sound.on ? 'on' : 'off') + '</button>' +
+            '<button data-act="music" class="minor" id="music">Music: ' + (L.sound.music ? 'on' : 'off') + '</button></div>' +
             leadersBlock() +
             accountBlock() +
             '<p class="version" id="version">' + (version ? 'v' + esc(version) : '') + '</p>' +
             '</div>',
             {
                 leaders: function () { L.showLeaders(); },
+                sound: function () { document.getElementById('sound').textContent = 'Sound: ' + (L.sound.toggle() ? 'on' : 'off'); },
+                music: function () { document.getElementById('music').textContent = 'Music: ' + (L.sound.toggleMusic() ? 'on' : 'off'); },
                 login: function () { showAccount('login'); },
                 register: function () { showAccount('register'); },
                 signout: function () {
