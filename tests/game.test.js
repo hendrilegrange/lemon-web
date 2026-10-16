@@ -173,6 +173,19 @@ test("can't buy what you can't afford or park", () => {
     assert.match(L.buyAd(g, 0), /full/);
 });
 
+test('the garage holds 5 more cars for each era reached', () => {
+    const g = L.newGame();
+    assert.strictEqual(L.maxCars(g), 10);
+    g.era = 2;
+    assert.strictEqual(L.maxCars(g), 20);
+    g.cash = 100000;
+    for (let i = 0; i < 10; i++) g.cars.push(L.makeCar(g, 'ford50', null, 50, 50));
+    g.ads[0] = { body: 'ford48', condition: 60, engineCondition: 80, price: 500, note: '' };
+    assert.strictEqual(L.buyAd(g, 0), null);                   // an 11th car fits in 1985
+    g.era = 99;
+    assert.strictEqual(L.maxCars(g), 10 + 5 * (L.ERAS.length - 1));
+});
+
 test('buying a car from the classifieds', () => {
     const g = L.newGame();
     g.ads[0] = { body: 'ford48', condition: 60, engineCondition: 80, price: 500, note: '' };

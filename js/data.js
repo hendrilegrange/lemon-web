@@ -20,6 +20,8 @@
           intro: "It's 2025. Supercharged Hellcats, GT500s and twin-turbo GT-Rs run nines on street tires, and the last King waits in a black GT-R. The old crowd is still around, and your cash and your cars came with you." }
     ];
     L.eraOf = function (g) { return Math.min(g.era || 0, L.ERAS.length - 1); };
+    // How many cars the garage holds: 10, and 5 more for each era reached
+    L.maxCars = function (g) { return L.MAX_CARS + L.CARS_PER_ERA * L.eraOf(g); };
 
     // Every part fills one slot on a car. Engines carry the base torque curve (lb-ft at tqRpm)
     // and redline; bolt-ons multiply torque (tq), move the torque peak (rpm) and redline.
@@ -777,7 +779,8 @@
     L.NEW_CAR_PRICE = 1.5;
 
     L.START_CASH = 600;     // enough for one scrappy car and a few repairs
-    L.MAX_CARS = 10;
+    L.MAX_CARS = 10;        // garage spaces in 1963
+    L.CARS_PER_ERA = 5;     // more spaces with each era you reach
     L.REPAIR_PER_POINT = 2;   // dollars per point of engine condition restored
 
     // Wear on the other parts. A part under SHOT is past fixing and must be replaced.
