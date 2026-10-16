@@ -638,3 +638,39 @@ canvas.scene {
     .panel.ask { grid-template-columns: 1fr; }
     .panel.ask > button.minor { grid-row: 5; }
 }
+
+/* The garage shelf: parts grouped by slot under a header that shows what's on your car, each
+   part a tidy row of name, condition and buttons in fixed columns */
+.shelf-group { margin-top: 12px; }
+.shelf-group:first-of-type { margin-top: 4px; }
+.shelf-group h3 {
+    display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px;
+    margin: 0; padding: 6px 10px; background: var(--bg); border-left: 4px solid var(--accent);
+    font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em;
+}
+.shelf-group h3 .count { display: inline-block; min-width: 1.6em; padding: 0 4px; margin-left: 4px; text-align: center; background: var(--line); color: var(--text); letter-spacing: 0; }
+.shelf-group h3 .on-car { color: var(--muted); text-transform: none; letter-spacing: 0; font-weight: normal; font-size: 0.85rem; }
+.shelf-item {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
+    padding: 8px 10px; border-bottom: 1px solid var(--line);
+}
+.shelf-item:nth-child(odd) { background: var(--panel-hi); }
+.shelf-item:last-child { border-bottom: 0; }
+.shelf-item.nofit { opacity: 0.6; }
+.shelf-name { flex: 1 1 100%; min-width: 0; line-height: 1.5; }
+.shelf-cls { font-size: 0.65rem; letter-spacing: 1px; text-transform: uppercase; padding: 0 4px; margin-left: 2px; border: 1px solid currentColor; white-space: nowrap; vertical-align: 1px; }
+.shelf-cls.t0 { color: var(--muted); } .shelf-cls.t1 { color: #3bff6e; } .shelf-cls.t2 { color: #4fc3ff; }
+.shelf-cls.t3 { color: #d68cff; } .shelf-cls.t4 { color: #ff8c42; } .shelf-cls.t5 { color: #ffd23f; }
+.shelf-tag { font-size: 0.7rem; margin-left: 6px; white-space: nowrap; }
+.shelf-tag.up { color: var(--good); }
+.shelf-tag.no { color: var(--bad); }
+.shelf-cond { white-space: nowrap; font-size: 0.85rem; }
+.shelf-cond .meter { width: 64px; }
+.like-new { color: var(--good); font-size: 0.8rem; }
+.shelf-cond { flex: none; }
+.shelf-acts { flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.shelf-acts button { margin: 0; padding: 4px 10px; white-space: nowrap; }
+@media (max-width: 600px) {
+    .shelf-acts { flex-basis: 100%; }
+    .shelf-acts button { flex: 1 1 auto; padding: 6px 8px; font-size: 0.85rem; }
+}
