@@ -1,7 +1,8 @@
 // The workbench on the canvas. Wrenching: swapping a part or rebuilding the engine. Click the
 // highlighted bolts to take them out, the old part comes off and the new one goes on, then
-// click the bolts back in. Grey bolts hold something else and stay put. Bodywork: click each
-// rust spot to grind it to bare metal, again to fill it, and then the car gets its paint.
+// click the bolts back in. Grey bolts hold something else and stay put, and on a repair the
+// ones with a green tick are still tight. Bodywork: click each rust spot to grind it to bare
+// metal, again to fill it, and then the car gets its paint.
 (function (L) {
     'use strict';
 
@@ -67,16 +68,17 @@
         var ctx = canvas.getContext('2d');
         var job = L.WRENCH[opts.job];
         // opts.share (0-1): how much of the job a repair needs, so a lightly worn part only
-        // has a couple of its bolts to undo. A swap undoes them all.
+        // has a couple of its bolts to undo; the rest are still tight (snug) and stay put.
+        // A swap undoes them all.
         var need = Math.max(2, Math.ceil(job.bolts.filter(function (b) { return !b[2]; }).length * (opts.share == null ? 1 : opts.share)));
-        var bolts = job.bolts.filter(function (b) { return b[2] || need-- > 0; }).map(function (b) {
-            return { x: b[0], y: b[1], reason: b[2] || null, out: false, anim: null, wrong: null };
+        var bolts = job.bolts.map(function (b) {
+            return { x: b[0], y: b[1], reason: b[2] || null, snug: !b[2] && need-- <= 0, out: false, anim: null, wrong: null };
         });
         var st = { phase: 'off', clock: 0, swapAt: 0, doneAt: 0, last: null, stopped: false };
 
         function left() {
             return bolts.filter(function (b) {
-                return !b.reason && (st.phase === 'off' ? !b.out : b.out) && !b.anim;
+                return !b.reason && !b.snug && (st.phase === 'off' ? !b.out : b.out) && !b.anim;
             }).length;
         }
 
@@ -97,6 +99,11 @@
                 if (d < bestD) { best = b; bestD = d; }
             });
             if (!best || best.anim) return;
+            if (best.snug) {
+                best.wrong = st.clock;
+                line("That one's still tight. Leave it.");
+                return;
+            }
             if (best.reason) {
                 best.wrong = st.clock;
                 L.sound.clank();
@@ -144,11 +151,18 @@
             }
             if (!b.reason && (b.out || b.anim)) L.drawHole(ctx, b.x, b.y);
             // Orange ring on the bolts that still need doing
-            if (!b.reason && !b.anim && holding && (st.phase === 'off' || st.phase === 'on')) L.drawTarget(ctx, b.x, b.y, 8, st.clock);
+            if (!b.reason && !b.snug && !b.anim && holding && (st.phase === 'off' || st.phase === 'on')) L.drawTarget(ctx, b.x, b.y, 8, st.clock);
             if (!show) return;
             var wrong = b.wrong !== null && st.clock - b.wrong < 0.5;
             var dx = wrong ? Math.round(Math.sin(st.clock * 60) * 2) : 0;
             L.drawBolt(ctx, b.x + dx, b.y - lift, wrong ? 'wrong' : b.reason ? 'other' : 'steel', turn);
+            if (b.snug) tick(b.x + 6, b.y - 9);
+        }
+
+        // A little green tick by a bolt that's still tight
+        function tick(x, y) {
+            ctx.fillStyle = '#3bff6e';
+            [[0, 2], [1, 3], [2, 4], [3, 3], [4, 2], [5, 1], [6, 0]].forEach(function (p) { ctx.fillRect(x + p[0], y + p[1], 1, 2); });
         }
 
         function draw() {
