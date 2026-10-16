@@ -775,3 +775,15 @@ test('better parts wear slower: Bestest at half the rate of stock, Legendary slo
     const g = garage('chevy55', FULL, 100, 100);
     assert.strictEqual(L.wear(L.activeCar(g), 'engine', 10), 10 * L.WEAR_RATE[L.PARTS[L.activeCar(g).parts.engine].cls]);
 });
+
+test('beating a King keeps the fewest weeks it took for that era\'s board', () => {
+    const g = garage('ford48', FULL, 90, 90);
+    g.eraWins = L.KING_WINS; g.week = 14;
+    L.newWeek(g);
+    const k = g.rivals.findIndex((r) => r.king);
+    L.settleRace(g, k, 'pinks', 'win', 0);
+    assert.strictEqual(L.records(g).k0, 15);
+    g.week = 30; g.era = 0; g.kingBeaten = false; g.rivals = [Object.assign({}, L.KINGS[0], { king: true, engineCondition: 90 })];
+    L.settleRace(g, 0, 'pinks', 'win', 0);
+    assert.strictEqual(L.records(g).k0, 15);                  // a slower win keeps the best
+});

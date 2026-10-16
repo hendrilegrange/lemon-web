@@ -771,7 +771,11 @@
         var cash = stake === 'pinks' ? (rival.king ? L.kingPrize(g) : 0) : L.betAmount(g, rival, bet);
         var cashText = '$' + cash.toLocaleString('en-US');
         if (result === 'win') {
-            if (rival.king) g.kingBeaten = true;
+            if (rival.king) {
+                g.kingBeaten = true;
+                var rec = L.records(g), kingKey = 'k' + (rival.era || 0);    // fewest weeks to beat this era's King
+                if (typeof rec[kingKey] !== 'number' || g.week < rec[kingKey]) rec[kingKey] = g.week;
+            }
             if (stake === 'pinks') {
                 g.cash += cash;
                 var prize = cash ? cashText + ' and ' : '';
@@ -802,8 +806,9 @@
 
     // ── Records ───────────────────────────────────────────────────────────
     // The player's bests for the leaderboards: quickest quarter mile (et) and reaction time
-    // (rt) in seconds, longest win streak, and the most cash ever on hand. g.streak is the
-    // current run of wins.
+    // (rt) in seconds, longest win streak, the most cash ever on hand, and the fewest weeks
+    // from a new game to beating each era's King (k0 to k5, set in settleRace). g.streak is
+    // the current run of wins.
 
     L.records = function (g) {
         if (!g.records) g.records = { et: null, rt: null, streak: 0, cash: g.cash };
