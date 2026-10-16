@@ -667,6 +667,49 @@ test('the last era\'s King is the end of the line: no next era', () => {
     assert.ok(!g.rivals.some((r) => r.king));
 });
 
+test('every King you beat leaves a Legendary part that fits the car you beat him with', () => {
+    const g = garage('ford48', FULL, 90, 90);
+    g.eraWins = L.KING_WINS;
+    L.newWeek(g);
+    const shelf = g.inventory.length;
+    const line = L.settleRace(g, g.rivals.findIndex((r) => r.king), 'pinks', 'win', 0);
+    assert.strictEqual(g.inventory.length, shelf + 1);
+    const gift = L.PARTS[g.inventory[shelf]];
+    assert.ok(gift.legend && L.fits(g.inventory[shelf], g.cars[0].parts.engine));
+    assert.ok(gift.slot !== 'engine' || gift.fam === 'big');
+    assert.match(line, /Legendary/);
+    assert.ok(!L.beatTheGame(g));
+});
+
+test('beating The Last King beats the game: every part but the Legendary ones stays in stock', () => {
+    const g = garage('ford48', FULL, 90, 90);
+    g.era = L.ERAS.length - 1; g.eraWins = L.KING_WINS;
+    L.newWeek(g);
+    g.shopStock = [];
+    assert.match(L.buyPart(g, 'cam_big_3'), /Sold out/);
+    L.settleRace(g, g.rivals.findIndex((r) => r.king), 'pinks', 'win', 0);
+    assert.ok(L.beatTheGame(g) && g.celebrate);
+    g.cash = 1e7;
+    assert.strictEqual(L.buyPart(g, 'cam_big_3'), null);
+    assert.strictEqual(L.buyPart(g, 'cam_big_3'), null);       // and never sells out
+    assert.ok(!L.inStock(g, 'cam_big_5') || g.shopStock.indexOf('cam_big_5') >= 0);
+    const old = garage('ford48', null, 90, 90);                     // a save that beat him before this
+    L.records(old)['k' + (L.ERAS.length - 1)] = 300;
+    L.fixSave(old);
+    assert.ok(L.beatTheGame(old));
+});
+
+test('swapping in an engine from another family says what comes off first', () => {
+    const g = garage('ford48', FULL, 90, 90);
+    g.inventory.push('v8_327'); g.inventory.push('cam_small_2'); g.inventory.push('v8_409');
+    const smallblock = L.swapPreview(g, 0);
+    assert.strictEqual(smallblock.lost.length, 4);                 // the Bestest carb, intake, cam and exhaust
+    assert.strictEqual(smallblock.fits, 1);
+    assert.ok(smallblock.newEt > smallblock.et);
+    assert.strictEqual(L.swapPreview(g, 2), null);                 // another big-block: nothing comes off
+    assert.strictEqual(L.swapPreview(g, 1), null);                 // not an engine
+});
+
 test('a save from before eras that already beat The King moves on to 1973', () => {
     const g = garage('ford48', null, 90, 90);
     delete g.era;

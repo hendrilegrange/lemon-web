@@ -715,7 +715,9 @@
                 '<span class="sub">' + stocked + ' of ' + items.length + ' in stock</span></summary>' + slots(items) + '</details>';
         }
         function family(fam) {
-            return group((fam === mine ? 'For your ' : '') + L.FAMILIES[fam].name + ' engines and parts',
+            var yours = fam === mine ? [] : g.cars.filter(function (c) { return L.PARTS[c.parts.engine].fam === fam; });
+            return group((fam === mine ? 'For your ' : '') + L.FAMILIES[fam].name + ' engines and parts' +
+                (yours.length ? ', for your ' + L.carName(yours[0]) + (yours.length > 1 ? ' and ' + (yours.length - 1) + ' more' : '') : ''),
                 catalog.filter(function (x) { return L.PARTS[x.id].fam === fam; }), fam === mine || !car);
         }
         // Your engine's family, then what fits anything, then the other families folded away
@@ -739,7 +741,8 @@
             : 'Everything we carry. Buy a car and we\'ll put what fits it first.';
         render(
             status('parts') + flash(msg) + '<div class="panel"><h2>Speed Shop</h2><p class="sub">' + intro +
-            ' The shelves restock every week with something for every engine, but not every part every week, and the Bestest parts sell out fast.' +
+            (L.beatTheGame(g) ? ' You beat The Last King, so every part is in stock, every week.'
+                : ' The shelves restock every week with something for every engine, but not every part every week, and the Bestest parts sell out fast.') +
             ' Bestest+ is a hair quicker than Bestest at five times the price. Now and then a Legendary part turns up: as quick as Bestest+, and every one on your car widens the green shift zone.</p>' +
             catalog.filter(function (x) { return L.PARTS[x.id].legend; }).map(function (x) {
                 var p = L.PARTS[x.id];
@@ -902,7 +905,9 @@
                 items.map(function (it) {
                     var fits = !car || L.fits(it.id, car.parts.engine);
                     var reb = L.shelfRebuild(g, it.i), value = L.partValue(g, it.i);
-                    var tag = !fits ? '<span class="shelf-tag no">Fits a ' + esc(L.FAMILIES[L.PARTS[it.id].fam].name.toLowerCase()) + '</span>'
+                    var others = fits ? [] : L.carsItFits(g, it.id);
+                    var tag = !fits ? '<span class="shelf-tag no">Fits a ' + esc(L.FAMILIES[L.PARTS[it.id].fam].name.toLowerCase()) +
+                            (others.length ? ', like your ' + esc(L.carName(others[0])) + (others.length > 1 ? ' and ' + (others.length - 1) + ' more' : '') : '') + '</span>'
                         : fitted && it.cls > fitted.cls ? '<span class="shelf-tag up">▲ Upgrade</span>' : '';
                     return '<div class="shelf-item' + (fits ? '' : ' nofit') + '">' +
                         '<span class="shelf-name">' + partName(it.id) + ' <span class="shelf-cls t' + it.cls + '">' + L.CLASSES[it.cls] + '</span>' + tag + '</span>' +
@@ -920,6 +925,7 @@
         var cars = g.cars.map(function (c, i) {
             var p = L.carPotential(c);
             return '<div class="row' + (i === g.active ? ' active' : '') + '"><span>' + tierName(c) +
+                ' · <span class="fam">' + esc(L.FAMILIES[L.PARTS[c.parts.engine].fam].name) + '</span>' +
                 ' · sells for ' + money(L.carValue(c)) +
                 '<small class="potential">' + (p.fixCost ? 'Restoring earns ' + (p.margin >= 0 ? '+' + money(p.margin) : '−' + money(-p.margin)) + ' · ' : '') +
                 'built ' + p.builtEt.toFixed(2) + ' s</small></span>' +
@@ -973,13 +979,25 @@
                     var err = L.canInstall(g, +i);
                     if (err) return L.showGarage(err);
                     var part = L.PARTS[g.inventory[+i]];
-                    wrench(part.slot, 'Installing: ' + part.name, L.PARTS[car.parts[part.slot]].name, part.name,
-                        act(L.showGarage, function () {
-                            var out = {};
-                            return L.installPart(g, +i, out) || 'Installed the ' + part.name + '.' +
-                                (out.shelved.length ? ' The old ' + out.shelved.join(', ') + ' went on the shelf.' : '') +
-                                (out.binned.length ? ' The old ' + out.binned.join(', ') + (out.binned.length > 1 ? ' were' : ' was') + ' shot, so ' + (out.binned.length > 1 ? 'they' : 'it') + ' went in the bin.' : '');
-                        }), L.showGarage);
+                    function go() {
+                        wrench(part.slot, 'Installing: ' + part.name, L.PARTS[car.parts[part.slot]].name, part.name,
+                            act(L.showGarage, function () {
+                                var out = {};
+                                return L.installPart(g, +i, out) || 'Installed the ' + part.name + '.' +
+                                    (out.shelved.length ? ' The old ' + out.shelved.join(', ') + ' went on the shelf.' : '') +
+                                    (out.binned.length ? ' The old ' + out.binned.join(', ') + (out.binned.length > 1 ? ' were' : ' was') + ' shot, so ' + (out.binned.length > 1 ? 'they' : 'it') + ' went in the bin.' : '');
+                            }), L.showGarage);
+                    }
+                    // An engine from another family takes the carb, intake, cam and exhaust with it
+                    var swap = L.swapPreview(g, +i);
+                    if (!swap) return go();
+                    var fam = L.FAMILIES[part.fam].name.toLowerCase();
+                    ask('The ' + part.name + ' is a ' + fam + ', and your carb, intake, cam and exhaust only fit a ' +
+                        L.FAMILIES[L.PARTS[car.parts.engine].fam].name.toLowerCase() + '. They come off and go on the shelf, and the car gets the new engine\'s stock ones.' +
+                        (swap.lost.length ? ' That takes off your ' + swap.lost.map(function (id) { return L.PARTS[id].name; }).join(', ') + '.' : '') +
+                        ' With those, your quarter mile goes from ' + swap.et.toFixed(2) + ' s to about ' + swap.newEt.toFixed(2) + ' s.' +
+                        (swap.fits ? ' You have ' + plural(swap.fits, 'part') + ' on your shelf that ' + (swap.fits === 1 ? 'fits' : 'fit') + ' a ' + fam + '.' : ' Nothing on your shelf fits a ' + fam + ' yet.'),
+                        'Swap the engine', go, L.showGarage);
                 },
                 sellpart: act(L.showGarage, function (i) { return L.sellPart(g, +i); }),
                 rebuild: act(L.showGarage, function (i) {
