@@ -209,7 +209,234 @@
         'ommmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoo.',
         MUSCLE[7]
     ].concat(CAR.slice(8));
-    var SHAPES = { coupe: CAR, muscle: MUSCLE, eighties: EIGHTIES, nineties: NINETIES, aughts: AUGHTS, modern: MODERN };
+    // A late-40s to early-50s sedan: an upright roof with a door pillar and a trunk bustle
+    var SEDAN = [
+        '............................................',
+        '...........ooooooooooooooooooo..............',
+        '..........ohhhhhhhhhhhhhhhhhhho.............',
+        '.........olwwgwwwwgmwwgwwwwgwlo.............',
+        '.........omwwgwwwwgmwwgwwwwgwwmo............',
+        '........omwwgwwwwgwmwwgwwwwgwwwmo...........',
+        '.oooooommmmmmmmmmmmmmmmmmmmmmmmmmmmmmccccc..',
+        '..ooooollllllllllllldlllllllllllllloooooo...'
+    ].concat(CAR.slice(8));
+    // A late-50s hardtop: a long flat roof, a wraparound windshield and tail fins
+    var FINS = [
+        '............................................',
+        '............................................',
+        '............oooooooooooooooooo..............',
+        '..........oohhhhhhhhhhhhhhhhhhoo............',
+        'oo.......olwwgwwwwgwmwwgwwwwgwwlo...........',
+        'ohoo....omwwgwwwwgwwmwwgwwwwgwwwmo..........',
+        'ommmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmccc.',
+        '.olllllllllllllllllldlllllllllllllllllllllo.'
+    ].concat(CAR.slice(8));
+    // A muscle-era notchback: a formal roof and a long trunk
+    var HARDTOP = [
+        '............................................',
+        '............................................',
+        '.............oooooooooooooo.................',
+        '...........oohhhhhhhhhhhhhhoo...............',
+        '..........olwwgwwwlwwgwwwwgwlo..............',
+        '..oo.....omwwgwwwwmwwgwwwwgwwmoo............',
+        '.ommmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmo.',
+        '.olllllllllllllllllldlllllllllllllllllllllo.'
+    ].concat(CAR.slice(8));
+    // A late-60s compact: a tall boxy roof and short ends
+    var COMPACT = [
+        '............................................',
+        '............oooooooooooooooo................',
+        '...........ohhhhhhhhhhhhhhhho...............',
+        '..........olwwgwwwwmwwgwwwwglo..............',
+        '..........omwwgwwwwmwwgwwwwgwmo.............',
+        '.........omwwgwwwwgmwwgwwwwgwwmo............',
+        '..oooooommmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmo.',
+        '.olllllllllllllllllldlllllllllllllllllllllo.'
+    ].concat(CAR.slice(8));
+    // A Fox body: an upright roof, a hatch and a flat nose
+    var FOX = [
+        '............................................',
+        '............................................',
+        '.............ooooooooooooooo................',
+        '...........oohhhhhhhhhhhhhhloo..............',
+        '.........oolwwgwwwlwwgwwwwgwwloo............',
+        '..oooooommwwgwwwwlwwgwwwwgwwwmmoooooo.......',
+        '.ommmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm',
+        '.olllllllllllllllllldlllllllllllllllllllllo.'
+    ].concat(CAR.slice(8));
+    // A G-body: a formal square roof, a long hood and a short trunk
+    var GBODY = [
+        '............................................',
+        '............................................',
+        '..........oooooooooooooooo..................',
+        '.........ohhhhhhhhhhhhhhhho.................',
+        '.........olwwgwwmmwwgwwwwglo................',
+        '.........omwwgwwmmwwgwwwwgwmoooooo..........',
+        '.ooooooooommmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmo',
+        '.olllllllllllllllllldlllllllllllllllllllllo.'
+    ].concat(CAR.slice(8));
+    // A mid-90s full-size four-door: a long greenhouse and a tall trunk
+    var BIGSEDAN = [
+        '............................................',
+        '............................................',
+        '............oooooooooooooooooo..............',
+        '..........oohhhhhhhhhhhhhhhhhhoo............',
+        '........oolwwgwwwwgwmwwgwwwwgwwloo..........',
+        '..ooooommwwgwwwwgwwmwwgwwwwgwwwwmmoooo......',
+        '.ommmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmo',
+        '.olllllllllllllllllldlllllllllllllllllllllo.'
+    ].concat(CAR.slice(8));
+    // A mid-90s sports car: a low tapering roof and a big wing
+    var SPORTS = [
+        '............................................',
+        '............................................',
+        '............................................',
+        'ooooo..........oooooooooooo.................',
+        '.ohho.......oolhhhhhhhhhhhloo...............',
+        '..oo.....oommwwgwwwlwwgwwwwgmmooo...........',
+        '.ommmooommmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmoo',
+        '.olllllllllllllllllldlllllllllllllllllllllo.'
+    ].concat(CAR.slice(8));
+    // A mid-2000s big sedan: a chopped roof, a high beltline and slit windows
+    var CHOPPED = [
+        '............................................',
+        '............................................',
+        '...........oooooooooooooooooooo.............',
+        '..........ohhhhhhhhhhhhhhhhhhhho............',
+        '.........olwwgwwwwgwwmwwgwwwwgwlo...........',
+        '.oooooooommmmmmmmmmmmmmmmmmmmmmmmmmmmoooooo.',
+        '.ommmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmo',
+        '.olllllllllllllllllldlllllllllllllllllllllo.'
+    ].concat(CAR.slice(8));
+    // A mid-2000s grand tourer: a low rounded roof and no wing
+    var GT = [
+        '............................................',
+        '............................................',
+        '............................................',
+        '..............oooooooooooo..................',
+        '...........oolhhhhhhhhhhhhloo...............',
+        '....oooo.oommwwgwwwlwwgwwwwgmmooo...........',
+        '.ommmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmo',
+        '.olllllllllllllllllldlllllllllllllllllllllo.'
+    ].concat(CAR.slice(8));
+    // A 2020s retro muscle car: a flat roof, a square tail and a hood bulge
+    var RETRO = [
+        '............................................',
+        '............................................',
+        '............ooooooooooooooo.................',
+        '..........oohhhhhhhhhhhhhhhoo...............',
+        '.........olwwgwwwwmwwgwwwwgwlo..............',
+        '.oooooooommwwgwwwwgmwwgwwwwgwwoo..oooo......',
+        '.ommmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmo',
+        '.olllllllllllllllllldlllllllllllllllllllllo.'
+    ].concat(CAR.slice(8));
+    // A 2020s supercar: the cab set forward, a long tail and a low nose
+    var SUPERCAR = [
+        '............................................',
+        '............................................',
+        '............................................',
+        '............................................',
+        'oooo............oooooooooo..................',
+        '.oo.....ooooooommhhhhhhhhhhmoo..............',
+        '.ommmmmmmmmmwwgwwlwwgwwwmmmmmmmmmmmmmmmmmmo.',
+        '.olllllllllllllllllldlllllllllllllllllllllo.'
+    ].concat(CAR.slice(8));
+    // The body below the beltline, rows 8 to 21, for the cars after the late-40s fat fenders:
+    // a slab side from tail to nose cut by wheel arches, with the era's wheels. p: wheels (the
+    // two wheel centres' columns), tire (radius), rim (radius), cy (the wheels' centre row),
+    // rocker (the lowest row of body), style ('chrome': a chrome hubcap and bumpers, 'white'
+    // the same on whitewalls, 'mag': slotted mags, 'alloy': big five-spoke rims), doors (door
+    // lines' columns), nose and tail (rows the ends drop by: a wedge or a tapered tail).
+    function lowerBody(p) {
+        var B = 8 + DROP, H = 22 - B, Wd = 44, g = [];
+        for (var r = 0; r < H; r++) g.push(new Array(Wd).fill('.'));
+        function set(col, row, ch) { if (row >= 0 && row < H && col >= 0 && col < Wd) g[row][col] = ch; }
+        function at(col, row) { return row >= 0 && row < H && col >= 0 && col < Wd ? g[row][col] : '.'; }
+        var top = 0, rocker = p.rocker - B, cy = p.cy - B;
+        var chrome = p.style === 'chrome' || p.style === 'white';
+        // The slab: rows 0 (row 8) to the rocker, the ends rounded off and dropped by nose/tail
+        for (var row = top; row <= rocker; row++) {
+            var x0 = 1 + (row > rocker - 1 ? 1 : 0) + (row < (p.tail || 0) ? (p.tail - row) : 0);
+            var x1 = 42 - (row > rocker - 1 ? 1 : 0) - (row < (p.nose || 0) ? (p.nose - row) : 0);
+            for (var col = x0; col <= x1; col++) set(col, row, row >= rocker - 1 ? 'd' : 'm');
+        }
+        // Wheel arches, then the wheels in them
+        p.wheels.forEach(function (wx) {
+            for (var row = 0; row < H; row++) for (var col = wx - p.tire - 2; col <= wx + p.tire + 2; col++) {
+                var dx = col - wx, dy = row - cy;
+                if (dy <= 0.5 && dx * dx + dy * dy <= (p.tire + 1.4) * (p.tire + 1.4) && row > 1) set(col, row, '.');
+                if (dy > 0.5 && Math.abs(dx) <= p.tire + 1 && row <= rocker) set(col, row, '.');
+            }
+        });
+        // Outline: a body pixel next to an empty one
+        var out = [];
+        for (var r2 = 0; r2 < H; r2++) for (var c2 = 0; c2 < Wd; c2++) {
+            if ('mld'.indexOf(at(c2, r2)) < 0) continue;
+            if ([[1, 0], [-1, 0], [0, 1]].some(function (d) { return at(c2 + d[0], r2 + d[1]) === '.'; }) || (r2 > 0 && at(c2, r2 - 1) === '.' && r2 > 1)) out.push([c2, r2]);
+        }
+        out.forEach(function (q) { set(q[0], q[1], 'o'); });
+        // Door lines, a crease along the side, lights and bumpers
+        (p.doors || [20]).forEach(function (dc) { for (var row = 1; row < rocker - 1; row++) if ('ml'.indexOf(at(dc, row)) >= 0) set(dc, row, 'd'); });
+        for (var cc = 3; cc < 41; cc++) if (at(cc, 2) === 'm') set(cc, 2, 'l');
+        set(1, 1, 'r'); set(1, 2, 'r');
+        set(42 - (p.nose ? 0 : 0), 1, 'y');
+        if (chrome) {
+            for (var br = 3; br <= 5; br++) { set(0, br, 'c'); set(43, br, 'c'); }
+            set(1, 4, 'C'); set(42, 4, 'C');
+        }
+        // Wheels: a tire, its rim, and the style's details
+        p.wheels.forEach(function (wx) {
+            for (var row = 0; row < H; row++) for (var col = wx - p.tire - 1; col <= wx + p.tire + 1; col++) {
+                var dx = col - wx, dy = row - cy, d = Math.sqrt(dx * dx + dy * dy);
+                if (d <= p.tire + 0.45) {
+                    var ch = 't';
+                    if (d > p.tire - 0.6 && dx < 0 && dy < 0) ch = 'T';
+                    if (p.style === 'white' && d > p.rim + 0.3 && d <= p.rim + 1.2) ch = 'y';
+                    if (d <= p.rim + 0.45) {
+                        if (p.style === 'alloy') ch = (dx === 0 || dy === 0 || Math.abs(dx) === Math.abs(dy)) && d > 0.5 ? 'c' : d <= 0.5 ? 'k' : 'C';
+                        else if (p.style === 'mag') ch = d <= 0.5 ? 'k' : (Math.abs(dx) + Math.abs(dy)) % 2 ? 'C' : 'c';
+                        else ch = d <= 0.5 ? 'k' : d > p.rim - 0.6 ? 'C' : 'c';
+                    }
+                    set(col, row, ch);
+                }
+            }
+        });
+        return g.map(function (r) { return r.join(''); });
+    }
+    // Each body's wheels and stance by era, on its own roof: 1963's whitewalls and chrome,
+    // 1973's mags, and from 1985 on smaller tires on bigger alloy rims, lower to the ground
+    // The roof sits DROP rows lower than the 40s coupe's, so the body side isn't a wall of
+    // paint; liveries and rust spots shift down with it (L.shapeDrop)
+    var DROP = 3, BLANK = new Array(45).join('.');
+    function body(top, p) { return [BLANK, BLANK, BLANK].concat(top.slice(0, 8), lowerBody(p)); }
+    var FIFTIES = { wheels: [9, 35], tire: 4, rim: 2, cy: 17, rocker: 16, style: 'white', doors: [20] };
+    var SIXTIES = { wheels: [9, 35], tire: 4, rim: 2, cy: 17, rocker: 16, style: 'mag', doors: [21] };
+    var EIGHTIES_W = { wheels: [9, 35], tire: 4, rim: 2, cy: 17, rocker: 16, style: 'alloy', doors: [22], nose: 2 };
+    var MODERN_W = { wheels: [9, 35], tire: 4, rim: 3, cy: 17, rocker: 17, style: 'alloy', doors: [22] };
+    function era(base, more) { return Object.assign({}, base, more); }
+    var SHAPES = {
+        coupe: CAR,
+        sedan: body(SEDAN, era(FIFTIES, { style: 'chrome', doors: [20, 30] })),
+        fins: body(FINS, era(FIFTIES, { wheels: [10, 35] })),
+        muscle: body(MUSCLE, era(SIXTIES, {})),
+        hardtop: body(HARDTOP, era(SIXTIES, { wheels: [9, 36] })),
+        compact: body(COMPACT, era(SIXTIES, { style: 'chrome', wheels: [10, 34], tire: 3, rim: 2, cy: 18, rocker: 16 })),
+        eighties: body(EIGHTIES, era(EIGHTIES_W, {})),
+        fox: body(FOX, era(EIGHTIES_W, { nose: 0, wheels: [10, 34] })),
+        gbody: body(GBODY, era(EIGHTIES_W, { nose: 0, style: 'mag', wheels: [9, 35] })),
+        nineties: body(NINETIES, era(MODERN_W, { nose: 2, tire: 4, rim: 2 })),
+        bigsedan: body(BIGSEDAN, era(MODERN_W, { doors: [19, 29], rim: 2 })),
+        sports: body(SPORTS, era(MODERN_W, { nose: 3, tail: 1, cy: 18, rocker: 17 })),
+        aughts: body(AUGHTS, era(MODERN_W, { nose: 1, doors: [20, 29] })),
+        chopped: body(CHOPPED, era(MODERN_W, { doors: [20, 30], wheels: [9, 36] })),
+        gt: body(GT, era(MODERN_W, { nose: 2, cy: 18, rocker: 17 })),
+        modern: body(MODERN, era(MODERN_W, { nose: 1 })),
+        retro: body(RETRO, era(MODERN_W, { wheels: [9, 36] })),
+        supercar: body(SUPERCAR, era(MODERN_W, { nose: 3, tail: 1, cy: 18, rocker: 17, wheels: [10, 35] }))
+    };
+    L.CAR_SHAPES = Object.keys(SHAPES);
+    // How many rows lower than the 40s coupe a shape's body sits
+    L.shapeDrop = function (shape) { return SHAPES[shape] && SHAPES[shape] !== CAR ? DROP : 0; };
     var GLASS = { w: '#4a7aa8', g: '#cfe8ff', c: '#d8d8e0', C: '#7a7a86', t: '#141414', T: '#3a3a3a', k: '#060606', r: '#e02020', y: '#fff3b0' };
     var PAINT = { o: 0, d: 1, m: 2, l: 3, h: 4 };
 
@@ -252,7 +479,9 @@
     L.drawCar = function (ctx, x, y, look, opts) {
         opts = opts || {};
         var s = opts.scale || 1;
-        var CAR = SHAPES[opts.shape || (typeof look === 'object' && look.shape)] || SHAPES.coupe;
+        var name = opts.shape || (typeof look === 'object' && look.shape);
+        var CAR = SHAPES[name] || SHAPES.coupe;
+        var drop = L.shapeDrop(name);
         var c = L.ramp(L.lookColor(look));
         var livery = typeof look === 'object' && look.livery ? LIVERY[look.livery] : null;
         var t = livery ? L.ramp(look.trim || '#f2f2ea') : null;
@@ -266,7 +495,7 @@
                 if (opts.clip !== undefined && px + s > opts.clip) continue;
                 var fill = ch in PAINT ? c[PAINT[ch]] : GLASS[ch];
                 if (livery && (ch in PAINT || (ch === 'c' && look.livery === 'number'))) {
-                    var v = livery(col, row, ch in PAINT ? PAINT[ch] : 3);
+                    var v = livery(col, row - drop, ch in PAINT ? PAINT[ch] : 3);
                     if (typeof v === 'number') fill = t[v];
                     else if (v) fill = v;
                 }
