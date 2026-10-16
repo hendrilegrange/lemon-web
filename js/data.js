@@ -457,7 +457,16 @@
     GENERIC.forEach(function (rows, era) {
         rows.forEach(function (row) {
             row[1].forEach(function (part, cls) {
-                L.PARTS[row[0] + '_' + (era ? L.ERAS[era].tag + '_' : '') + cls] = Object.assign({ slot: row[0], cls: cls, era: era }, part);
+                var x = Object.assign({ slot: row[0], cls: cls, era: era }, part);
+                // A gearbox or rear end comes set up for the car it goes in: of its own ratios, the
+                // cheaper ones' in its line and the ones the car came with, the quickest for that
+                // car (L.spec picks), and each class shifts quicker or wastes less power, so a dearer
+                // one is never slower, nor slower than the car's own stock one
+                if (row[0] === 'trans') x.options = row[1].slice(0, cls + 1).map(function (q) { return q.gears; });
+                if (row[0] === 'rear') x.options = row[1].slice(0, cls + 1).map(function (q) { return q.final; });
+                if (row[0] === 'trans') x.shift = x.shift || 1 - 0.05 * cls;
+                if (row[0] === 'rear') x.drive = 1 + 0.01 * cls;
+                L.PARTS[row[0] + '_' + (era ? L.ERAS[era].tag + '_' : '') + cls] = x;
             });
         });
     });
@@ -485,7 +494,7 @@
         if (p.slot === 'engine') x.tqLbft = Math.round(p.tqLbft * 1.015);
         else if (p.tq) x.tq = Math.round((p.tq + 0.005) * 1000) / 1000;
         if (p.slot === 'trans') x.shift = 0.65;
-        if (p.slot === 'rear') x.drive = 1.01;
+        if (p.slot === 'rear') x.drive = p.drive + 0.01;
         if (p.slot === 'tires') x.mu = p.mu + 0.02;
         return x;
     }
@@ -603,7 +612,7 @@
         { engine: 'v8_327', classes: { carb: 2, intake: 2, cam: 2, exhaust: 1, trans: 1, rear: 2, tires: 1 } },
         { engine: 'v8_409', classes: { carb: 2, intake: 2, cam: 2, exhaust: 2, trans: 2, rear: 2, tires: 3 } },
         // The King: a 427 on Best bolt-ons, so a full Bestest build is an even fight and Bestest+ edges it
-        { engine: 'v8_427', classes: { carb: 2, intake: 2, cam: 2, exhaust: 2, trans: 2, rear: 3, tires: 3 } }
+        { engine: 'v8_427', classes: { carb: 2, intake: 2, cam: 2, exhaust: 2, trans: 1, rear: 3, tires: 3 } }
     ];
 
     // 1973's rivals build the same way on the muscle car V8s
@@ -628,21 +637,21 @@
         { engine: 'lt4', classes: { carb: 1, intake: 1, exhaust: 1, rear: 1, tires: 1 } },
         { engine: 'vortech', classes: { carb: 2, intake: 2, cam: 2, exhaust: 1, trans: 1, rear: 2, tires: 1 } },
         { engine: 'twojz_big', classes: { carb: 2, intake: 2, cam: 2, exhaust: 2, trans: 2, rear: 2, tires: 3 } },
-        { engine: 'twojz_t88', classes: { carb: 3, intake: 2, cam: 3, exhaust: 2, trans: 2, rear: 3, tires: 3 } }
+        { engine: 'twojz_t88', classes: { carb: 3, intake: 2, cam: 2, exhaust: 2, trans: 2, rear: 3, tires: 3 } }
     ], [
         { classes: {} },
         { classes: { carb: 1, exhaust: 1 } },
         { engine: 'ls2', classes: { carb: 1, intake: 1, exhaust: 1, rear: 1, tires: 1 } },
         { engine: 'hemi64', classes: { carb: 2, intake: 2, cam: 2, exhaust: 1, trans: 1, rear: 2, tires: 1 } },
         { engine: 'big4g63', classes: { carb: 2, intake: 2, cam: 2, exhaust: 2, trans: 2, rear: 2, tires: 3 } },
-        { engine: 'gt35r', classes: { carb: 2, intake: 2, cam: 2, exhaust: 2, trans: 2, rear: 3, tires: 3 } }
+        { engine: 'gt35r', classes: { carb: 2, intake: 2, cam: 2, exhaust: 1, trans: 2, rear: 3, tires: 3 } }
     ], [
         { classes: {} },
         { classes: { carb: 1, exhaust: 1 } },
         { engine: 'lt4_25', classes: { carb: 1, intake: 1, exhaust: 1, rear: 1, tires: 1 } },
         { engine: 'demon', classes: { carb: 2, intake: 2, cam: 2, exhaust: 1, trans: 1, rear: 2, tires: 1 } },
         { engine: 'vr38_big', classes: { carb: 2, intake: 2, cam: 2, exhaust: 2, trans: 2, rear: 2, tires: 3 } },
-        { engine: 'vr38_alpha', classes: { carb: 3, intake: 2, cam: 3, exhaust: 2, trans: 2, rear: 3, tires: 3 } }
+        { engine: 'vr38_alpha', classes: { carb: 3, intake: 2, cam: 2, exhaust: 2, trans: 2, rear: 3, tires: 3 } }
     ]];
 
     // The parts a rival of this tier and era runs in this body

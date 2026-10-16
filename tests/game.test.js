@@ -1123,3 +1123,29 @@ test('tires are never a Legendary drop, from a King or the speed shop', () => {
         }
     } finally { L.random = random; }
 });
+
+test('a dearer part is never slower: every class in the speed shop beats the one below it', () => {
+    const group = (id) => id.replace(/_(\d|plus|legend)$/, '');
+    const lines = {};
+    Object.keys(L.PARTS).forEach((id) => {
+        if (L.PARTS[id].slot !== 'engine') (lines[group(id)] = lines[group(id)] || [])[L.PARTS[id].cls] = id;
+    });
+    for (const body of ['ford48', 'chevy57', 'camaro69', 'cuda70', 'fox79', 'supra93', 'gto04', 'challenger23']) {
+        const engine = L.BODIES[body].parts.engine;
+        for (const built of [false, true]) {
+            const base = { body, condition: 100, engineCondition: 100, partCondition: {},
+                parts: built ? L.stockParts(engine, { carb: 3, intake: 3, cam: 3, exhaust: 3, trans: 3, rear: 3, tires: 3 }) : L.stockParts(engine) };
+            for (const ids of Object.values(lines)) {
+                const slot = L.PARTS[ids[1]].slot;
+                if (!L.fits(ids[1], engine)) continue;
+                const ets = ids.map((id) => L.estimate(L.spec(Object.assign({}, base, { parts: Object.assign({}, base.parts, { [slot]: id }) }))).et);
+                for (let k = 1; k <= 4; k++) {
+                    // Bestest+ tires can't do much for a car that never spins them: equal, within a few thousandths
+                    const close = slot === 'tires' && k === 4 ? 0.003 : 0;
+                    assert.ok(ets[k] < ets[k - 1] + close, `${body}${built ? ' built' : ''}: ${ids[k]} ${ets[k].toFixed(3)} vs ${ids[k - 1]} ${ets[k - 1].toFixed(3)}`);
+                }
+                assert.strictEqual(ets[5], ets[4]);
+            }
+        }
+    }
+});
