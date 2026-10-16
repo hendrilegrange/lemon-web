@@ -795,6 +795,9 @@
     L.JUNK_ENGINE = 150;   // a used stock engine at the junkyard; a used stock part sells for half its junk price
     L.SHOT = 20;
     L.JUNK_CONDITION = 75;
+    // Better parts wear slower: a race's wear times this rate by the part's class (Stock,
+    // Better, Best, Bestest, Bestest+, Legendary). The engine's rate applies to over-rev damage.
+    L.WEAR_RATE = [1, 0.8, 0.65, 0.5, 0.45, 0.4];
     L.WEAR = {
         carb:    { repair: 0.6, junk: 25 },
         intake:  { repair: 0.3, junk: 15 },

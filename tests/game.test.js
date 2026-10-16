@@ -754,3 +754,24 @@ test('2025 needs a 2025 build: Bestest has a fair shot at The Last King, and a 2
         last = et;
     });
 });
+
+test('better parts wear slower: Bestest at half the rate of stock, Legendary slowest', () => {
+    const wearAfter = (cls) => {
+        const g = garage('chevy55', null, 100, 100);
+        const c = L.activeCar(g);
+        c.parts = L.stockParts(L.BODIES.chevy55.parts.engine, { carb: cls, intake: cls, cam: cls, exhaust: cls, trans: cls, rear: cls, tires: cls });
+        let lost = 0;
+        for (let k = 0; k < 400; k++) {
+            g.rivals = [{ name: 'A', tier: 0, skill: 0.5, body: 'ford48', engineCondition: 90 }];
+            c.partCondition = {}; c.engineCondition = 100;
+            L.settleRace(g, 0, 'fun', 'lose', 0);
+            lost += 100 - L.partCondition(c, 'tires');
+        }
+        return lost / 400;
+    };
+    const stock = wearAfter(0), bestest = wearAfter(3);
+    assert.ok(Math.abs(bestest / stock - L.WEAR_RATE[3]) < 0.1, `${bestest} vs ${stock}`);
+    assert.ok(L.WEAR_RATE[5] < L.WEAR_RATE[3] && L.WEAR_RATE[1] < 1);
+    const g = garage('chevy55', FULL, 100, 100);
+    assert.strictEqual(L.wear(L.activeCar(g), 'engine', 10), 10 * L.WEAR_RATE[L.PARTS[L.activeCar(g).parts.engine].cls]);
+});

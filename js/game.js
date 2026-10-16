@@ -734,6 +734,12 @@
         return 1 / (1 + Math.exp((mine - theirs) / 0.6));
     };
 
+    // Wear on a part of this car, slowed by its class (L.WEAR_RATE): points in, points out
+    L.wear = function (car, slot, points) {
+        var part = L.PARTS[car.parts[slot]];
+        return points * (L.WEAR_RATE[part ? part.cls : 0] || 1);
+    };
+
     // Settle a race. result: 'win', 'lose' or 'foul' (jumped the light, which loses).
     // A race for fun pays a small prize for a win and costs nothing to lose; the rival stays
     // at the stand for a real race but won't race for fun again this week. Every race counts
@@ -742,12 +748,12 @@
     L.settleRace = function (g, rivalIndex, stake, result, damage, bet) {
         var rival = g.rivals[rivalIndex];
         var car = L.activeCar(g);
-        car.engineCondition = Math.max(0, Math.round(car.engineCondition - damage));
+        car.engineCondition = Math.max(0, Math.round(car.engineCondition - L.wear(car, 'engine', damage)));
         // Every race wears the car a little: the body, each part, and the tires most of all
         if (!car.partCondition) car.partCondition = {};
         car.condition = Math.max(0, car.condition - randInt(1, 3));
         L.SLOTS.forEach(function (slot) {
-            if (slot !== 'engine') car.partCondition[slot] = Math.max(0, L.partCondition(car, slot) - (slot === 'tires' ? randInt(2, 4) : randInt(0, 2)));
+            if (slot !== 'engine') car.partCondition[slot] = Math.max(0, L.partCondition(car, slot) - Math.floor(L.wear(car, slot, slot === 'tires' ? randInt(2, 4) : randInt(0, 2)) + L.random()));
         });
         var blown = car.engineCondition <= 0 ? ' Your engine let go on the way.' : '';
         var why = result === 'foul' ? 'You jumped the light. ' : '';
