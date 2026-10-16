@@ -37,7 +37,7 @@ stack as dnd-web. The game works without it (offline, or before the server is se
 | `tests/` | `node --test tests/*.test.js`; `tests/load.js` loads the plain scripts into Node |
 | `css/style.css` | Page styles: a night-sky glow, panels with depth, condition meters as strips of lights, a time slip on the results |
 | `fonts/` | Space Mono (400, italic, 700), the page font, served from the site (SIL Open Font License, `fonts/OFL.txt`); `.woff2` has a MIME type in `web.config` |
-| `web.config` | IIS config: default document, MIME types for game assets, security headers |
+| `web.config` | IIS config: default document, MIME types for game assets, `Cache-Control: no-cache` on every file (so a browser never keeps an old `index.html` after a deploy), security headers |
 
 ## Workflow and deploy
 
