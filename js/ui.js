@@ -338,7 +338,7 @@
         if (!L.account || !L.account.available) return '';
         return '<div class="leaders-mini"><h3>Leaderboards</h3>' + titleBoards().map(function (b) {
             return '<button data-act="leaders" class="leader-line minor"><span class="what">' + b.name + '</span>' +
-                '<span class="who" id="lead-' + b.key + '">...</span></button>';
+                '<span class="who waiting" id="lead-' + b.key + '">Loading…</span></button>';
         }).join('') + '</div>';
     }
 
@@ -349,7 +349,8 @@
                 var cell = document.getElementById('lead-' + b.key);
                 if (!cell) return;       // the player moved on
                 var top = res.boards && res.boards[b.key] && res.boards[b.key][0];
-                cell.textContent = res.error ? '' : top ? b.fmt(top.value) + ' · ' + top.name + (top.car ? ', ' + top.car : '') : 'nobody yet';
+                cell.classList.remove('waiting');
+                cell.textContent = res.error ? '—' : top ? b.fmt(top.value) + ' · ' + top.name + (top.car ? ', ' + top.car : '') : 'nobody yet';
             });
         });
     }

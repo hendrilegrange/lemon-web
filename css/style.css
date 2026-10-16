@@ -314,9 +314,14 @@ button.danger:hover:not([disabled]) { box-shadow: 0 0 14px rgba(255, 59, 59, 0.3
 /* Leaderboards: a line per board on the title, the top 10s side by side, a top 100 */
 .leaders-mini { display: grid; gap: 4px; max-width: 460px; margin: 16px auto 0; }
 .leaders-mini h3 { margin: 0; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; }
-.leader-line { display: flex; justify-content: space-between; gap: 12px; margin: 0; padding: 6px 10px; font-weight: normal; text-align: left; }
-.leader-line .who { color: var(--accent); font-weight: bold; text-align: right; white-space: nowrap; }
-@media (max-width: 600px) { .leader-line { font-size: 0.85rem; } }
+@media (min-width: 700px) { .leaders-mini { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 760px; } .leaders-mini h3 { grid-column: 1 / -1; } }
+/* Each line is two rows of one line each, the board and its holder, so it's the same height
+   while it loads and once the names come in, however long they are */
+.leader-line { display: grid; gap: 2px; margin: 0; padding: 6px 10px; font-weight: normal; text-align: left; }
+.leader-line .what, .leader-line .who { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.leader-line .what { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; }
+.leader-line .who { color: var(--accent); font-weight: bold; }
+.leader-line .who.waiting { color: var(--muted); font-weight: normal; }
 .leaders .boards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 12px; }
 .leaders section { min-width: 0; }
 .board { list-style: none; margin: 0 0 6px; padding: 0; }
