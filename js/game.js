@@ -281,12 +281,20 @@
         return chosen;
     }
 
+    // The first rivals' cars are as tired all over as their engines, like the cars in the paper
+    function junkParts(engineCondition) {
+        var worn = {};
+        L.SLOTS.forEach(function (slot) { if (slot !== 'engine') worn[slot] = engineCondition; });
+        return worn;
+    }
+
     L.rivalCar = function (rival) {
         return {
             body: rival.body,
             parts: L.rivalParts(rival.body, rival.tier, rival.era),
             condition: 70,
-            engineCondition: rival.engineCondition
+            engineCondition: rival.engineCondition,
+            partCondition: rival.tier === 0 ? junkParts(rival.engineCondition) : {}
         };
     };
 

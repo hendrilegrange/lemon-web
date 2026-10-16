@@ -1010,3 +1010,13 @@ test('every car body has its own sprite', () => {
         L.carSprite(b.shape).forEach(row => assert.strictEqual(row.length, 44));
     }
 });
+
+test('a fresh start can beat the first rivals, who drive tired junkers', () => {
+    const g = { nextId: 1 }, worn = {};
+    L.SLOTS.forEach(s => { if (s !== 'engine') worn[s] = 65; });
+    const car = L.makeCar(g, 'ford48', null, 80, 65, worn);           // a typical car from the paper
+    const first = L.RIVALS.filter(r => r.era === 0 && r.tier === 0).map(r => Object.assign({}, r, { engineCondition: 60 }));
+    const odds = first.map(r => L.odds(car, r));
+    assert.ok(odds.reduce((a, b) => a + b) / odds.length > 0.6, odds.join(' '));
+    assert.ok(Object.values(L.rivalCar(first[0]).partCondition).every(c => c === 60));
+});
