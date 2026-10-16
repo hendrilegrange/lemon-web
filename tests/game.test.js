@@ -536,18 +536,24 @@ test('a worn part on the shelf can be rebuilt with spare hours, and sells for mo
 
 test('records: quickest run and reaction, longest streak, most cash on hand', () => {
     const g = L.newGame();
-    assert.deepStrictEqual(L.records(g), { et: null, rt: null, streak: 0, cash: L.START_CASH });
+    assert.deepStrictEqual(L.records(g), { et: null, rt: null, streak: 0, cash: L.START_CASH, winsOnly: true });
     assert.deepStrictEqual(L.noteRace(g, 'win', 14.2, 0.41), ['et', 'rt']);   // a first win isn't a streak yet
     assert.deepStrictEqual(L.noteRace(g, 'win', 14.5, 0.38), ['streak', 'rt']);
     assert.deepStrictEqual(L.noteRace(g, 'lose', null, 0.6), []);              // blew up: no time
+    assert.deepStrictEqual(L.noteRace(g, 'lose', 13.9, 0.2), []);              // the boards are for winners: a loss counts for nothing
     assert.strictEqual(g.streak, 0);
     assert.deepStrictEqual(L.noteRace(g, 'foul', 13, 0.1), []);                // a jumped light counts for nothing
     L.noteRace(g, 'win', 15, 0.5);
-    assert.deepStrictEqual(L.records(g), { et: 14.2, rt: 0.38, streak: 2, cash: L.START_CASH });
+    assert.deepStrictEqual(L.records(g), { et: 14.2, rt: 0.38, streak: 2, cash: L.START_CASH, winsOnly: true });
     g.cash = 9000; L.save(g); g.cash = 100; L.save(g);
     assert.strictEqual(L.records(g).cash, 9000);
     const old = { cash: 700 };                                                 // a save from before records
-    assert.deepStrictEqual(L.records(old), { et: null, rt: null, streak: 0, cash: 700 });
+    assert.deepStrictEqual(L.records(old), { et: null, rt: null, streak: 0, cash: 700, winsOnly: true });
+    L.fixSave(g);                                                              // a wins-only save keeps its times
+    assert.strictEqual(L.records(g).et, 14.2);
+    const lossy = { cars: [], records: { et: 12.7, rt: 0.004, streak: 6, cash: 50000, k0: 20 } };   // from when losses counted
+    L.fixSave(lossy);
+    assert.deepStrictEqual(lossy.records, { et: null, rt: null, streak: 6, cash: 50000, k0: 20, winsOnly: true });
 });
 
 test('Bestest+ only just beats Bestest for five times the money; Legendary matches it and widens the shift zone', () => {

@@ -51,6 +51,9 @@ const BOARDS = ['et' => ['ASC', 5, 60], 'rt' => ['ASC', 0, 2], 'streak' => ['DES
                 // fewest weeks from a new game to beating each era's King
                 'k0' => ['ASC', 1, 100000], 'k1' => ['ASC', 1, 100000], 'k2' => ['ASC', 1, 100000],
                 'k3' => ['ASC', 1, 100000], 'k4' => ['ASC', 1, 100000], 'k5' => ['ASC', 1, 100000]];
+// The quarter mile and reaction boards started over from wins only: their own columns, filled
+// only from saves marked winsOnly (the old et and rt columns, which counted losses, are left be)
+const WIN_COLUMNS = ['et' => 'et_win', 'rt' => 'rt_win'];
 const RATE_LIMITS = ['login' => [10, 300], 'register' => [5, 3600], 'google' => [20, 300], 'forgot' => [3, 300], 'reset' => [10, 300]];
 
 $action = $_GET['action'] ?? '';
@@ -120,6 +123,8 @@ function createTables(PDO $db): void {
     // The King boards came later: add their columns to a table made before them
     $adds = [];
     for ($k = 0; $k <= 5; $k++) $adds[] = "ADD COLUMN IF NOT EXISTS k$k INT UNSIGNED NULL, ADD COLUMN IF NOT EXISTS k{$k}_at DATETIME NULL";
+    $adds[] = 'ADD COLUMN IF NOT EXISTS et_win DECIMAL(6,3) NULL, ADD COLUMN IF NOT EXISTS et_win_at DATETIME NULL';
+    $adds[] = 'ADD COLUMN IF NOT EXISTS rt_win DECIMAL(5,3) NULL, ADD COLUMN IF NOT EXISTS rt_win_at DATETIME NULL';
     $db->exec('ALTER TABLE lemon_records ' . implode(', ', $adds));
     $db->exec("CREATE TABLE IF NOT EXISTS lemon_rate_limits (
         ip VARCHAR(45) NOT NULL,
@@ -193,11 +198,17 @@ function saveSummary(PDO $db, int $userId): ?array {
     return $row ? ['savedAt' => (int)$row['saved_at'], 'week' => (int)$row['week'], 'cash' => (int)$row['cash']] : null;
 }
 
+// The lemon_records column a board is kept in
+function boardColumn(string $key): string {
+    return WIN_COLUMNS[$key] ?? $key;
+}
+
 // Keeps the records in a saved game ($game['records']) that beat the player's best so far
 function updateRecords(PDO $db, int $userId, array $game): void {
     $records = $game['records'] ?? null;
     if (!is_array($records) || !empty($game['smokeTest'])) return;
-    $stmt = $db->prepare('SELECT ' . implode(', ', array_keys(BOARDS)) . ' FROM lemon_records WHERE user_id = ?');
+    $cols = array_map('boardColumn', array_keys(BOARDS));
+    $stmt = $db->prepare('SELECT ' . implode(', ', $cols) . ' FROM lemon_records WHERE user_id = ?');
     $stmt->execute([$userId]);
     $best = $stmt->fetch() ?: [];
     $sets = [];
@@ -205,9 +216,11 @@ function updateRecords(PDO $db, int $userId, array $game): void {
     foreach (BOARDS as $key => [$order, $min, $max]) {
         $v = $records[$key] ?? null;
         if (!is_int($v) && !is_float($v) || $v < $min || $v > $max) continue;
-        $old = $best[$key] ?? null;
+        if (isset(WIN_COLUMNS[$key]) && empty($records['winsOnly'])) continue;     // an older game.js, which counted losses
+        $col = boardColumn($key);
+        $old = $best[$col] ?? null;
         if ($old !== null && ($order === 'ASC' ? $v >= (float)$old : $v <= (float)$old)) continue;
-        $sets[] = "$key = ?, {$key}_at = NOW()";
+        $sets[] = "$col = ?, {$col}_at = NOW()";
         $values[] = $v;
     }
     if (!$sets) return;
@@ -389,8 +402,9 @@ function handle(PDO $db, string $action): never {
             $boards = [];
             foreach ($board === '' ? array_keys(BOARDS) : [$board] as $key) {
                 $order = BOARDS[$key][0];
-                $rows = $db->query("SELECT u.username, r.$key AS v FROM lemon_records r JOIN lemon_users u ON u.id = r.user_id
-                                    WHERE r.$key IS NOT NULL ORDER BY r.$key $order, r.{$key}_at, r.user_id LIMIT $limit")->fetchAll();
+                $col = boardColumn($key);
+                $rows = $db->query("SELECT u.username, r.$col AS v FROM lemon_records r JOIN lemon_users u ON u.id = r.user_id
+                                    WHERE r.$col IS NOT NULL ORDER BY r.$col $order, r.{$col}_at, r.user_id LIMIT $limit")->fetchAll();
                 $boards[$key] = array_map(fn($row) => ['name' => $row['username'], 'value' => $key === 'et' || $key === 'rt' ? (float)$row['v'] : (int)$row['v']], $rows);
             }
             respond(['boards' => $boards]);

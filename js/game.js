@@ -916,15 +916,17 @@
     // The player's bests for the leaderboards: quickest quarter mile (et) and reaction time
     // (rt) in seconds, longest win streak, the most cash ever on hand, and the fewest weeks
     // from a new game to beating each era's King (k0 to k5, set in settleRace). g.streak is
-    // the current run of wins.
+    // the current run of wins. winsOnly marks et and rt as counted from wins only, so the
+    // server keeps them (older saves counted losses too, and fixSave clears those).
 
     L.records = function (g) {
-        if (!g.records) g.records = { et: null, rt: null, streak: 0, cash: g.cash };
+        if (!g.records) g.records = { et: null, rt: null, streak: 0, cash: g.cash, winsOnly: true };
         return g.records;
     };
 
     // After a race: et is the player's quarter mile from the green light (null if they didn't
-    // finish or jumped the light), reaction from green to launch. Returns the records it beat.
+    // finish or jumped the light), reaction from green to launch. Only a win counts toward the
+    // quarter mile and reaction records. Returns the records it beat.
     L.noteRace = function (g, result, et, reaction) {
         var r = L.records(g), beat = [];
         if (result === 'win') {
@@ -933,7 +935,7 @@
         } else {
             g.streak = 0;
         }
-        if (result !== 'foul') {
+        if (result === 'win') {           // the boards are for winners: a loss or a red light records nothing
             if (typeof et === 'number' && et > 0 && (r.et === null || et < r.et)) { r.et = Math.round(et * 1000) / 1000; beat.push('et'); }
             if (typeof reaction === 'number' && reaction >= 0 && (r.rt === null || reaction < r.rt)) { r.rt = Math.round(reaction * 1000) / 1000; beat.push('rt'); }
         }
@@ -960,9 +962,11 @@
     // Brings an older save up to date. A King's car won before it kept his paint gets his
     // black and flames (unless you've painted it since). Flames bought before they were The
     // King's come off any car of a player who hasn't beaten a King, and the paint shop refunds
-    // them; g.notice says so once, on the next screen.
+    // them; g.notice says so once, on the next screen. A quarter mile or reaction record from
+    // before only wins counted is cleared, so the boards start over from wins.
     L.fixSave = function (g) {
         if (!g || !g.cars) return g;
+        if (g.records && !g.records.winsOnly) { g.records.et = null; g.records.rt = null; g.records.winsOnly = true; }
         g.cars.forEach(function (c) {
             if (L.carTier(c) === 'king' && !c.paint && !c.livery) { c.paint = 'black'; c.livery = 'flames'; }
         });
