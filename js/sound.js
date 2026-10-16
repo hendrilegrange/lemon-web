@@ -10,6 +10,7 @@
     var scene = 'menu';           // menu (jukebox), garage (jukebox, quieter) or race (no music)
     var MUSIC_VOL = { menu: 0.9, garage: 0.45, race: 0 };
     var SFX_VOL = 0.7;            // the effects bus, under the music
+    var ENGINE_VOL = 0.13;        // the race engine at full throttle; it idles at 60% of that
 
     function load(key) {
         try { return localStorage.getItem(key) !== 'off'; } catch (e) { return true; }
@@ -252,11 +253,11 @@
             out.connect(sfx);
             var filter = ctx.createBiquadFilter();
             filter.type = 'lowpass';
-            filter.frequency.value = 600;
+            filter.frequency.value = 450;
             filter.Q.value = 1;
             filter.connect(out);
             var shaper = ctx.createWaveShaper();
-            shaper.curve = growl(2);
+            shaper.curve = growl(1.4);
             var lope = ctx.createGain();
             lope.gain.value = 1;
             shaper.connect(lope);
@@ -268,7 +269,7 @@
             lfo.connect(lfoDepth);
             lfoDepth.connect(lope.gain);
             lfo.start();
-            var voices = [['sawtooth', 1, 0.5, 0], ['square', 0.5, 0.35, 0], ['sawtooth', 2, 0.2, 9]].map(function (v) {
+            var voices = [['sawtooth', 1, 0.4, 0], ['triangle', 0.5, 0.45, 0], ['triangle', 2, 0.15, 9]].map(function (v) {
                 var o = ctx.createOscillator(), g = ctx.createGain();
                 o.type = v[0];
                 o.detune.value = v[3];
@@ -301,10 +302,10 @@
             engine.voices.forEach(function (v) { v.osc.frequency.setTargetAtTime(f * v.mult, t, 0.02); });
             engine.lfo.frequency.setTargetAtTime(f / 4, t, 0.05);
             engine.lfoDepth.gain.setTargetAtTime(Math.max(0.08, 0.6 - rpm / 6000), t, 0.1);
-            engine.filter.frequency.setTargetAtTime(350 + rpm / 5 + 900 * load, t, 0.04);
-            engine.band.frequency.setTargetAtTime(300 + rpm / 4, t, 0.05);
-            engine.roar.gain.setTargetAtTime(rpm > 0 ? 0.03 + 0.14 * load * Math.min(1, rpm / 5000) : 0, t, 0.05);
-            engine.out.gain.setTargetAtTime(rpm > 0 ? 0.13 + 0.11 * load : 0, t, 0.05);
+            engine.filter.frequency.setTargetAtTime(280 + rpm / 9 + 380 * load, t, 0.08);
+            engine.band.frequency.setTargetAtTime(250 + rpm / 7, t, 0.08);
+            engine.roar.gain.setTargetAtTime(rpm > 0 ? 0.02 + 0.06 * load * Math.min(1, rpm / 5000) : 0, t, 0.12);
+            engine.out.gain.setTargetAtTime(rpm > 0 ? ENGINE_VOL * (0.6 + 0.4 * load) : 0, t, 0.12);
         },
 
         engineOff: function () {
@@ -321,26 +322,26 @@
 
         // ── Effects ───────────────────────────────────────────────────────
 
-        // A start-light or shift-light beep: a triangle with a soft square under it
+        // A start-light or shift-light beep: a sine with a soft triangle an octave under it
         beep: function (freq, seconds) {
             if (!ready()) return;
-            tone(freq, seconds, { type: 'triangle', vol: 0.16 });
-            tone(freq, seconds, { vol: 0.04, filter: 1500 });
+            tone(freq, seconds, { type: 'sine', vol: 0.12 });
+            tone(freq / 2, seconds, { type: 'triangle', vol: 0.04 });
         },
 
         // Leaving the line: the tires bark
         launch: function () {
             if (!ready()) return;
-            hiss(0.55, { freq: 2200, slide: 1500, q: 3, vol: 0.2, attack: 0.02 });
-            tone(1500, 0.5, { type: 'triangle', vol: 0.035, slide: 1100, vibrato: 28 });
+            hiss(0.45, { freq: 1800, slide: 1200, q: 2, vol: 0.1, attack: 0.04 });
+            tone(1200, 0.4, { type: 'triangle', vol: 0.02, slide: 900, vibrato: 20 });
         },
 
         // A gear change: the shifter clunks, and sometimes the exhaust pops on the lift
         shift: function () {
             if (!ready()) return;
-            tone(130, 0.09, { type: 'sine', vol: 0.35, slide: 50 });
+            tone(130, 0.09, { type: 'sine', vol: 0.25, slide: 50 });
             hiss(0.05, { type: 'bandpass', freq: 800, q: 2, vol: 0.15 });
-            if (Math.random() < 0.6) hiss(0.12, { type: 'lowpass', freq: 450, slide: 120, vol: 0.32, at: 0.03 });
+            if (Math.random() < 0.6) hiss(0.12, { type: 'lowpass', freq: 400, slide: 120, vol: 0.18, at: 0.03, attack: 0.015 });
         },
 
         // The engine lets go
