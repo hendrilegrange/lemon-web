@@ -436,6 +436,16 @@
         return Math.max(1, Math.ceil(fullHours * (100 - condition) / 100));
     };
 
+    // Seconds a job takes off the car's quarter mile. how: 'repair' (the part as new), 'new'
+    // (a new one of the same part) or 'junk' (a used stock part at JUNK_CONDITION)
+    L.jobGain = function (car, slot, how) {
+        var after = JSON.parse(JSON.stringify(car));
+        if (how === 'junk') { after.parts[slot] = L.stockPart(car.parts.engine, slot); after.partCondition[slot] = L.JUNK_CONDITION; }
+        else if (slot === 'engine') after.engineCondition = 100;
+        else after.partCondition[slot] = 100;
+        return L.estimate(L.spec(car)).et - L.estimate(L.spec(after)).et;
+    };
+
     // Rebuilding a worn part on the shelf, a way to use spare hours: { cost, hours }, priced
     // like the same job on a car, or null when it can't be (tires, or already like new)
     L.shelfRebuild = function (g, invIndex) {
@@ -446,7 +456,7 @@
         if (part.slot === 'engine') return { cost: engineRebuildCost(partId, c), hours: L.repairHours(L.REBUILD_HOURS, c) };
         var wear = L.WEAR[part.slot];
         if (!wear.repair) return null;
-        return { cost: Math.max(5, Math.ceil((100 - c) * wear.repair)), hours: L.repairHours(L.JOB_HOURS[part.slot], c) };
+        return { cost: Math.max(5, Math.ceil((100 - c) * wear.repair)), hours: L.repairHours(L.JOB_HOURS[part.slot] * L.REPAIR_SHARE, c) };
     };
 
     L.canRebuildShelf = function (g, invIndex) {
@@ -666,7 +676,7 @@
             } else if (wear.repair && c < 95) {
                 d.action = 'repair';
                 d.cost = Math.max(5, Math.ceil((100 - c) * wear.repair));
-                d.hours = L.repairHours(d.hours, c);
+                d.hours = L.repairHours(d.hours * L.REPAIR_SHARE, c);
             }
             return d;
         });

@@ -17,6 +17,10 @@
     L.QUARTER_MILE = QUARTER;
     L.SHIFT_TIME = SHIFT_TIME;
 
+    // What a part worn right out costs: torque for the bolt-ons, grip for bald tires, seconds
+    // on every shift for a tired gearbox, power lost in a worn rear end
+    var WORN = { bolt: 0.10, tires: 0.20, trans: 0.4, rear: 0.15 };
+
     // Spec: everything the race needs, worked out once from the car's parts
     L.spec = function (car) {
         var p = car.parts;
@@ -25,7 +29,7 @@
         function cond(slot) { return L.partCondition(car, slot) / 100; }
         ['carb', 'intake', 'cam', 'exhaust'].forEach(function (slot) {
             var part = L.PARTS[p[slot]];
-            tqMul *= (part.tq || 1) * (0.96 + 0.04 * cond(slot));   // a worn part costs up to 4%
+            tqMul *= (part.tq || 1) * (1 - WORN.bolt * (1 - cond(slot)));   // a worn part costs up to 10%
             rpmAdd += part.rpm || 0;
             redAdd += part.redline || 0;
         });
@@ -41,9 +45,9 @@
             cdA: body.cdA,
             gears: L.PARTS[p.trans].gears,
             final: L.PARTS[p.rear].final,
-            mu: L.PARTS[p.tires].mu * (0.88 + 0.12 * cond('tires')),        // bald tires slip
-            shiftTime: SHIFT_TIME * (L.PARTS[p.trans].shift || 1) + 0.2 * (1 - cond('trans')),   // a tired gearbox is slow to shift
-            driveline: DRIVELINE * (L.PARTS[p.rear].drive || 1) * (0.92 + 0.08 * cond('rear')),   // a worn rear end eats power
+            mu: L.PARTS[p.tires].mu * (1 - WORN.tires * (1 - cond('tires'))),        // bald tires slip
+            shiftTime: SHIFT_TIME * (L.PARTS[p.trans].shift || 1) + WORN.trans * (1 - cond('trans')),   // a tired gearbox is slow to shift
+            driveline: DRIVELINE * (L.PARTS[p.rear].drive || 1) * (1 - WORN.rear * (1 - cond('rear'))),   // a worn rear end eats power
             legends: legends     // Legendary parts on the car: each widens the green shift zone
         };
     };

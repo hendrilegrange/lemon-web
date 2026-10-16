@@ -532,7 +532,7 @@ test('a worn part on the shelf can be rebuilt with spare hours, and sells for mo
     g.shelfCond = [50, 40, 30, 100];
     const before = L.partValue(g, 1);
     const job = L.shelfRebuild(g, 1);
-    assert.deepStrictEqual(job, { cost: Math.ceil(60 * L.WEAR.carb.repair), hours: L.repairHours(L.JOB_HOURS.carb, 40) });
+    assert.deepStrictEqual(job, { cost: Math.ceil(60 * L.WEAR.carb.repair), hours: L.repairHours(L.JOB_HOURS.carb * L.REPAIR_SHARE, 40) });
     assert.strictEqual(L.rebuildShelf(g, 1), null);
     assert.strictEqual(L.shelfCondition(g, 1), 100);
     assert.strictEqual(g.hours, L.HOURS_PER_WEEK - job.hours);
@@ -1080,4 +1080,18 @@ test('the story panels all draw, and every tip Mac gives is written', () => {
     for (const key of ['hub-start', 'ads', 'hub-car', 'garage', 'fix', 'parts', 'hub-ready', 'stand', 'result']) {
         assert.ok(typeof L.COACH[key] === 'string' && L.COACH[key].length > 20, key);
     }
+});
+
+test('a repair is worth doing: a worn-out part costs real time, and repairing it takes half a swap', () => {
+    const g = garage('ford48', null, 80, 100);
+    const car = L.activeCar(g);
+    car.partCondition = { carb: 30, rear: 30 };
+    const d = Object.fromEntries(L.diagnose(car).map((x) => [x.slot, x]));
+    assert.strictEqual(d.carb.action, 'repair');
+    assert.strictEqual(d.carb.hours, L.repairHours(L.JOB_HOURS.carb * L.REPAIR_SHARE, 30));
+    assert.ok(d.carb.hours < L.JOB_HOURS.carb);
+    // Each repair takes a good chunk off the quarter mile, more than a cheap upgrade's worth
+    assert.ok(L.jobGain(car, 'carb', 'repair') > 0.2, 'carb ' + L.jobGain(car, 'carb', 'repair'));
+    assert.ok(L.jobGain(car, 'rear', 'repair') > 0.3, 'rear ' + L.jobGain(car, 'rear', 'repair'));
+    assert.strictEqual(L.jobGain(car, 'cam', 'repair'), 0);   // a part like new gains nothing
 });
