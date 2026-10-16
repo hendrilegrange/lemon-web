@@ -133,8 +133,8 @@ test('installing parts takes hours, and an engine swap brings its own bolt-ons',
     assert.strictEqual(g.hours, L.HOURS_PER_WEEK - L.JOB_HOURS.tires);
     assert.deepStrictEqual(g.inventory, ['tires_0']);         // the old stock tires go on the shelf
     const cash = g.cash;
-    L.sellPart(g, 0);                                          // and sell for half their junkyard price
-    assert.strictEqual(g.cash - cash, L.WEAR.tires.junk / 2);
+    L.sellPart(g, 0);                                          // and sell for a share of their junkyard price
+    assert.strictEqual(g.cash - cash, Math.floor(L.WEAR.tires.junk * L.PART_RESALE));
     assert.deepStrictEqual(g.inventory, []);
 
     L.buyPart(g, 'carb_small_1');
@@ -280,7 +280,7 @@ test('stripping a car shelves its speed parts as they are, scraps the shell and 
     const t = g.inventory.indexOf('tires_2');
     assert.ok(t >= 0 && L.shelfCondition(g, t) === 60, 'worn parts keep their wear');
     assert.ok(g.inventory.includes('v8_283'), 'the engine is kept');
-    assert.strictEqual(L.partValue(g, t), Math.floor(L.PARTS.tires_2.price / 2 * 0.6));
+    assert.strictEqual(L.partValue(g, t), Math.floor(L.PARTS.tires_2.price * L.PART_RESALE * 0.6));
 });
 
 test('the body has to be at least 75% to race, and bodywork costs money and hours', () => {

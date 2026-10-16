@@ -1032,6 +1032,11 @@
             if (!items.length) return '';
             items.sort(function (a, b) { return b.cls - a.cls || b.cond - a.cond; });
             var fitted = car && L.PARTS[car.parts[slot]];
+            // What a rebuild adds to a part's value, less its cost, when that's a profit
+            function rebuildGain(i, cost) {
+                var up = L.partValue(g, i, 100) - L.partValue(g, i) - cost;
+                return up > 0 ? ' · +' + money(up) + ' value' : '';
+            }
             return '<div class="shelf-group"><h3><span>' + L.SLOT_NAMES[slot] + ' <span class="count">' + items.length + '</span></span>' +
                 (fitted ? '<span class="on-car">On your car: ' + partName(car.parts[slot]) + '</span>' : '') + '</h3>' +
                 items.map(function (it) {
@@ -1046,7 +1051,7 @@
                         '<span class="shelf-cond">' + (it.cond < 100 ? bar(it.cond, 'Condition') : '<span class="like-new">Like new</span>') + '</span>' +
                         '<span class="shelf-acts">' +
                         (car && fits ? '<button data-act="install" data-arg="' + it.i + '"' + off(L.canInstall(g, it.i)) + '>Install · ' + L.JOB_HOURS[slot] + ' h</button>' : '') +
-                        (reb ? '<button data-act="rebuild" data-arg="' + it.i + '" class="minor"' + off(L.canRebuildShelf(g, it.i)) + '>Rebuild ' + money(reb.cost) + ' · ' + reb.hours + ' h</button>' : '') +
+                        (reb ? '<button data-act="rebuild" data-arg="' + it.i + '" class="minor"' + off(L.canRebuildShelf(g, it.i)) + '>Rebuild ' + money(reb.cost) + ' · ' + reb.hours + ' h' + rebuildGain(it.i, reb.cost) + '</button>' : '') +
                         '<button data-act="sellpart" data-arg="' + it.i + '" class="minor">' + (value ? 'Sell ' + money(value) : 'Bin it') + '</button></span></div>';
                 }).join('') + '</div>';
         }).join('');

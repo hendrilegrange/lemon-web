@@ -809,7 +809,8 @@
     L.BODY_PER_POINT = 2.5;
     L.BODY_POINTS_PER_HOUR = 8;
 
-    L.JUNK_ENGINE = 150;   // a used stock engine at the junkyard; a used stock part sells for half its junk price
+    L.JUNK_ENGINE = 150;   // a used stock engine at the junkyard
+    L.PART_RESALE = 0.75;  // a shelf part sells for this share of its price new (a stock part's junk price), by condition
     L.SHOT = 20;
     L.JUNK_CONDITION = 75;
     // Better parts wear slower: a race's wear times this rate by the part's class (Stock,

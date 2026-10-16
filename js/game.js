@@ -422,11 +422,12 @@
         return typeof c === 'number' ? c : 100;
     };
 
-    // Half what it costs new, by its condition. A stock part fetches half its junkyard price.
-    L.partValue = function (g, invIndex) {
+    // PART_RESALE of what it costs new, by its condition (or by cond, to see what it would
+    // fetch rebuilt). A stock part fetches the same share of its junkyard price.
+    L.partValue = function (g, invIndex, cond) {
         var part = L.PARTS[g.inventory[invIndex]];
         var whole = part.price || (part.slot === 'engine' ? L.JUNK_ENGINE : L.WEAR[part.slot].junk);
-        return Math.floor(whole / 2 * L.shelfCondition(g, invIndex) / 100);
+        return Math.floor(whole * L.PART_RESALE * (cond == null ? L.shelfCondition(g, invIndex) : cond) / 100);
     };
 
     // A repair or rebuild takes the job's full hours for a part worn right out, and less the
