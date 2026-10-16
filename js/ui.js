@@ -34,13 +34,23 @@
                 if (fn) fn(b.getAttribute('data-arg'));
             });
         });
-        var focus = app.querySelector('button:not([disabled])');
+        var top = app.querySelector('.navbar'), here = top && top.querySelector('.here');
+        app.querySelectorAll('[data-nav]').forEach(function (b) {
+            b.addEventListener('click', function () {
+                L.sound.begin();
+                L.sound.click();
+                var key = b.getAttribute('data-nav'), from = here && BACK_TO[here.getAttribute('data-nav')];
+                if (key === 'dealer' && !L.beatAKing(g)) return toast('The dealership only sells to the King of the strip. Beat The King first.');
+                GO[key](from ? GO[from] : null);
+            });
+        });
+        var focus = app.querySelector('button:not([disabled]):not([data-nav])');
         if (focus) focus.focus({ preventScroll: true });
         // A new screen starts at the top. One that redraws after a Buy or an Install stays
         // where you were, and if its message is scrolled out of sight it pops up as a toast.
         if (!keepScroll) window.scrollTo(0, 0);
         else {
-            var f = app.querySelector('.flash'), bar = app.querySelector('.status');
+            var f = app.querySelector('.flash'), bar = app.querySelector('.top');
             var hidden = bar ? bar.getBoundingClientRect().bottom : 0;
             if (f && f.getBoundingClientRect().bottom <= hidden + 4) toast(f.textContent);
         }
@@ -95,18 +105,48 @@
             (more || []).map(function (m) { return '<button data-act="' + m[1] + '" class="minor">' + m[0] + '</button>'; }).join('') + '</div>';
     }
 
-    // The gauges across the top of every screen
-    function status() {
+    // The gauges across the top of every screen, and under them a row of links to the main
+    // screens (here: the one showing, lit up). Both stay at the top on a phone.
+    function status(here) {
         function gauge(label, value, cls) {
             return '<div class="gauge' + (cls ? ' ' + cls : '') + '"><span class="label">' + label + '</span><span class="value">' + value + '</span></div>';
         }
-        return '<div class="status">' +
+        return '<header class="top"><div class="status">' +
             gauge('Cash', money(g.cash), 'cash') +
             gauge(L.eraOf(g) ? 'Week, ' + L.ERAS[L.eraOf(g)].year : 'Week', g.week) +
             (g.friday ? gauge('Tonight', 'Racing', 'friday') : gauge('Hours', g.hours + ' h')) +
             gauge('Record', g.wins + '–' + g.losses) +
-            '</div>';
+            '</div>' + navbar(here) + '</header>';
     }
+
+    var NAV = [['hub', 'home', 'Home'], ['ads', 'ads', 'Ads'], ['parts', 'parts', 'Shop'], ['garage', 'garage', 'Garage'],
+               ['paint', 'paint', 'Paint'], ['dealer', 'dealer', 'Dealer'], ['stand', 'stand', 'Race']];
+    function navbar(here) {
+        return '<nav class="navbar" aria-label="Main">' + NAV.map(function (n) {
+            var locked = n[0] === 'dealer' && !L.beatAKing(g);
+            var hot = n[0] === 'stand' && g.friday;
+            return '<button data-nav="' + n[0] + '" class="minor' + (n[0] === here ? ' here' : '') + (hot ? ' hot' : '') + (locked ? ' locked' : '') + '"' +
+                (n[0] === here ? ' aria-current="page"' : '') + (locked ? ' title="Beat The King to open"' : '') + '>' +
+                icon(n[1]) + '<span>' + n[2] + '</span></button>';
+        }).join('') + '</nav>';
+    }
+
+    // Where each main screen is, for the hub's tiles and the navbar. from: the screen to come
+    // back to if the player changes their mind about heading out to race.
+    var GO = {
+        hub: function () { L.showHub(); },
+        ads: function () { L.showAds(); },
+        parts: function () { L.showParts(); },
+        garage: function () { L.showGarage(); },
+        paint: function () { L.showPaint(); },
+        dealer: function () { if (!L.beatAKing(g)) return L.showHub('The dealership only sells to the King of the strip. Beat The King first.'); L.showDealer(); },
+        stand: function (from) {
+            if (g.friday || g.hours === 0) { L.goFriday(g); L.save(g); return L.showStand(); }
+            ask('Head out to the burger stand? It\'s Friday night, so the garage is closed till next week. You still have ' +
+                g.hours + ' hours left.', 'Go racing', function () { L.goFriday(g); L.save(g); L.showStand(); }, from || L.showHub);
+        }
+    };
+    var BACK_TO = { ads: 'ads', parts: 'parts', garage: 'garage', paint: 'paint', dealer: 'dealer' };
 
     // Ask before something that can't be undone. Shows the question in place of the screen;
     // Cancel goes back to the screen it came from. extra is HTML shown above the question.
@@ -439,6 +479,10 @@
         '.........s..', '..kk...s.s..', '..cc..s.....', '..hc.....s..', '.rrrr.......', '.rRrr.......',
         '.rRrr.......', '.rRrr.......', '.rRrr.......', '.rRrr.......', '.rrrr.......', '.kkkk.......'] };
 
+    ICONS.home = { r: '#d7263d', R: '#8a1424', w: '#f4e9c8', W: '#b8ad8c', d: '#5a2418', y: '#ffd23f', rows: [
+        '.....rr.....', '....rrrr....', '...rrRRrr...', '..rrRRRRrr..', '.rrRRRRRRrr.', 'rrrrrrrrrrrr',
+        '.wwwwwwwwww.', '.wyywwwddww.', '.wyywwwddww.', '.wwwwwwddww.', '.WWWWWWddWW.', '.WWWWWWddWW.'] };
+
     ICONS.dealer = { k: '#1d1a14', r: '#d7263d', R: '#8a1424', w: '#9ec8f0', s: '#ffd23f', t: '#3a3a3a', rows: [
         '.s.......s..', '...ssss.....', '..s....s....', '............', '...rrrrr....', '..rrwwwrr...',
         '.rrrrrrrrrr.', 'rRrrrrrrrrRr', 'rRRRRRRRRRRr', '.tt......tt.', '.kk......kk.', '............'] };
@@ -480,7 +524,7 @@
         }
         var stocked = L.catalogFor(g, car).filter(function (x) { return x.inStock && x.fits; }).length;
         render(
-            status() + flash(msg) +
+            status('hub') + flash(msg) +
             '<canvas class="scene" id="hub-scene" width="320" height="120" aria-hidden="true"></canvas>' +
             carHtml +
             '<nav class="menu tiles">' +
@@ -500,16 +544,12 @@
             {
                 sound: function () { document.getElementById('sound').textContent = 'Sound: ' + (L.sound.toggle() ? 'on' : 'off'); },
                 music: function () { document.getElementById('music').textContent = 'Music: ' + (L.sound.toggleMusic() ? 'on' : 'off'); },
-                ads: function () { L.showAds(); },
-                parts: function () { L.showParts(); },
-                garage: function () { L.showGarage(); },
-                paint: function () { L.showPaint(); },
-                dealer: function () { if (!L.beatAKing(g)) return L.showHub('The dealership only sells to the King of the strip. Beat The King first.'); L.showDealer(); },
-                stand: function () {
-                    if (g.friday || g.hours === 0) { L.goFriday(g); L.save(g); return L.showStand(); }
-                    ask('Head out to the burger stand? It\'s Friday night, so the garage is closed till next week. You still have ' +
-                        g.hours + ' hours left.', 'Go racing', function () { L.goFriday(g); L.save(g); L.showStand(); }, L.showHub);
-                },
+                ads: GO.ads,
+                parts: GO.parts,
+                garage: GO.garage,
+                paint: GO.paint,
+                dealer: GO.dealer,
+                stand: function () { GO.stand(L.showHub); },
                 week: function () {
                     L.newWeek(g);
                     var news = g.newEra ? L.ERAS[L.eraOf(g)].intro : 'A new week. New ads, a restocked speed shop, new faces at the burger stand.';
@@ -568,7 +608,7 @@
                 (g.cash < ad.price ? 'Can\'t afford it' : 'Buy it for ' + money(ad.price)) + '</button></article>';
         }).join('');
         render(
-            status() + flash(msg) +
+            status('ads') + flash(msg) +
             '<div class="paper news">' +
             '<header class="masthead"><p class="dateline"><span>Week ' + g.week + ', summer ' + L.ERAS[L.eraOf(g)].year + '</span><span>Five cents</span></p>' +
             '<h2>The Lemon Gazette</h2>' +
@@ -614,7 +654,7 @@
                 (err && g.cash < price ? "Can't afford it" : err && g.cars.length >= L.MAX_CARS ? 'Garage full' : 'Buy it new') + '</button></article>';
         });
         render(
-            status() + flash(msg) +
+            status('dealer') + flash(msg) +
             '<div class="panel dealer"><h2>Lemon Motors <span class="sub">new cars</span></h2>' +
             '<p class="sub">Every car from the years you\'ve raced in, straight from the factory: stock parts, 100% body and engine, and nothing to fix. ' +
             'It costs more than one restored, and it\'s worth what one restored is the moment you drive it off the lot.</p>' +
@@ -683,7 +723,7 @@
             ? 'Your ' + esc(L.carName(car)) + ' has the ' + esc(L.PARTS[car.parts.engine].name) + '. Carbs, intakes, cams and exhausts only fit their own engine family; engines and the rest fit anything.'
             : 'Everything we carry. Buy a car and we\'ll put what fits it first.';
         render(
-            status() + flash(msg) + '<div class="panel"><h2>Speed Shop</h2><p class="sub">' + intro +
+            status('parts') + flash(msg) + '<div class="panel"><h2>Speed Shop</h2><p class="sub">' + intro +
             ' The shelves restock every week with something for every engine, but not every part every week, and the Bestest parts sell out fast.' +
             ' Bestest+ is a hair quicker than Bestest at five times the price. Now and then a Legendary part turns up: as quick as Bestest+, and every one on your car widens the green shift zone.</p>' +
             catalog.filter(function (x) { return L.PARTS[x.id].legend; }).map(function (x) {
@@ -724,7 +764,7 @@
         }
 
         render(
-            status() + flash(msg) +
+            status('paint') + flash(msg) +
             '<div class="panel paint-shop"><h2>Paint shop</h2>' +
             '<p class="sub">Sal\'s Custom Paint does it while you wait, so it takes none of your garage hours. It only changes the looks, not what she\'s worth.</p>' +
             '<canvas class="paint-preview" id="paint-preview" width="192" height="96" aria-label="How the car will look"></canvas>' +
@@ -805,7 +845,7 @@
         var st = carStats(c);
         var t = L.carTier(c);
         render(
-            status() +
+            status('garage') +
             '<div class="panel car-view ' + (t === 'king' ? 'king' : 't' + t) + '"><h2>' + tierName(c) + '</h2>' +
             '<div class="car-stage"><canvas id="car-view" width="200" height="100" aria-label="' + esc(L.carName(c)) + '"></canvas></div>' +
             (c.king ? '<p class="won-from">Won from ' + esc(c.king) + ' for pink slips.</p>' : '') +
@@ -892,7 +932,7 @@
 
         var shelf = shelfGroups(car);
         render(
-            status() + flash(msg) +
+            status('garage') + flash(msg) +
             '<div class="panel"><h2>Your cars <span class="sub">' + g.cars.length + ' of ' + L.MAX_CARS + '</span></h2>' + cars + '</div>' + detail +
             '<div class="panel shelf"><h2>Shelf' + (g.inventory.length ? ' <span class="sub">' + plural(g.inventory.length, 'part') +
                 ' · worth ' + money(g.inventory.reduce(function (sum, id, i) { return sum + L.partValue(g, i); }, 0)) + '</span>' : '') + '</h2>' + shelf + '</div>' +
@@ -1016,7 +1056,7 @@
             '<span class="sub">' + (unlocked ? (fixErr ? esc(fixErr) : 'Every job at once, no workbench.') : 'Beat The King to unlock: every job at once, no workbench.') + '</span></div>';
 
         render(
-            status() + flash(msg) +
+            status('garage') + flash(msg) +
             '<div class="panel"><h2>Fix the ' + esc(L.carName(car)) + '</h2><p class="sub">' + budget + '</p>' + fixAllRow + bodyRow + rows + '</div>' +
             '<p class="hint">Each job opens the workbench: bolts out and back in for parts, grind and fill the rust for bodywork. Jobs use up your garage hours for the week.</p>' +
             backBar('Back to the garage'),
@@ -1087,7 +1127,7 @@
             car.engineCondition <= 0 ? 'Your engine is blown. Rebuild it in the garage next week.' :
             car.condition < L.MIN_BODY ? 'Nobody races a rust bucket: the body has to be ' + L.MIN_BODY + '%. Fix it up in the garage next week.' : '';
         render(
-            status() + flash(msg || why) +
+            status('stand') + flash(msg || why) +
             '<div class="panel stand"><header class="stand-sign"><h2>The Burger Stand</h2><p>Friday night. Engines idling, everybody watching.</p></header>' +
             '<div class="rivals">' + rows + '</div></div>' +
             '<details class="stand-help"><summary>How a race works</summary><p>Press Space, Enter or the big button when the start light turns green, then again each time the SHIFT light goes green. Keep out of the red.</p>' +
@@ -1140,7 +1180,7 @@
         var bet = snap(max / 2);
         var picks = [['Small', min], ['Quarter', max / 4], ['Half', max / 2], [max >= g.cash ? 'All in' : 'Max', max]];
         render(
-            status() +
+            status('stand') +
             '<div class="panel stand bet"><header class="stand-sign"><h2>Place your bet</h2><p>' + esc(r.name) + ' puts up the same. Winner takes the pot.</p></header>' +
             '<div class="bet-body">' + matchup(r) +
             '<div class="bet-pick"><output class="bet-amount" id="bet-amount" aria-live="polite"></output>' +
@@ -1230,7 +1270,7 @@
                 });
                 L.showCanvas(false);
                 render(
-                    status() +
+                    status('stand') +
                     '<div class="panel result ' + result + '"><h2>' + { win: 'You win!', lose: 'You lose', foul: 'Red light!' }[result] + '</h2>' +
                     '<p>' + esc(line) + '</p>' +
                     '<p class="sub">You: ' + esc(sum.me) + (sum.reaction !== null && result !== 'foul' ? ' (reaction ' + sum.reaction.toFixed(3) + ' s)' : '') +
