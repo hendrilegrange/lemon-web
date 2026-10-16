@@ -178,7 +178,12 @@
                         L.showTitle(r.cleared ? 'Signed out. Your game is safe in your account.' : 'Signed out. Your game is still saved in this browser.');
                     });
                 },
-                cont: function () { g = saved; L.showHub(); },
+                cont: function () {
+                    g = saved;
+                    var note = g.notice;          // what L.fixSave changed in an older save
+                    if (note) { delete g.notice; L.save(g); }
+                    L.showHub(note);
+                },
                 new: function () {
                     function start() {
                         g = L.newGame();
@@ -679,9 +684,9 @@
             '<canvas class="paint-preview" id="paint-preview" width="192" height="96" aria-label="How the car will look"></canvas>' +
             '<h3>Colour</h3>' + swatches('paint', pick.paint || car.paint || null, true) +
             '<h3>Livery</h3><div class="swatches">' + Object.keys(L.LIVERIES).map(function (id) {
-                var lv = L.LIVERIES[id];
-                return '<button data-act="livery" data-arg="' + id + '" class="swatch-btn' + (id === pick.livery ? ' on' : '') + '" aria-pressed="' + (id === pick.livery) + '">' +
-                    '<span>' + esc(lv.name) + '<small>' + (id === (car.livery || 'none') ? 'yours now' : lv.price ? money(lv.price) : 'free') + '</small></span></button>';
+                var lv = L.LIVERIES[id], locked = id !== (car.livery || 'none') && L.liveryLocked(g, id);
+                return '<button data-act="livery" data-arg="' + id + '" class="swatch-btn' + (id === pick.livery ? ' on' : '') + (locked ? ' locked' : '') + '" aria-pressed="' + (id === pick.livery) + '"' + (locked ? ' disabled' : '') + '>' +
+                    '<span>' + (locked ? '🔒 ' : '') + esc(lv.name) + '<small>' + (locked ? 'Beat The King first' : id === (car.livery || 'none') ? 'yours now' : lv.price ? money(lv.price) : 'free') + '</small></span></button>';
             }).join('') + '</div>' +
             (usesTrim ? '<h3>' + esc(L.LIVERIES[pick.livery].name) + ' colour</h3>' + swatches('trim', pick.trim, false) : '') +
             '<div class="paint-total"><span>' + (cost ? 'Total ' + money(cost) : 'Nothing to pay') + '</span>' +

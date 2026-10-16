@@ -768,7 +768,7 @@
         stripes:   { name: 'Racing stripe', price: 1200 },
         twotone:   { name: 'Two-tone roof', price: 2000 },
         scallops:  { name: 'Scallops', price: 2400 },
-        flames:    { name: 'Flames', price: 3000, ownColors: true },
+        flames:    { name: 'Flames', price: 3000, ownColors: true, king: true },   // The King's own: yours once you beat a King
         number:    { name: 'Racing number', price: 600, ownColors: true }
     };
 
