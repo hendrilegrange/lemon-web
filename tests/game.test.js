@@ -1082,16 +1082,44 @@ test('the story panels all draw, and every tip Mac gives is written', () => {
     }
 });
 
-test('a repair is worth doing: a worn-out part costs real time, and repairing it takes half a swap', () => {
+test('a repair is worth doing: a worn-out part costs real time, and repairing it takes less than a swap', () => {
     const g = garage('ford48', null, 80, 100);
     const car = L.activeCar(g);
     car.partCondition = { carb: 30, rear: 30 };
     const d = Object.fromEntries(L.diagnose(car).map((x) => [x.slot, x]));
     assert.strictEqual(d.carb.action, 'repair');
     assert.strictEqual(d.carb.hours, L.repairHours(L.JOB_HOURS.carb * L.REPAIR_SHARE, 30));
-    assert.ok(d.carb.hours < L.JOB_HOURS.carb);
+    assert.ok(d.rear.hours < L.JOB_HOURS.rear);
     // Each repair takes a good chunk off the quarter mile, more than a cheap upgrade's worth
     assert.ok(L.jobGain(car, 'carb', 'repair') > 0.2, 'carb ' + L.jobGain(car, 'carb', 'repair'));
     assert.ok(L.jobGain(car, 'rear', 'repair') > 0.3, 'rear ' + L.jobGain(car, 'rear', 'repair'));
     assert.strictEqual(L.jobGain(car, 'cam', 'repair'), 0);   // a part like new gains nothing
+});
+
+test('beating a King leaves a victory screen to show, with his car and the Legendary part', () => {
+    const g = garage('ford48', null, 90, 90);
+    g.wins = L.KING_WINS;
+    L.newWeek(g);
+    const i = g.rivals.findIndex((r) => r.king);
+    L.settleRace(g, i, 'pinks', 'win', 0);
+    assert.ok(g.crowned && !g.celebrate, 'the first King gets the victory screen, not the finale');
+    assert.strictEqual(g.crowned.era, 0);
+    assert.strictEqual(g.crowned.king, L.KING.name);
+    assert.strictEqual(g.crowned.cash, L.KING_PRIZE);
+    assert.strictEqual(g.crowned.car.id, g.cars[1].id);
+    assert.strictEqual(g.crowned.mine, g.cars[0].id);
+    assert.ok(g.inventory.includes(g.crowned.part), 'the Legendary part is on the shelf');
+});
+
+test('tires are never a Legendary drop, from a King or the speed shop', () => {
+    const g = garage('ford48', null, 90, 90);
+    for (let n = 0; n < 200; n++) assert.notStrictEqual(L.PARTS[L.kingReward(g, L.activeCar(g))].slot, 'tires');
+    const random = L.random;
+    L.random = () => 0;      // a Legendary part turns up every week
+    try {
+        for (let n = 0; n < 50; n++) {
+            L.newWeek(g);
+            g.shopStock.filter((id) => L.PARTS[id].legend).forEach((id) => assert.notStrictEqual(L.PARTS[id].slot, 'tires'));
+        }
+    } finally { L.random = random; }
 });
