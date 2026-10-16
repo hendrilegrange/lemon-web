@@ -389,6 +389,13 @@
         return Math.floor(whole / 2 * L.shelfCondition(g, invIndex) / 100);
     };
 
+    // A repair or rebuild takes the job's full hours for a part worn right out, and less the
+    // less worn it is: by the condition missing, at least an hour. Swapping a part takes the
+    // full hours whatever its state.
+    L.repairHours = function (fullHours, condition) {
+        return Math.max(1, Math.ceil(fullHours * (100 - condition) / 100));
+    };
+
     // Rebuilding a worn part on the shelf, a way to use spare hours: { cost, hours }, priced
     // like the same job on a car, or null when it can't be (tires, or already like new)
     L.shelfRebuild = function (g, invIndex) {
@@ -396,10 +403,10 @@
         if (!partId) return null;
         var part = L.PARTS[partId], c = L.shelfCondition(g, invIndex);
         if (c >= 100) return null;
-        if (part.slot === 'engine') return { cost: engineRebuildCost(partId, c), hours: L.REBUILD_HOURS };
+        if (part.slot === 'engine') return { cost: engineRebuildCost(partId, c), hours: L.repairHours(L.REBUILD_HOURS, c) };
         var wear = L.WEAR[part.slot];
         if (!wear.repair) return null;
-        return { cost: Math.max(5, Math.ceil((100 - c) * wear.repair)), hours: L.JOB_HOURS[part.slot] };
+        return { cost: Math.max(5, Math.ceil((100 - c) * wear.repair)), hours: L.repairHours(L.JOB_HOURS[part.slot], c) };
     };
 
     L.canRebuildShelf = function (g, invIndex) {
@@ -560,6 +567,7 @@
                 hours: slot === 'engine' ? L.REBUILD_HOURS : L.JOB_HOURS[slot] };
             if (slot === 'engine') {
                 d.cost = L.repairCost(car);
+                d.hours = L.repairHours(L.REBUILD_HOURS, c);
                 if (d.cost > 0) d.action = 'repair';
                 return d;
             }
@@ -572,6 +580,7 @@
             } else if (wear.repair && c < 95) {
                 d.action = 'repair';
                 d.cost = Math.max(5, Math.ceil((100 - c) * wear.repair));
+                d.hours = L.repairHours(d.hours, c);
             }
             return d;
         });
@@ -647,6 +656,48 @@
         return null;
     };
 
+    // Fix all: every job on the active car at once, body restored to 100, skipping the
+    // workbench. It's yours once you've beaten a King. A shot part gets a new one when the
+    // speed shop has it for less than a used one, or a used stock part. { cost, hours, jobs }
+    L.fixAllPlan = function (g) {
+        var car = L.activeCar(g);
+        var plan = { cost: 0, hours: 0, jobs: [] };
+        if (!car) return plan;
+        L.diagnose(car).forEach(function (d) {
+            if (d.action === 'repair') {
+                plan.jobs.push({ slot: d.slot, how: 'repair' });
+                plan.cost += d.cost;
+            } else if (d.action === 'replace') {
+                var fresh = d.fresh && d.fresh < d.junk && L.inStock(g, d.part);
+                plan.jobs.push({ slot: d.slot, how: fresh ? 'new' : 'junk' });
+                plan.cost += fresh ? d.fresh : d.junk;
+            } else return;
+            plan.hours += d.hours;
+        });
+        var body = L.bodyJob(car, 100);
+        if (body.points) { plan.jobs.push({ body: true }); plan.cost += body.cost; plan.hours += body.hours; }
+        return plan;
+    };
+
+    L.canFixAll = function (g) {
+        if (!L.activeCar(g)) return 'You need a car first.';
+        if (!L.beatAKing(g)) return 'Beat The King to unlock Fix all.';
+        var plan = L.fixAllPlan(g);
+        if (!plan.jobs.length) return 'Everything is in good shape.';
+        if (g.cash < plan.cost) return "You can't afford to fix it all. Pick the jobs that matter.";
+        return L.needHours(g, plan.hours);
+    };
+
+    L.fixEverything = function (g) {
+        var err = L.canFixAll(g);
+        if (err) return err;
+        var e = null;
+        L.fixAllPlan(g).jobs.forEach(function (j) {
+            e = e || (j.body ? L.bodywork(g, 100) : j.how === 'repair' ? L.repairPart(g, j.slot) : L.replacePart(g, j.slot, j.how));
+        });
+        return e;
+    };
+
     // ── Bodywork ──────────────────────────────────────────────────────────
 
     // Bringing the body up to target (75 to race, or 100): points, dollars, hours, and how
@@ -690,7 +741,7 @@
         var cost = L.repairCost(car);
         if (cost === 0) return 'The engine is in top shape.';
         if (g.cash < cost) return "You can't afford the rebuild.";
-        return L.needHours(g, L.REBUILD_HOURS);
+        return L.needHours(g, L.repairHours(L.REBUILD_HOURS, car.engineCondition));
     };
 
     L.repair = function (g) {
@@ -698,7 +749,7 @@
         if (err) return err;
         var car = L.activeCar(g);
         g.cash -= L.repairCost(car);
-        g.hours -= L.REBUILD_HOURS;
+        g.hours -= L.repairHours(L.REBUILD_HOURS, car.engineCondition);
         car.engineCondition = 100;
         return null;
     };
@@ -889,7 +940,7 @@
         if (!L.beatAKing(g)) {
             var refund = 0;
             g.cars.forEach(function (c) {
-                if (c.livery === 'flames') { c.livery = 'none'; refund += L.LIVERIES.flames.price; }
+                if (c.livery === 'flames' && !c.king) { c.livery = 'none'; refund += L.LIVERIES.flames.price; }
             });
             if (refund) {
                 g.cash += refund;

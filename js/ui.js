@@ -963,9 +963,15 @@
             }), L.showFix);
         }
 
+        // Fix all, every job at once without the workbench, once you've beaten a King
+        var plan = L.fixAllPlan(g), fixErr = L.canFixAll(g), unlocked = L.beatAKing(g);
+        var fixAllRow = !plan.jobs.length ? '' : '<div class="fix-all' + (unlocked ? '' : ' locked') + '">' +
+            '<button data-act="fixall"' + (fixErr ? ' disabled' : '') + '>' + (unlocked ? 'Fix all ' + cost(plan.cost, plan.hours) : '🔒 Fix all') + '</button>' +
+            '<span class="sub">' + (unlocked ? (fixErr ? esc(fixErr) : 'Every job at once, no workbench.') : 'Beat The King to unlock: every job at once, no workbench.') + '</span></div>';
+
         render(
             status() + flash(msg) +
-            '<div class="panel"><h2>Fix the ' + esc(L.carName(car)) + '</h2><p class="sub">' + budget + '</p>' + bodyRow + rows + '</div>' +
+            '<div class="panel"><h2>Fix the ' + esc(L.carName(car)) + '</h2><p class="sub">' + budget + '</p>' + fixAllRow + bodyRow + rows + '</div>' +
             '<p class="hint">Each job opens the workbench: bolts out and back in for parts, grind and fill the rust for bodywork. Jobs use up your garage hours for the week.</p>' +
             backBar('Back to the garage'),
             {
@@ -973,6 +979,7 @@
                 junk: function (slot) { job(slot, 'junk'); },
                 new: function (slot) { job(slot, 'new'); },
                 body: bodyJob,
+                fixall: act(L.showFix, function () { return L.fixEverything(g) || 'All done. Every job on her is sorted.'; }),
                 back: function () { L.showGarage(); }
             }
         );

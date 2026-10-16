@@ -152,14 +152,15 @@ test('installing parts takes hours, and an engine swap brings its own bolt-ons',
 
 test('the week runs out of hours, and Friday night closes the garage', () => {
     const g = garage('ford48', null, 80, 10);
-    g.hours = L.REBUILD_HOURS - 1;
+    const hours = L.repairHours(L.REBUILD_HOURS, 10);      // 11 of 12: an engine at 10% is nearly worn out
+    g.hours = hours - 1;
     assert.match(L.repair(g), /hours/);
     g.hours = L.HOURS_PER_WEEK;
     L.goFriday(g);
     assert.match(L.repair(g), /Friday/);
     L.newWeek(g);
     assert.strictEqual(L.repair(g), null);
-    assert.strictEqual(g.hours, L.HOURS_PER_WEEK - L.REBUILD_HOURS);
+    assert.strictEqual(g.hours, L.HOURS_PER_WEEK - hours);
 });
 
 test("can't buy what you can't afford or park", () => {
@@ -518,14 +519,14 @@ test('a worn part on the shelf can be rebuilt with spare hours, and sells for mo
     g.shelfCond = [50, 40, 30, 100];
     const before = L.partValue(g, 1);
     const job = L.shelfRebuild(g, 1);
-    assert.deepStrictEqual(job, { cost: Math.ceil(60 * L.WEAR.carb.repair), hours: L.JOB_HOURS.carb });
+    assert.deepStrictEqual(job, { cost: Math.ceil(60 * L.WEAR.carb.repair), hours: L.repairHours(L.JOB_HOURS.carb, 40) });
     assert.strictEqual(L.rebuildShelf(g, 1), null);
     assert.strictEqual(L.shelfCondition(g, 1), 100);
-    assert.strictEqual(g.hours, L.HOURS_PER_WEEK - L.JOB_HOURS.carb);
+    assert.strictEqual(g.hours, L.HOURS_PER_WEEK - job.hours);
     assert.ok(L.partValue(g, 1) > before);
     // The engine rebuild costs what the same engine's rebuild costs on a car
     assert.strictEqual(L.shelfRebuild(g, 0).cost, L.repairCost(L.activeCar(g)));
-    assert.strictEqual(L.shelfRebuild(g, 0).hours, L.REBUILD_HOURS);
+    assert.strictEqual(L.shelfRebuild(g, 0).hours, L.REBUILD_HOURS / 2);     // half worn, half the hours
     assert.ok(L.partValue(g, 0) > 0);                          // a stock engine sells too
     assert.strictEqual(L.shelfRebuild(g, 2), null);            // tires can't be rebuilt
     assert.match(L.canRebuildShelf(g, 3), /like new/);
@@ -843,4 +844,41 @@ test('an older save gets its King car painted and loses flames it had no right t
     assert.strictEqual(king.paint, 'black');
     assert.strictEqual(king.livery, 'flames');
     assert.strictEqual(h.notice, undefined);
+});
+
+test('repairs take less time the less worn a part is, and replacing takes the full job', () => {
+    assert.strictEqual(L.repairHours(12, 99), 1);
+    assert.strictEqual(L.repairHours(12, 50), 6);
+    assert.strictEqual(L.repairHours(12, 0), 12);
+    assert.strictEqual(L.repairHours(2, 74), 1);
+    const g = garage('ford48', null, 100, 99, { carb: 74, cam: 10, tires: 30 });
+    const d = {};
+    L.diagnose(L.activeCar(g)).forEach((x) => { d[x.slot] = x; });
+    assert.strictEqual(d.engine.hours, 1);
+    assert.strictEqual(d.carb.hours, 1);
+    assert.strictEqual(d.cam.action, 'replace');
+    assert.strictEqual(d.cam.hours, L.JOB_HOURS.cam);
+    assert.strictEqual(d.tires.hours, L.JOB_HOURS.tires);
+});
+
+test('Fix all does every job at once, once you have beaten a King', () => {
+    const g = garage('ford48', null, 70, 60, { carb: 74, cam: 10 });
+    assert.match(L.canFixAll(g), /Beat The King/);
+    g.kingBeaten = true;
+    const plan = L.fixAllPlan(g);
+    assert.strictEqual(plan.jobs.length, 4);              // engine, carb, cam and the body
+    const cash = g.cash, hours = g.hours;
+    assert.strictEqual(L.fixEverything(g), null);
+    const c = L.activeCar(g);
+    assert.strictEqual(c.condition, 100);
+    assert.strictEqual(c.engineCondition, 100);
+    assert.strictEqual(L.partCondition(c, 'carb'), 100);
+    assert.ok(L.partCondition(c, 'cam') >= L.JUNK_CONDITION);
+    assert.strictEqual(g.cash, cash - plan.cost);
+    assert.strictEqual(g.hours, hours - plan.hours);
+    assert.deepStrictEqual(L.fixAllPlan(g).jobs, [{ slot: 'cam', how: 'repair' }]);   // the used cam is worn itself
+    const h = garage('ford48', null, 20, 20);
+    h.era = 1;
+    h.hours = 1;
+    assert.match(L.canFixAll(h), /hours/);
 });

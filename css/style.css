@@ -675,3 +675,7 @@ canvas.scene {
     .shelf-acts button { flex: 1 1 auto; padding: 6px 8px; font-size: 0.85rem; }
 }
 .swatch-btn.locked { opacity: 0.55; cursor: not-allowed; border-style: dashed; }
+/* Fix all on the Fix screen, locked until you beat a King */
+.fix-all { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 8px 0 10px; border-bottom: 1px solid var(--line); }
+.fix-all button { margin: 0; }
+.fix-all.locked button { opacity: 0.55; border-style: dashed; }
