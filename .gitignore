@@ -11,3 +11,6 @@ config.php
 .DS_Store
 Thumbs.db
 node_modules/
+
+# Written by the deploy (deploy.yml), not kept in git
+version.json

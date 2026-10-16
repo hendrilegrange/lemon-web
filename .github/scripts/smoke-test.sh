@@ -105,6 +105,11 @@ if [ "${CHECK_FILES:-}" = 1 ]; then
         done
         [ -n "$ok" ] && pass "live $f matches this commit" || fail "live $f differs from this commit (deploy didn't land?)"
     done
+    # version.json is written by the deploy, not kept in git
+    want="{\"version\":\"$(.github/scripts/version.sh)\"}"
+    get "$SITE_URL/version.json?smoke=$(date +%s%N)" "$WORK/version" >/dev/null
+    if [ "$(tr -d '\r\n' <"$WORK/version")" = "$want" ]; then pass "live version.json is $want"
+    else fail "live version.json is $(head -c 100 "$WORK/version"), expected $want"; fi
 fi
 
 if [ "$FAILED" = 1 ]; then
