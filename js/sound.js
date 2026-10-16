@@ -9,6 +9,7 @@
     var engine = null;
     var scene = 'menu';           // menu (jukebox), garage (jukebox, quieter) or race (no music)
     var MUSIC_VOL = { menu: 0.9, garage: 0.45, race: 0 };
+    var SFX_VOL = 0.7;            // the effects bus, under the music
 
     function load(key) {
         try { return localStorage.getItem(key) !== 'off'; } catch (e) { return true; }
@@ -33,8 +34,20 @@
         comp.ratio.value = 4;
         master.connect(comp);
         comp.connect(ctx.destination);
+        // Effects run quieter than the music bus and through a gentle high cut, so nothing
+        // on the strip or the workbench comes across as harsh
         sfx = ctx.createGain();
-        sfx.connect(master);
+        sfx.gain.value = SFX_VOL;
+        var soft = ctx.createBiquadFilter();
+        soft.type = 'highshelf';
+        soft.frequency.value = 3500;
+        soft.gain.value = -9;
+        var tame = ctx.createBiquadFilter();
+        tame.type = 'lowpass';
+        tame.frequency.value = 7000;
+        sfx.connect(soft);
+        soft.connect(tame);
+        tame.connect(master);
         musicBus = ctx.createGain();
         musicBus.gain.value = 0;
         musicBus.connect(master);
@@ -63,7 +76,7 @@
         }
         var vol = o.vol === undefined ? 0.2 : o.vol;
         g.gain.setValueAtTime(0.0001, t);
-        g.gain.exponentialRampToValueAtTime(vol, t + (o.attack || 0.005));
+        g.gain.exponentialRampToValueAtTime(vol, t + (o.attack || 0.01));
         g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
         var head = osc;
         if (o.filter) {
@@ -92,7 +105,7 @@
         f.Q.value = o.q || 1;
         var vol = o.vol === undefined ? 0.2 : o.vol;
         g.gain.setValueAtTime(0.0001, t);
-        g.gain.exponentialRampToValueAtTime(vol, t + (o.attack || 0.003));
+        g.gain.exponentialRampToValueAtTime(vol, t + (o.attack || 0.008));
         g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
         src.connect(f);
         f.connect(g);
@@ -240,10 +253,10 @@
             var filter = ctx.createBiquadFilter();
             filter.type = 'lowpass';
             filter.frequency.value = 600;
-            filter.Q.value = 2;
+            filter.Q.value = 1;
             filter.connect(out);
             var shaper = ctx.createWaveShaper();
-            shaper.curve = growl(3);
+            shaper.curve = growl(2);
             var lope = ctx.createGain();
             lope.gain.value = 1;
             shaper.connect(lope);
@@ -290,8 +303,8 @@
             engine.lfoDepth.gain.setTargetAtTime(Math.max(0.08, 0.6 - rpm / 6000), t, 0.1);
             engine.filter.frequency.setTargetAtTime(350 + rpm / 5 + 900 * load, t, 0.04);
             engine.band.frequency.setTargetAtTime(300 + rpm / 4, t, 0.05);
-            engine.roar.gain.setTargetAtTime(rpm > 0 ? 0.04 + 0.22 * load * Math.min(1, rpm / 5000) : 0, t, 0.05);
-            engine.out.gain.setTargetAtTime(rpm > 0 ? 0.16 + 0.16 * load : 0, t, 0.05);
+            engine.roar.gain.setTargetAtTime(rpm > 0 ? 0.03 + 0.14 * load * Math.min(1, rpm / 5000) : 0, t, 0.05);
+            engine.out.gain.setTargetAtTime(rpm > 0 ? 0.13 + 0.11 * load : 0, t, 0.05);
         },
 
         engineOff: function () {
@@ -308,63 +321,63 @@
 
         // ── Effects ───────────────────────────────────────────────────────
 
-        // A start-light or shift-light beep, square with a triangle an octave up
+        // A start-light or shift-light beep: a triangle with a soft square under it
         beep: function (freq, seconds) {
             if (!ready()) return;
-            tone(freq, seconds, { vol: 0.14 });
-            tone(freq * 2, seconds, { type: 'triangle', vol: 0.08 });
+            tone(freq, seconds, { type: 'triangle', vol: 0.16 });
+            tone(freq, seconds, { vol: 0.04, filter: 1500 });
         },
 
         // Leaving the line: the tires bark
         launch: function () {
             if (!ready()) return;
-            hiss(0.55, { freq: 2600, slide: 1700, q: 5, vol: 0.35 });
-            tone(1500, 0.5, { type: 'triangle', vol: 0.06, slide: 1100, vibrato: 28 });
+            hiss(0.55, { freq: 2200, slide: 1500, q: 3, vol: 0.2, attack: 0.02 });
+            tone(1500, 0.5, { type: 'triangle', vol: 0.035, slide: 1100, vibrato: 28 });
         },
 
         // A gear change: the shifter clunks, and sometimes the exhaust pops on the lift
         shift: function () {
             if (!ready()) return;
-            tone(130, 0.09, { type: 'sine', vol: 0.5, slide: 50 });
-            hiss(0.05, { type: 'bandpass', freq: 900, q: 2, vol: 0.25 });
-            if (Math.random() < 0.6) hiss(0.12, { type: 'lowpass', freq: 500, slide: 120, vol: 0.6, at: 0.03 });
+            tone(130, 0.09, { type: 'sine', vol: 0.35, slide: 50 });
+            hiss(0.05, { type: 'bandpass', freq: 800, q: 2, vol: 0.15 });
+            if (Math.random() < 0.6) hiss(0.12, { type: 'lowpass', freq: 450, slide: 120, vol: 0.32, at: 0.03 });
         },
 
         // The engine lets go
         blow: function () {
             if (!ready()) return;
-            hiss(1.4, { type: 'lowpass', freq: 900, slide: 60, vol: 0.9 });
-            tone(70, 1, { type: 'sine', vol: 0.8, slide: 25 });
-            for (var i = 0; i < 6; i++) tone(300 + Math.random() * 900, 0.08, { type: 'square', vol: 0.08, at: 0.1 + i * 0.09, filter: 2000 });
+            hiss(1.4, { type: 'lowpass', freq: 700, slide: 60, vol: 0.5, attack: 0.02 });
+            tone(70, 1, { type: 'sine', vol: 0.5, slide: 25 });
+            for (var i = 0; i < 6; i++) tone(300 + Math.random() * 900, 0.08, { type: 'square', vol: 0.05, at: 0.1 + i * 0.09, filter: 1400 });
         },
 
         // Race results: a fanfare for a win, a sad trombone for a loss, a buzzer for a red light
         win: function () {
             if (!ready()) return;
             [[523, 0], [659, 0.11], [784, 0.22], [1047, 0.33], [784, 0.5], [1047, 0.6]].forEach(function (n, i) {
-                tone(n[0], i === 5 ? 0.7 : 0.16, { vol: 0.14, at: n[1], filter: 3500, vibrato: i === 5 ? 6 : 0 });
+                tone(n[0], i === 5 ? 0.7 : 0.16, { vol: 0.1, at: n[1], filter: 2200, vibrato: i === 5 ? 6 : 0 });
                 tone(n[0] / 2, i === 5 ? 0.7 : 0.16, { type: 'triangle', vol: 0.12, at: n[1] });
             });
-            hiss(0.5, { type: 'highpass', freq: 6000, vol: 0.12, at: 0.6 });
+            hiss(0.5, { type: 'highpass', freq: 6000, vol: 0.06, at: 0.6 });
         },
         lose: function () {
             if (!ready()) return;
             [[392, 0, 0.3], [370, 0.32, 0.3], [349, 0.64, 0.3], [330, 0.96, 0.9]].forEach(function (n, i) {
-                tone(n[0], n[2], { type: 'sawtooth', vol: 0.14, at: n[1], filter: 1200, vibrato: i === 3 ? 5 : 0, attack: 0.03 });
+                tone(n[0], n[2], { type: 'sawtooth', vol: 0.11, at: n[1], filter: 900, vibrato: i === 3 ? 5 : 0, attack: 0.03 });
             });
         },
         foul: function () {
             if (!ready()) return;
-            tone(110, 0.6, { type: 'sawtooth', vol: 0.2, filter: 1500 });
-            tone(116, 0.6, { type: 'square', vol: 0.12, filter: 1500 });
+            tone(110, 0.6, { type: 'sawtooth', vol: 0.14, filter: 900, attack: 0.02 });
+            tone(116, 0.6, { type: 'square', vol: 0.07, filter: 900, attack: 0.02 });
         },
 
         // Money changing hands: the till rings
         cash: function () {
             if (!ready()) return;
-            tone(1568, 0.08, { vol: 0.1 });
-            tone(2093, 0.35, { vol: 0.1, at: 0.08 });
-            hiss(0.3, { type: 'highpass', freq: 5000, vol: 0.1, at: 0.08 });
+            tone(1568, 0.08, { type: 'triangle', vol: 0.12 });
+            tone(2093, 0.35, { type: 'triangle', vol: 0.12, at: 0.08 });
+            hiss(0.3, { type: 'highpass', freq: 5000, vol: 0.04, at: 0.08 });
         },
 
         // A quiet tick for menu buttons
@@ -377,33 +390,33 @@
         ratchet: function () {
             if (!ready()) return;
             for (var i = 0; i < 5; i++) {
-                hiss(0.018, { freq: 3200 + i * 100, q: 4, vol: 0.3, at: i * 0.05 });
-                tone(2400, 0.015, { type: 'square', vol: 0.03, at: i * 0.05 });
+                hiss(0.018, { freq: 2600 + i * 100, q: 3, vol: 0.15, at: i * 0.05 });
+                tone(2000, 0.015, { type: 'triangle', vol: 0.03, at: i * 0.05 });
             }
         },
         // A bolt snugged down
         clink: function () {
             if (!ready()) return;
-            tone(2637, 0.12, { type: 'triangle', vol: 0.12 });
-            tone(3951, 0.08, { type: 'sine', vol: 0.05 });
+            tone(2637, 0.12, { type: 'triangle', vol: 0.07 });
+            tone(3951, 0.08, { type: 'sine', vol: 0.025 });
         },
         // The wrong bolt: a dull clank
         clank: function () {
             if (!ready()) return;
-            tone(190, 0.12, { type: 'square', vol: 0.12, filter: 800 });
-            hiss(0.08, { freq: 600, q: 3, vol: 0.2 });
+            tone(190, 0.12, { type: 'square', vol: 0.08, filter: 600 });
+            hiss(0.08, { freq: 600, q: 3, vol: 0.12 });
         },
         // The old part comes off and the new one goes on the bench
         thunk: function () {
             if (!ready()) return;
-            tone(95, 0.2, { type: 'sine', vol: 0.6, slide: 40 });
-            hiss(0.15, { type: 'lowpass', freq: 700, vol: 0.3 });
+            tone(95, 0.2, { type: 'sine', vol: 0.4, slide: 40 });
+            hiss(0.15, { type: 'lowpass', freq: 700, vol: 0.18 });
         },
         // Job done
         ding: function () {
             if (!ready()) return;
             [[784, 0], [988, 0.09], [1319, 0.18]].forEach(function (n) {
-                tone(n[0], 0.25, { type: 'triangle', vol: 0.15, at: n[1] });
+                tone(n[0], 0.25, { type: 'triangle', vol: 0.1, at: n[1] });
             });
         },
 
@@ -411,16 +424,16 @@
         // spray gun hisses for the paint pass
         grind: function (seconds) {
             if (!ready()) return;
-            hiss(seconds, { freq: 2200, q: 2, vol: 0.3, attack: 0.03 });
-            tone(180, seconds, { type: 'sawtooth', vol: 0.06, filter: 1800, attack: 0.03, slide: 150 });
+            hiss(seconds, { freq: 1800, q: 2, vol: 0.14, attack: 0.06 });
+            tone(180, seconds, { type: 'sawtooth', vol: 0.04, filter: 1200, attack: 0.06, slide: 150 });
         },
         smear: function () {
             if (!ready()) return;
-            hiss(0.3, { type: 'lowpass', freq: 600, slide: 300, vol: 0.3, attack: 0.04 });
+            hiss(0.3, { type: 'lowpass', freq: 600, slide: 300, vol: 0.2, attack: 0.04 });
         },
         spray: function (seconds) {
             if (!ready()) return;
-            hiss(seconds, { type: 'highpass', freq: 3500, vol: 0.12, attack: 0.15 });
+            hiss(seconds, { type: 'highpass', freq: 3500, vol: 0.07, attack: 0.15 });
         }
     };
 })(window.Lemon = window.Lemon || {});
