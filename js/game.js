@@ -916,10 +916,11 @@
     // The player's bests for the leaderboards: quickest quarter mile (et) and reaction time
     // (rt) in seconds, longest win streak, the most cash ever on hand, and the fewest weeks
     // from a new game to beating each era's King (k0 to k5, set in settleRace). g.streak is
-    // the current run of wins.
+    // the current run of wins. winsOnly marks et and rt as counted from wins only, so the
+    // server keeps them (older saves counted losses too, and fixSave clears those).
 
     L.records = function (g) {
-        if (!g.records) g.records = { et: null, rt: null, streak: 0, cash: g.cash };
+        if (!g.records) g.records = { et: null, rt: null, streak: 0, cash: g.cash, winsOnly: true };
         return g.records;
     };
 
@@ -961,9 +962,11 @@
     // Brings an older save up to date. A King's car won before it kept his paint gets his
     // black and flames (unless you've painted it since). Flames bought before they were The
     // King's come off any car of a player who hasn't beaten a King, and the paint shop refunds
-    // them; g.notice says so once, on the next screen.
+    // them; g.notice says so once, on the next screen. A quarter mile or reaction record from
+    // before only wins counted is cleared, so the boards start over from wins.
     L.fixSave = function (g) {
         if (!g || !g.cars) return g;
+        if (g.records && !g.records.winsOnly) { g.records.et = null; g.records.rt = null; g.records.winsOnly = true; }
         g.cars.forEach(function (c) {
             if (L.carTier(c) === 'king' && !c.paint && !c.livery) { c.paint = 'black'; c.livery = 'flames'; }
         });
