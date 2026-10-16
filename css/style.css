@@ -85,7 +85,8 @@ button:hover:not([disabled]) { filter: brightness(1.1); box-shadow: 0 0 14px rgb
 button:active:not([disabled]) { transform: translateY(2px); }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 button { touch-action: manipulation; }   /* no double-tap zoom on a phone */
-button[disabled] { opacity: 0.4; cursor: not-allowed; }
+button[disabled], button[aria-disabled="true"] { opacity: 0.4; cursor: not-allowed; filter: grayscale(0.8); }
+button[aria-disabled="true"]:hover, button[aria-disabled="true"]:active { filter: grayscale(0.8); box-shadow: none; transform: none; }
 button.minor { background: var(--line); color: var(--text); border-bottom-color: #15152b; }
 button.minor:hover:not([disabled]) { background: #36365e; filter: none; box-shadow: none; }
 button.danger { background: var(--bad); color: #fff; border-bottom-color: #a01f1f; }
@@ -268,7 +269,7 @@ button.danger:hover:not([disabled]) { box-shadow: 0 0 14px rgba(255, 59, 59, 0.3
 .garage-look .down, .garage-look .et.best { color: #ff7a6a; }
 .row small.potential { display: block; color: var(--muted); font-size: 0.8rem; }
 .ad button.ink { margin: auto 0 0; background: var(--ink); color: var(--paper); border-bottom-color: #000; width: 100%; }
-.ad button.ink[disabled] { background: transparent; color: #8a7d5c; border: 1px dashed #8a7d5c; opacity: 1; }
+.ad button.ink[disabled], .ad button.ink[aria-disabled="true"] { background: transparent; color: #8a7d5c; border: 1px dashed #8a7d5c; opacity: 1; }
 /* Your pencil circles the best deal and the fastest build of the week */
 .ad.circled::before {
     content: "";
@@ -752,3 +753,11 @@ canvas.scene {
 .kings b { color: var(--good); white-space: nowrap; }
 .unlocks { margin: 0 0 14px; padding-left: 20px; }
 .unlocks li { margin-bottom: 6px; }
+
+/* Friday night: the garage is shut, said once at the top with the two ways on */
+.closed-banner { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between;
+    margin: 0 0 14px; padding: 12px 16px; border: 2px solid var(--hot, #ff4fa0); border-radius: 6px;
+    background: rgba(255, 79, 160, 0.1); }
+.closed-banner p { margin: 0; flex: 1 1 260px; }
+.closed-banner .closed-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.panel.closed .row.fix button { opacity: 0.35; }

@@ -29,6 +29,7 @@
         app.querySelectorAll('[data-act]').forEach(function (b) {
             b.addEventListener('click', function () {
                 L.sound.begin();
+                if (b.getAttribute('aria-disabled') === 'true') return toast(b.getAttribute('data-why') || 'Not right now.');
                 L.sound.click();
                 var fn = actions[b.getAttribute('data-act')];
                 if (fn) fn(b.getAttribute('data-arg'));
@@ -44,7 +45,7 @@
                 GO[key](from ? GO[from] : null);
             });
         });
-        var focus = app.querySelector('button:not([disabled]):not([data-nav])');
+        var focus = app.querySelector('button:not([disabled]):not([aria-disabled="true"]):not([data-nav])');
         if (focus) focus.focus({ preventScroll: true });
         // A new screen starts at the top. One that redraws after a Buy or an Install stays
         // where you were, and if its message is scrolled out of sight it pops up as a toast.
@@ -81,6 +82,26 @@
         if (way) way.click();   // the screen it goes to sets its own entry
         else guardBack();       // nowhere to go back to: stay put
     });
+
+    // A button that can't be used right now: greyed out, and a click says why (a disabled
+    // button would just ignore it)
+    function off(why) { return why ? ' aria-disabled="true" data-why="' + esc(why) + '"' : ''; }
+
+    // The garage is shut once you head out on Friday night (or the week's hours run out)
+    function garageClosed() { return g.friday || g.hours === 0; }
+    function closedBanner() {
+        if (!garageClosed()) return '';
+        return '<div class="closed-banner" role="status"><p><b>The garage is closed.</b> ' +
+            (g.friday ? 'It\'s Friday night, so the wrenching waits till next week.' : 'You\'ve used up this week\'s hours.') +
+            ' Race at the burger stand, or start next week for ' + L.HOURS_PER_WEEK + ' fresh hours.</p>' +
+            '<span class="closed-btns"><button data-act="closedStand">Go racing</button><button data-act="closedWeek" class="minor">Next week</button></span></div>';
+    }
+    // The banner's two buttons, added to a screen's actions
+    function closedActions(actions) {
+        actions.closedStand = function () { GO.stand(); };
+        actions.closedWeek = function () { L.startWeek(); };
+        return actions;
+    }
 
     var toastTimer;
     function toast(text) {
@@ -528,6 +549,15 @@
 
     function plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
 
+    // On to next week, back at the hub with the news
+    L.startWeek = function () {
+        L.newWeek(g);
+        var news = g.newEra ? L.ERAS[L.eraOf(g)].intro + ' Your garage grew too: room for ' + L.maxCars(g) + ' cars now.' : 'A new week. New ads, a restocked speed shop, new faces at the burger stand.';
+        delete g.newEra;
+        L.save(g);
+        L.showHub(news);
+    };
+
     L.showHub = function (msg) {
         L.titleScreen(false);
         var car = L.activeCar(g);
@@ -575,13 +605,7 @@
                 dealer: GO.dealer,
                 solo: function () { if (!L.beatTheGame(g)) return L.showHub('The solo drags open once you beat The Last King.'); L.showSolo(); },
                 stand: function () { GO.stand(L.showHub); },
-                week: function () {
-                    L.newWeek(g);
-                    var news = g.newEra ? L.ERAS[L.eraOf(g)].intro + ' Your garage grew too: room for ' + L.maxCars(g) + ' cars now.' : 'A new week. New ads, a restocked speed shop, new faces at the burger stand.';
-                    delete g.newEra;
-                    L.save(g);
-                    L.showHub(news);
-                },
+                week: function () { L.startWeek(); },
                 quit: function () { L.showTitle(); }
             }
         );
@@ -629,7 +653,7 @@
                 '<dt>¼ mile</dt><dd><span class="et">' + p.asIs.toFixed(1) + ' s</span> as is · <span class="et">' + p.fixedEt.toFixed(1) + ' s</span> fixed · <span class="et best">' + p.builtEt.toFixed(2) + ' s</span> built</dd>' +
                 '</dl>' +
                 '<p class="build">Built: the Bestest ' + esc(p.family.toLowerCase()) + ' parts, about ' + money(p.buildCost) + ', ' + p.builtHp + ' hp.</p></div>' +
-                '<button data-act="buy" data-arg="' + i + '" class="ink"' + (g.cash < ad.price ? ' disabled' : '') + '>' +
+                '<button data-act="buy" data-arg="' + i + '" class="ink"' + (g.cash < ad.price ? off('It costs ' + money(ad.price) + ' and you have ' + money(g.cash) + '.') : '') + '>' +
                 (g.cash < ad.price ? 'Can\'t afford it' : 'Buy it for ' + money(ad.price)) + '</button></article>';
         }).join('');
         render(
@@ -675,7 +699,7 @@
                 '<h4>' + esc(body.name) + '</h4>' +
                 '<p class="sub">' + st.hp + ' hp · ' + st.et.toFixed(2) + ' s · ' + body.kg + ' kg</p>' +
                 '<p class="price">' + money(price) + '</p>' +
-                '<button data-act="buy" data-arg="' + id + '"' + (err ? ' disabled' : '') + '>' +
+                '<button data-act="buy" data-arg="' + id + '"' + off(err) + '>' +
                 (err && g.cash < price ? "Can't afford it" : err && g.cars.length >= L.maxCars(g) ? 'Garage full' : 'Buy it new') + '</button></article>';
         });
         render(
@@ -709,7 +733,7 @@
                 (fitted ? ' <em>· on your car</em>' : '') + (owned ? ' <em>· ' + owned + ' on your shelf</em>' : '') + '</span>' +
                 '<span class="price">' + money(p.price) + '</span>' +
                 (x.inStock
-                    ? '<button data-act="buy" data-arg="' + x.id + '"' + (g.cash < p.price ? ' disabled' : '') + '>Buy</button>'
+                    ? '<button data-act="buy" data-arg="' + x.id + '"' + off(g.cash < p.price ? 'It costs ' + money(p.price) + ' and you have ' + money(g.cash) + '.' : '') + '>Buy</button>'
                     : '<span class="soldout">Sold out</span>') + '</div>';
         }
         // A group of parts, slot by slot, with a heading per slot
@@ -799,12 +823,12 @@
             '<h3>Colour</h3>' + swatches('paint', pick.paint || car.paint || null, true) +
             '<h3>Livery</h3><div class="swatches">' + Object.keys(L.LIVERIES).map(function (id) {
                 var lv = L.LIVERIES[id], locked = id !== (car.livery || 'none') && L.liveryLocked(g, id);
-                return '<button data-act="livery" data-arg="' + id + '" class="swatch-btn' + (id === pick.livery ? ' on' : '') + (locked ? ' locked' : '') + '" aria-pressed="' + (id === pick.livery) + '"' + (locked ? ' disabled' : '') + '>' +
+                return '<button data-act="livery" data-arg="' + id + '" class="swatch-btn' + (id === pick.livery ? ' on' : '') + (locked ? ' locked' : '') + '" aria-pressed="' + (id === pick.livery) + '"' + off(locked ? 'Flames are The King\'s. Beat The King to wear them.' : '') + '>' +
                     '<span>' + (locked ? '🔒 ' : '') + esc(lv.name) + '<small>' + (locked ? 'Beat The King first' : id === (car.livery || 'none') ? 'yours now' : lv.price ? money(lv.price) : 'free') + '</small></span></button>';
             }).join('') + '</div>' +
             (usesTrim ? '<h3>' + esc(L.LIVERIES[pick.livery].name) + ' colour</h3>' + swatches('trim', pick.trim, false) : '') +
             '<div class="paint-total"><span>' + (cost ? 'Total ' + money(cost) : 'Nothing to pay') + '</span>' +
-            '<button data-act="go"' + (err ? ' disabled' : '') + '>Paint it</button></div>' +
+            '<button data-act="go"' + off(err) + '>Paint it</button></div>' +
             (err && err.indexOf('already') < 0 ? '<p class="sub">' + esc(err) + '</p>' : '') +
             '</div>' + backBar('Back'),
             {
@@ -923,8 +947,8 @@
                         '<span class="shelf-name">' + partName(it.id) + ' <span class="shelf-cls t' + it.cls + '">' + L.CLASSES[it.cls] + '</span>' + tag + '</span>' +
                         '<span class="shelf-cond">' + (it.cond < 100 ? bar(it.cond, 'Condition') : '<span class="like-new">Like new</span>') + '</span>' +
                         '<span class="shelf-acts">' +
-                        (car && fits ? '<button data-act="install" data-arg="' + it.i + '">Install · ' + L.JOB_HOURS[slot] + ' h</button>' : '') +
-                        (reb ? '<button data-act="rebuild" data-arg="' + it.i + '" class="minor">Rebuild ' + money(reb.cost) + ' · ' + reb.hours + ' h</button>' : '') +
+                        (car && fits ? '<button data-act="install" data-arg="' + it.i + '"' + off(L.canInstall(g, it.i)) + '>Install · ' + L.JOB_HOURS[slot] + ' h</button>' : '') +
+                        (reb ? '<button data-act="rebuild" data-arg="' + it.i + '" class="minor"' + off(L.canRebuildShelf(g, it.i)) + '>Rebuild ' + money(reb.cost) + ' · ' + reb.hours + ' h</button>' : '') +
                         '<button data-act="sellpart" data-arg="' + it.i + '" class="minor">' + (value ? 'Sell ' + money(value) : 'Bin it') + '</button></span></div>';
                 }).join('') + '</div>';
         }).join('');
@@ -963,12 +987,12 @@
 
         var shelf = shelfGroups(car);
         render(
-            status('garage') + flash(msg) +
+            status('garage') + flash(msg) + closedBanner() +
             '<div class="panel"><h2>Your cars <span class="sub">' + g.cars.length + ' of ' + L.maxCars(g) + '</span></h2>' + cars + '</div>' + detail +
             '<div class="panel shelf"><h2>Shelf' + (g.inventory.length ? ' <span class="sub">' + plural(g.inventory.length, 'part') +
                 ' · worth ' + money(g.inventory.reduce(function (sum, id, i) { return sum + L.partValue(g, i); }, 0)) + '</span>' : '') + '</h2>' + shelf + '</div>' +
             backBar('Back'),
-            {
+            closedActions({
                 drive: act(L.showGarage, function (i) { g.active = +i; }),
                 view: function (i) { L.showCar(+i); },
                 sell: function (i) {
@@ -1017,7 +1041,7 @@
                 fix: function () { L.showFix(); },
                 shop: function () { L.showParts(); },
                 back: function () { L.showHub(); }
-            }
+            })
         );
     };
 
@@ -1028,13 +1052,19 @@
         if (!car) return L.showGarage('You need a car first.');
         var total = L.fixAll(car);
         function cost(dollars, hours) { return money(dollars) + ' · ' + hours + ' h'; }
-        function can(dollars, hours) { return g.cash >= dollars && !g.friday && g.hours >= hours; }
+        // Why a job can't be done right now, or '' when it can
+        function why(dollars, hours) {
+            if (garageClosed()) return 'The garage is closed till next week. Race tonight, or start next week.';
+            if (g.hours < hours) return 'That takes ' + hours + ' h and you have ' + g.hours + ' h left this week.';
+            if (g.cash < dollars) return 'That costs ' + money(dollars) + ' and you have ' + money(g.cash) + '.';
+            return '';
+        }
 
         // The body first: it decides whether you can race at all
         var patch = L.bodyJob(car, L.MIN_BODY), full = L.bodyJob(car, 100);
         var bodyBtns = !full.points ? '<span class="price">Good</span>' :
-            (patch.points ? '<button data-act="body" data-arg="' + L.MIN_BODY + '"' + (can(patch.cost, patch.hours) ? '' : ' disabled') + '>Patch to ' + L.MIN_BODY + '% ' + cost(patch.cost, patch.hours) + '</button>' : '') +
-            '<button data-act="body" data-arg="100"' + (patch.points ? ' class="minor"' : '') + (can(full.cost, full.hours) ? '' : ' disabled') + '>Restore to 100% ' + cost(full.cost, full.hours) + '</button>';
+            (patch.points ? '<button data-act="body" data-arg="' + L.MIN_BODY + '"' + off(why(patch.cost, patch.hours)) + '>Patch to ' + L.MIN_BODY + '% ' + cost(patch.cost, patch.hours) + '</button>' : '') +
+            '<button data-act="body" data-arg="100"' + (patch.points ? ' class="minor"' : '') + off(why(full.cost, full.hours)) + '>Restore to 100% ' + cost(full.cost, full.hours) + '</button>';
         var bodyRow = '<div class="row fix"><span><span class="slot">Body</span>' + (car.condition < L.MIN_BODY ? '<span class="shot">Too rough to race</span>' : 'Paint and panels') + '<br>' +
             bar(car.condition, 'Condition') + '</span>' + bodyBtns + '</div>';
 
@@ -1044,13 +1074,13 @@
             if (d.action === 'ok') {
                 btns = '<span class="price">Good</span>';
             } else if (d.action === 'repair') {
-                btns = '<button data-act="repair" data-arg="' + d.slot + '"' + (can(d.cost, d.hours) ? '' : ' disabled') + '>' +
+                btns = '<button data-act="repair" data-arg="' + d.slot + '"' + off(why(d.cost, d.hours)) + '>' +
                     (d.slot === 'engine' ? 'Rebuild ' : 'Repair ') + cost(d.cost, d.hours) + '</button>';
             } else {
                 var stocked = L.inStock(g, d.part);
                 btns = '<span class="shot">' + (d.slot === 'tires' ? 'Worn out' : 'Shot, replace it') + '</span>' +
-                    '<button data-act="junk" data-arg="' + d.slot + '"' + (can(d.junk, d.hours) ? '' : ' disabled') + '>Used stock ' + cost(d.junk, d.hours) + '</button>' +
-                    (d.fresh ? '<button data-act="new" data-arg="' + d.slot + '" class="minor"' + (stocked && can(d.fresh, d.hours) ? '' : ' disabled') + '>' +
+                    '<button data-act="junk" data-arg="' + d.slot + '"' + off(why(d.junk, d.hours)) + '>Used stock ' + cost(d.junk, d.hours) + '</button>' +
+                    (d.fresh ? '<button data-act="new" data-arg="' + d.slot + '" class="minor"' + off(stocked ? why(d.fresh, d.hours) : 'The speed shop is sold out of a new one this week. Fit a used one, or try next week.') + '>' +
                         (stocked ? 'New ' + cost(d.fresh, d.hours) : 'New: sold out this week') + '</button>' : '');
             }
             return '<div class="row fix"><span><span class="slot">' + L.SLOT_NAMES[d.slot] + '</span>' + name + '<br>' +
@@ -1058,7 +1088,7 @@
         }).join('');
         var budget = total.cost
             ? 'Fixing everything costs ' + money(total.cost) + ' and ' + total.hours + ' hours. You have ' + money(g.cash) +
-                (g.friday ? ', and it\'s Friday night: the garage opens again next week.' : ' and ' + g.hours + ' hours before Friday.') +
+                (garageClosed() ? '.' : ' and ' + g.hours + ' hours before Friday.') +
                 (total.cost > g.cash || total.hours > g.hours ? ' Pick what matters: the body has to be ' + L.MIN_BODY + '% to race, and the engine and tires matter most.' : '')
             : 'Everything is in good shape.';
 
@@ -1095,22 +1125,23 @@
         // Fix all, every job at once without the workbench, once you've beaten a King
         var plan = L.fixAllPlan(g), fixErr = L.canFixAll(g), unlocked = L.beatAKing(g);
         var fixAllRow = !plan.jobs.length ? '' : '<div class="fix-all' + (unlocked ? '' : ' locked') + '">' +
-            '<button data-act="fixall"' + (fixErr ? ' disabled' : '') + '>' + (unlocked ? 'Fix all ' + cost(plan.cost, plan.hours) : '🔒 Fix all') + '</button>' +
+            '<button data-act="fixall"' + off(unlocked ? fixErr : 'Beat The King to unlock Fix all.') + '>' + (unlocked ? 'Fix all ' + cost(plan.cost, plan.hours) : '🔒 Fix all') + '</button>' +
             '<span class="sub">' + (unlocked ? (fixErr ? esc(fixErr) : 'Every job at once, no workbench.') : 'Beat The King to unlock: every job at once, no workbench.') + '</span></div>';
 
         render(
             status('garage') + flash(msg) +
-            '<div class="panel"><h2>Fix the ' + esc(L.carName(car)) + '</h2><p class="sub">' + budget + '</p>' + fixAllRow + bodyRow + rows + '</div>' +
+            closedBanner() +
+            '<div class="panel' + (garageClosed() ? ' closed' : '') + '"><h2>Fix the ' + esc(L.carName(car)) + '</h2><p class="sub">' + budget + '</p>' + fixAllRow + bodyRow + rows + '</div>' +
             '<p class="hint">Each job opens the workbench: bolts out and back in for parts, grind and fill the rust for bodywork. Jobs use up your garage hours for the week.</p>' +
             backBar('Back to the garage'),
-            {
+            closedActions({
                 repair: function (slot) { job(slot, 'repair'); },
                 junk: function (slot) { job(slot, 'junk'); },
                 new: function (slot) { job(slot, 'new'); },
                 body: bodyJob,
                 fixall: act(L.showFix, function () { return L.fixEverything(g) || 'All done. Every job on her is sorted.'; }),
                 back: function () { L.showGarage(); }
-            }
+            })
         );
     };
 
@@ -1149,12 +1180,12 @@
             var cashErr = L.canRace(g, r, 'cash');
             var pinkErr = L.canRace(g, r, 'pinks');
             var buttons = r.king
-                ? '<button data-act="pinks" data-arg="' + i + '" class="danger"' + (pinkErr ? ' disabled' : '') + '>Race for his crown: pinks and ' + money(L.kingPrize(g)) + '</button>'
-                : '<button data-act="fun" data-arg="' + i + '" class="minor"' + (funErr ? ' disabled' : '') + '>' +
+                ? '<button data-act="pinks" data-arg="' + i + '" class="danger"' + off(pinkErr) + '>Race for his crown: pinks and ' + money(L.kingPrize(g)) + '</button>'
+                : '<button data-act="fun" data-arg="' + i + '" class="minor"' + off(funErr) + '>' +
                     (r.funDone ? 'Raced for fun this week' : 'Just for fun (win ' + money(L.funPrize(r)) + ')') + '</button>' +
-                  '<button data-act="cash" data-arg="' + i + '"' + (cashErr ? ' disabled title="' + esc(cashErr) + '"' : '') + '>' +
+                  '<button data-act="cash" data-arg="' + i + '"' + off(cashErr) + '>' +
                     'Bet up to ' + money(bet) + '</button>' +
-                  '<button data-act="pinks" data-arg="' + i + '" class="danger"' + (pinkErr ? ' disabled' : '') + '>Pink slips</button>';
+                  '<button data-act="pinks" data-arg="' + i + '" class="danger"' + off(pinkErr) + '>Pink slips</button>';
             var theirEt = L.estimate(L.spec(L.rivalCar(r))).et;
             return '<div class="rival' + (r.king ? ' king' : '') + '">' +
                 '<div class="rival-car"><canvas class="stand-car" width="96" height="48" data-rival="' + i + '" aria-hidden="true"></canvas>' +
@@ -1340,7 +1371,7 @@
                 '<p class="solo-best">' + (car ? (mine !== null ? 'This car\'s best <b>' + mine.toFixed(2) + ' s</b>' : 'No time in this car yet') : 'No car') +
                 (typeof rec[s.key] === 'number' && rec[s.key] !== mine ? '<br><small>Your best in any car ' + rec[s.key].toFixed(2) + ' s</small>' : '') + '</p>' +
                 (est ? '<p class="sub">Your ' + esc(L.carName(car)) + ' could do about ' + est.et.toFixed(2) + ' s at ' + Math.round(est.trapMph) + ' mph with perfect shifts.</p>' : '') +
-                '<button data-act="run" data-arg="' + s.key + '"' + (car ? '' : ' disabled') + '>Run the ' + s.name.toLowerCase() + '</button></div>';
+                '<button data-act="run" data-arg="' + s.key + '"' + off(car ? '' : 'You need a car first.') + '>Run the ' + s.name.toLowerCase() + '</button></div>';
         }).join('');
         render(
             status('solo') + flash(msg) +
