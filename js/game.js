@@ -146,10 +146,14 @@
     // number on the quick ones, and The King's black car with flames
     L.rivalLook = function (rival) {
         var shape = L.BODIES[rival.body].shape;
-        if (rival.king) return { color: '#1c1c24', livery: 'flames', trim: '#f2f2ea', shape: shape };
+        if (rival.king) return { color: L.PAINTS.black.hex, livery: 'flames', trim: '#f2f2ea', shape: shape };
         var livery = rival.tier >= 4 ? 'number' : rival.tier >= 2 ? 'stripes' : null;
         return { color: L.BODIES[rival.body].color, livery: livery, trim: '#f2f2ea', shape: shape };
     };
+    // A King's livery (flames) is locked in the paint shop until you've beaten a King: the
+    // game moves past 1963 the week after, and g.kingBeaten covers the week in between
+    L.beatAKing = function (g) { return L.eraOf(g) > 0 || !!g.kingBeaten; };
+    L.liveryLocked = function (g, livery) { return !!(L.LIVERIES[livery] && L.LIVERIES[livery].king) && !L.beatAKing(g); };
     L.carLook = function (car) {
         var livery = car.livery && L.LIVERIES[car.livery] && car.livery !== 'none' ? car.livery : null;
         return { color: L.carColor(car), livery: livery, trim: L.PAINTS[car.trim] ? L.PAINTS[car.trim].hex : '#f2f2ea', shape: L.BODIES[car.body].shape };
@@ -171,6 +175,7 @@
         if (!car) return 'You need a car first.';
         if (paint && !L.PAINTS[paint]) return 'No such paint.';
         if (!L.LIVERIES[livery]) return 'No such livery.';
+        if (livery !== (car.livery || 'none') && L.liveryLocked(g, livery)) return L.LIVERIES[livery].name + " are The King's. Beat him first.";
         if (livery !== 'none' && !L.LIVERIES[livery].ownColors && !L.PAINTS[trim]) return 'Pick a colour for the ' + L.LIVERIES[livery].name.toLowerCase() + '.';
         if (car.condition < L.MIN_BODY) return "Paint won't stick to rust. Get the body to " + L.MIN_BODY + '% first.';
         var cost = L.paintCost(car, paint, livery, trim);
@@ -798,7 +803,11 @@
                 g.cash += cash;
                 var prize = cash ? cashText + ' and ' : '';
                 var won = L.makeCar(g, rival.body, L.rivalParts(rival.body, rival.tier, rival.era), 80, rival.engineCondition, wornParts(rival.engineCondition));
-                if (rival.king) won.king = rival.name;      // a King's car, shown in gold in the garage
+                if (rival.king) {                           // a King's car, shown in gold in the garage, in his black and flames
+                    won.king = rival.name;
+                    won.paint = 'black';
+                    won.livery = 'flames';
+                }
                 var next = L.ERAS[L.eraOf(g) + 1];
                 var crown = !rival.king ? '' : ' You are the new King of the strip!' +
                     (next ? ' Next week it\'s ' + next.year + ', and there\'s a new crowd at the burger stand.'
@@ -862,10 +871,32 @@
     L.load = function () {
         try {
             var raw = localStorage.getItem(SAVE_KEY);
-            return raw ? JSON.parse(raw) : null;
+            return raw ? L.fixSave(JSON.parse(raw)) : null;
         } catch (e) {
             return null;
         }
+    };
+
+    // Brings an older save up to date. A King's car won before it kept his paint gets his
+    // black and flames (unless you've painted it since). Flames bought before they were The
+    // King's come off any car of a player who hasn't beaten a King, and the paint shop refunds
+    // them; g.notice says so once, on the next screen.
+    L.fixSave = function (g) {
+        if (!g || !g.cars) return g;
+        g.cars.forEach(function (c) {
+            if (L.carTier(c) === 'king' && !c.paint && !c.livery) { c.paint = 'black'; c.livery = 'flames'; }
+        });
+        if (!L.beatAKing(g)) {
+            var refund = 0;
+            g.cars.forEach(function (c) {
+                if (c.livery === 'flames') { c.livery = 'none'; refund += L.LIVERIES.flames.price; }
+            });
+            if (refund) {
+                g.cash += refund;
+                g.notice = "Flames are The King's now, and you have to beat him to wear them. Sal took yours off and refunded you $" + refund.toLocaleString('en-US') + '.';
+            }
+        }
+        return g;
     };
 
     L.clearSave = function () {

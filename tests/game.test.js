@@ -452,6 +452,7 @@ test('the paint shop changes the colour and livery for a price, and only on a so
     g.cars.push(L.makeCar(g, 'ford48', null, 50, 80));
     g.active = 0;
     g.cash = 10000;
+    g.kingBeaten = true;      // flames are The King's, yours once you beat him
     const car = L.activeCar(g);
     assert.strictEqual(L.carColor(car), L.BODIES.ford48.color);
     assert.match(L.paintCar(g, 'red', 'flames', 'white'), /rust/);
@@ -803,4 +804,43 @@ test('a car\'s build is the class most of its parts are, and a King\'s car is hi
     const old = L.makeCar(g, 'chevy57', L.rivalParts('chevy57', 5, 0), 80, 90);      // won before cars kept it
     assert.strictEqual(L.carTier(old), 'king');
     assert.strictEqual(old.king, 'The King');
+});
+
+test("a King's car keeps his black and flames, which you can't buy until you beat a King", () => {
+    const g = garage('ford48', null, 90, 90);
+    assert.match(L.canPaint(g, null, 'flames', 'white'), /Beat him first/);
+    assert.strictEqual(L.canPaint(g, null, 'stripes', 'white'), null);
+    g.eraWins = L.KING_WINS;
+    L.newWeek(g);
+    L.settleRace(g, g.rivals.findIndex((r) => r.king), 'pinks', 'win', 0);
+    const won = g.cars[g.cars.length - 1];
+    assert.strictEqual(won.paint, 'black');
+    assert.strictEqual(won.livery, 'flames');
+    assert.strictEqual(L.canPaint(g, null, 'flames', 'white'), null);
+});
+
+test('an older save gets its King car painted and loses flames it had no right to, with a refund', () => {
+    const g = garage('ford48', null, 90, 90);
+    g.cars[0].livery = 'flames';
+    g.cars.push(L.makeCar(g, 'chevy55', null, 90, 90));
+    g.cars[1].livery = 'flames';
+    const cash = g.cash;
+    L.fixSave(g);
+    assert.strictEqual(g.cars[0].livery, 'none');
+    assert.strictEqual(g.cars[1].livery, 'none');
+    assert.strictEqual(g.cash, cash + 2 * L.LIVERIES.flames.price);
+    assert.match(g.notice, /\$6,000/);
+    L.fixSave(g);                                           // runs on every load: nothing more the second time
+    assert.strictEqual(g.cash, cash + 2 * L.LIVERIES.flames.price);
+
+    const h = garage('ford48', null, 90, 90);
+    h.era = 1;
+    h.cars[0].livery = 'flames';
+    const king = L.makeCar(h, 'chevy57', L.rivalParts('chevy57', 5, 0), 80, 90);     // won before cars kept his paint
+    h.cars.push(king);
+    L.fixSave(h);
+    assert.strictEqual(h.cars[0].livery, 'flames');
+    assert.strictEqual(king.paint, 'black');
+    assert.strictEqual(king.livery, 'flames');
+    assert.strictEqual(h.notice, undefined);
 });

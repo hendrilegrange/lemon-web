@@ -674,3 +674,4 @@ canvas.scene {
     .shelf-acts { flex-basis: 100%; }
     .shelf-acts button { flex: 1 1 auto; padding: 6px 8px; font-size: 0.85rem; }
 }
+.swatch-btn.locked { opacity: 0.55; cursor: not-allowed; border-style: dashed; }
