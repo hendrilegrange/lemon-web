@@ -761,3 +761,11 @@ canvas.scene {
 .closed-banner p { margin: 0; flex: 1 1 260px; }
 .closed-banner .closed-btns { display: flex; gap: 8px; flex-wrap: wrap; }
 .panel.closed .row.fix button { opacity: 0.35; }
+
+/* What a part would do for your quarter mile, in the speed shop */
+.gain { color: #3bff6e; font-style: normal; white-space: nowrap; }
+.gain.none { color: var(--muted); }
+/* A tip on the stand when a worn car is holding you back */
+.stand-tip { margin: 0 0 12px; padding: 10px 14px; border-left: 3px solid var(--accent); background: rgba(255, 210, 63, 0.08); }
+/* A classified car too rusty to race as it is */
+.ad .needs { margin: 4px 0 0; color: #b3261e; font-style: italic; }

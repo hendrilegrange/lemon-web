@@ -591,7 +591,7 @@
                 g.friday || g.hours === 0 ? 'Racing tonight' : 'Friday night: closes the garage', g.friday ? 'hot' : '') +
             '</nav>' +
             '<div class="hub-foot">' +
-            '<button data-act="week">Next week</button>' +
+            '<button data-act="week" class="minor">Next week</button>' +
             '<button data-act="quit" class="minor">Title screen</button>' +
             '<span class="toggles"><button data-act="sound" class="minor" id="sound">Sound: ' + (L.sound.on ? 'on' : 'off') + '</button>' +
             '<button data-act="music" class="minor" id="music">Music: ' + (L.sound.music ? 'on' : 'off') + '</button></span></div>',
@@ -605,7 +605,12 @@
                 dealer: GO.dealer,
                 solo: function () { if (!L.beatTheGame(g)) return L.showHub('The solo drags open once you beat The Last King.'); L.showSolo(); },
                 stand: function () { GO.stand(L.showHub); },
-                week: function () { L.startWeek(); },
+                week: function () {
+                    if (g.friday) return L.startWeek();
+                    ask('Skip Friday night? You haven\'t been to the burger stand this week, so there\'s no racing and no winnings. ' +
+                        'Next week brings new ads, a restocked speed shop and ' + L.HOURS_PER_WEEK + ' fresh hours.',
+                        'Skip to next week', function () { L.startWeek(); }, L.showHub);
+                },
                 quit: function () { L.showTitle(); }
             }
         );
@@ -645,6 +650,7 @@
                 '<canvas class="ad-car" width="96" height="48" data-ad="' + i + '" aria-hidden="true"></canvas>' +
                 '<h3>' + esc(body.name.toUpperCase()) + '</h3>' +
                 '<p class="copy">' + esc(ad.note) + ' ' + esc(p.family) + ', ' + body.kg + ' kg. Body ' + ad.condition + '%, engine ' + ad.engineCondition + '%. Call ' + phone + '.</p>' +
+                (ad.condition < L.MIN_BODY ? '<p class="needs">Needs bodywork before it can race: ' + L.MIN_BODY + '% body.</p>' : '') +
                 '<p class="ad-price">' + money(ad.price) + '</p>' +
                 '<div class="look"><h4>Mechanic\'s once-over</h4>' +
                 '<dl>' +
@@ -724,13 +730,24 @@
     L.showParts = function (msg) {
         var car = L.activeCar(g);
         var catalog = L.catalogFor(g, car);
-        function row(x) {
+        var nowEt = car ? L.estimate(L.spec(car)).et : null;
+        // How much quicker a part makes your car, fitted new (null when it doesn't fit)
+        function gain(x) {
             var p = L.PARTS[x.id];
+            if (!car || !x.fits || car.parts[p.slot] === x.id) return null;
+            var c = JSON.parse(JSON.stringify(car));
+            c.parts[p.slot] = x.id;
+            if (p.slot === 'engine') c.engineCondition = 100; else (c.partCondition = c.partCondition || {})[p.slot] = 100;
+            return nowEt - L.estimate(L.spec(c)).et;
+        }
+        function row(x) {
+            var p = L.PARTS[x.id], d = gain(x);
             var owned = g.inventory.filter(function (id) { return id === x.id; }).length;
             var fitted = car && car.parts[p.slot] === x.id;
             return '<div class="row' + (x.inStock ? '' : ' out') + '"><span><span class="cls cls' + p.cls + '">' + L.CLASSES[p.cls] + '</span> ' + esc(p.name) +
                 (p.legend ? ' <em class="legend-note">· widens your green shift zone</em>' : '') +
-                (fitted ? ' <em>· on your car</em>' : '') + (owned ? ' <em>· ' + owned + ' on your shelf</em>' : '') + '</span>' +
+                (fitted ? ' <em>· on your car</em>' : '') + (owned ? ' <em>· ' + owned + ' on your shelf</em>' : '') +
+                (d === null ? '' : d >= 0.005 ? ' <em class="gain">−' + d.toFixed(2) + ' s</em>' : ' <em class="gain none">no quicker</em>') + '</span>' +
                 '<span class="price">' + money(p.price) + '</span>' +
                 (x.inStock
                     ? '<button data-act="buy" data-arg="' + x.id + '"' + off(g.cash < p.price ? 'It costs ' + money(p.price) + ' and you have ' + money(g.cash) + '.' : '') + '>Buy</button>'
@@ -771,7 +788,7 @@
             }).join('') +
             others.map(family).join('');
         var intro = car
-            ? 'Your ' + esc(L.carName(car)) + ' has the ' + esc(L.PARTS[car.parts.engine].name) + '. Carbs, intakes, cams and exhausts only fit their own engine family; engines and the rest fit anything.'
+            ? 'Your ' + esc(L.carName(car)) + ' has the ' + esc(L.PARTS[car.parts.engine].name) + '. Carbs, intakes, cams and exhausts only fit their own engine family; engines and the rest fit anything. The green time by a part is how much quicker it makes your quarter mile, fitted new.'
             : 'Everything we carry. Buy a car and we\'ll put what fits it first.';
         render(
             status('parts') + flash(msg) + '<div class="panel"><h2>Speed Shop</h2><p class="sub">' + intro +
@@ -1200,15 +1217,24 @@
         var why = !car ? 'You need a car to race.' :
             car.engineCondition <= 0 ? 'Your engine is blown. Rebuild it in the garage next week.' :
             car.condition < L.MIN_BODY ? 'Nobody races a rust bucket: the body has to be ' + L.MIN_BODY + '%. Fix it up in the garage next week.' : '';
+        // A worn car is a slow car: say how much quicker fixing it would make you
+        var fixTip = '';
+        if (car && !why) {
+            var pot = L.carPotential(car), gain = pot.asIs - pot.fixedEt;
+            if (gain >= 0.3) fixTip = '<p class="stand-tip">Your ' + esc(L.carName(car)) + ' is worn' +
+                (car.engineCondition < 60 ? ', the engine down to ' + car.engineCondition + '%' : '') + '. Fixed up next week (' + money(pot.fixCost) + ', ' + pot.fixHours + ' h) it would run about ' +
+                pot.fixedEt.toFixed(2) + ' s, ' + gain.toFixed(2) + ' s quicker.</p>';
+        }
         render(
-            status('stand') + flash(msg || why) +
+            status('stand') + flash(msg || why) + fixTip +
             '<div class="panel stand"><header class="stand-sign"><h2>The Burger Stand</h2><p>Friday night. Engines idling, everybody watching.</p></header>' +
             '<div class="rivals">' + rows + '</div></div>' +
             '<details class="stand-help"><summary>How a race works</summary><p>Press Space, Enter or the big button when the start light turns green, then again each time the SHIFT light goes green. Keep out of the red.</p>' +
             '<p>A race just for fun risks nothing and pays a little. In a cash race you pick the bet, from ' + money(L.MIN_BET) + ' up to ' + money(L.rivalPrize(g)) + ' or all your cash, and the rival puts up the same. Pink slips are for the cars.</p>' +
             '<p>The times are each car\'s best quarter mile with a perfect launch and shifts. The odds count an average driver for you and the rival\'s own skill.</p></details>' +
-            backBar('Back'),
+            backBar('Back', 'back', [['Call it a night: next week', 'week']]),
             {
+                week: function () { L.startWeek(); },
                 cash: function (i) { showBet(+i); },
                 fun: function (i) { race(+i, 'fun'); },
                 pinks: function (i) {
