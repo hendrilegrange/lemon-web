@@ -25,6 +25,12 @@
         if (k >= 1 && (x - k) / x <= 0.25) canvas.style.width = (k * W / dpr + BORDER) + 'px';
     }
     window.addEventListener('resize', fitCanvas);
+    // The page can get narrower without a resize, when a scrollbar comes or goes
+    var mainWidth = 0;
+    if (window.ResizeObserver) new ResizeObserver(function (entries) {
+        var w = entries[0].contentRect.width;
+        if (w !== mainWidth) { mainWidth = w; fitCanvas(); }
+    }).observe(document.querySelector('main'));
 
     // Title screen: a hot rod revving at a drag strip light that cycles red, amber, green,
     // then launches
