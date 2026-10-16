@@ -208,6 +208,7 @@
             '<p class="hint">Summer, 1963. You have ' + money(L.START_CASH) + ' and a driver\'s license.</p>' +
             leadersBlock() +
             accountBlock() +
+            '<p class="version" id="version">' + (version ? 'v' + esc(version) : '') + '</p>' +
             '</div>',
             {
                 leaders: function () { L.showLeaders(); },
@@ -238,7 +239,21 @@
         );
         L.titleScreen(true);
         fillLeaders();
+        fillVersion();
     };
+
+    // The game's version, v1.0 and the last merged pull request's number, from the
+    // version.json the deploy writes (there's none when running from a checkout)
+    var version = null;
+    function fillVersion() {
+        if (version !== null || !window.fetch) return;
+        fetch('version.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : {}; }).then(function (d) {
+            version = typeof d.version === 'string' ? d.version : '';
+        }, function () { version = ''; }).then(function () {
+            var el = document.getElementById('version');
+            if (el && version) el.textContent = 'v' + version;
+        });
+    }
 
     // ── Leaderboards ──────────────────────────────────────────────────────
     // Kept on the server for signed-in players (api.php), so they only show when it answers
