@@ -268,7 +268,7 @@
         // Fewest weeks from a new game to beating each era's King; the title shows the first's
         return { key: 'k' + i, name: 'Quickest to dethrone ' + k.name, king: i, fmt: function (v) { return v + (v === 1 ? ' week' : ' weeks'); } };
     })).concat(L.SOLO.map(function (s, i) {
-        // The solo drags, once you've beaten the game; the title shows the quarter mile's
+        // The solo drags, once you've beaten the game: each player's best in each car, with the car; the title shows the quarter mile's
         return { key: s.key, name: 'Solo ' + s.name.toLowerCase(), solo: i, fmt: function (v) { return v.toFixed(2) + ' s'; } };
     }));
     function titleBoards() { return BOARDS.filter(function (b) { return !b.king && !b.solo; }); }    // the first King's board has king 0, the quarter mile's solo 0
@@ -290,7 +290,7 @@
                 var cell = document.getElementById('lead-' + b.key);
                 if (!cell) return;       // the player moved on
                 var top = res.boards && res.boards[b.key] && res.boards[b.key][0];
-                cell.textContent = res.error ? '' : top ? b.fmt(top.value) + ' · ' + top.name : 'nobody yet';
+                cell.textContent = res.error ? '' : top ? b.fmt(top.value) + ' · ' + top.name + (top.car ? ', ' + top.car : '') : 'nobody yet';
             });
         });
     }
@@ -300,7 +300,7 @@
         if (!rows.length) return '<p class="sub">Nobody on this board yet. ' + (b.king !== undefined ? 'Dethrone him and it\'s yours.' : b.solo !== undefined ? 'Beat the game, then run it solo.' : 'Win some races and it\'s yours.') + '</p>';
         return '<ol class="board">' + rows.map(function (r, i) {
             return '<li' + (r.name === me ? ' class="you"' : '') + '><span class="rank">' + (i + 1) + '</span>' +
-                '<span class="name">' + esc(r.name) + '</span><span class="val">' + b.fmt(r.value) + '</span></li>';
+                '<span class="name">' + esc(r.name) + (r.car ? ' <small class="car">' + esc(r.car) + '</small>' : '') + '</span><span class="val">' + b.fmt(r.value) + '</span></li>';
         }).join('') + '</ol>';
     }
 
@@ -1335,15 +1335,16 @@
         var car = L.activeCar(g), rec = L.records(g);
         var spec = car && L.spec(car);
         var runs = L.SOLO.map(function (s) {
-            var est = spec ? L.estimate(spec, s.dist) : null;
+            var est = spec ? L.estimate(spec, s.dist) : null, mine = L.soloBest(g, s.key, car);
             return '<div class="solo-run card"><h3>' + s.name + '</h3>' +
-                '<p class="solo-best">' + (typeof rec[s.key] === 'number' ? 'Your best <b>' + rec[s.key].toFixed(2) + ' s</b>' : 'No time yet') + '</p>' +
+                '<p class="solo-best">' + (car ? (mine !== null ? 'This car\'s best <b>' + mine.toFixed(2) + ' s</b>' : 'No time in this car yet') : 'No car') +
+                (typeof rec[s.key] === 'number' && rec[s.key] !== mine ? '<br><small>Your best in any car ' + rec[s.key].toFixed(2) + ' s</small>' : '') + '</p>' +
                 (est ? '<p class="sub">Your ' + esc(L.carName(car)) + ' could do about ' + est.et.toFixed(2) + ' s at ' + Math.round(est.trapMph) + ' mph with perfect shifts.</p>' : '') +
                 '<button data-act="run" data-arg="' + s.key + '"' + (car ? '' : ' disabled') + '>Run the ' + s.name.toLowerCase() + '</button></div>';
         }).join('');
         render(
             status('solo') + flash(msg) +
-            '<div class="panel"><h2>Solo drags</h2><p class="sub">Just you, the tree and the clock. Your best times go on the leaderboards' +
+            '<div class="panel"><h2>Solo drags</h2><p class="sub">Just you, the tree and the clock. Each car\'s best time goes on the leaderboards' +
             (L.account && L.account.user ? '' : ' once you sign in on the title screen') + '. Nothing to win or lose, and the car doesn\'t wear.</p>' +
             (car ? '' : '<p class="shot">You need a car first.</p>') + '<div class="solo-runs">' + runs + '</div></div>' +
             backBar('Back'),
@@ -1366,7 +1367,7 @@
         L.startRace(L.canvas, document.getElementById('go'),
             { spec: L.spec(car), color: L.carLook(car), condition: car.engineCondition }, null,
             function (result, damage, sum) {
-                var best = result === 'win' && L.noteSolo(g, key, sum.et);
+                var best = result === 'win' && L.noteSolo(g, key, sum.et, car);
                 L.save(g);
                 L.showCanvas(false);
                 render(
@@ -1374,7 +1375,8 @@
                     '<div class="panel result ' + result + '"><h2>' + (result === 'win' ? sum.et.toFixed(2) + ' s' : result === 'foul' ? 'Red light!' : 'No time') + '</h2>' +
                     '<p>' + (result === 'win' ? 'Solo ' + s.name.toLowerCase() + ': ' + esc(sum.me) + '.' : result === 'foul' ? 'You jumped the light.' : 'You ' + esc(sum.me) + '. No harm done: solo runs don\'t wear the car.') + '</p>' +
                     (sum.reaction !== null && result !== 'foul' ? '<p class="sub">Reaction ' + sum.reaction.toFixed(3) + ' s</p>' : '') +
-                    (best ? '<p class="record">New personal best!</p>' : result === 'win' ? '<p class="sub">Your best is ' + L.records(g)[key].toFixed(2) + ' s.</p>' : '') + '</div>' +
+                    (best ? '<p class="record">' + (best.overall ? 'New personal best!' : 'New best for your ' + esc(L.carName(car)) + '!') + '</p>'
+                        : result === 'win' ? '<p class="sub">Your ' + esc(L.carName(car)) + '\'s best is ' + L.soloBest(g, key, car).toFixed(2) + ' s.</p>' : '') + '</div>' +
                     backBar('Run it again', 'again', [['Solo drags', 'solo']]),
                     { again: function () { soloRun(key); }, solo: function () { L.showSolo(); } }
                 );

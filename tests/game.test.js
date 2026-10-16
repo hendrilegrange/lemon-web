@@ -699,15 +699,22 @@ test('beating The Last King beats the game: every part but the Legendary ones st
     assert.ok(L.beatTheGame(old));
 });
 
-test('the solo drags only count once you beat the game, and keep your best', () => {
-    const g = garage('ford48', FULL, 90, 90);
-    assert.strictEqual(L.noteSolo(g, 'sq', 11.5), false);
+test('the solo drags only count once you beat the game, and keep a best per car', () => {
+    const g = garage('ford48', FULL, 90, 90), a = g.cars[0];
+    const b = Object.assign({}, a, { id: a.id + 1 });
+    g.cars.push(b);
+    assert.strictEqual(L.noteSolo(g, 'sq', 11.5, a), false);
     g.gameBeaten = true;
-    assert.strictEqual(L.noteSolo(g, 'sq', 11.5), true);
-    assert.strictEqual(L.noteSolo(g, 'sq', 11.9), false);
-    assert.strictEqual(L.noteSolo(g, 'sm', 30.25), true);
+    assert.deepStrictEqual(L.noteSolo(g, 'sq', 11.5, a), { car: true, overall: true });
+    assert.strictEqual(L.noteSolo(g, 'sq', 11.9, a), false);
+    assert.deepStrictEqual(L.noteSolo(g, 'sq', 11.9, b), { car: true, overall: false });   // slower, but this car's first
+    assert.strictEqual(L.soloBest(g, 'sq', a), 11.5);
+    assert.strictEqual(L.soloBest(g, 'sq', b), 11.9);
+    assert.strictEqual(L.records(g).solo.sq[b.id].car, L.carName(b));
+    assert.deepStrictEqual(L.noteSolo(g, 'sm', 30.25, a), { car: true, overall: true });
     assert.strictEqual(L.records(g).sq, 11.5);
-    assert.strictEqual(L.noteSolo(g, 'zz', 1), false);
+    assert.strictEqual(L.noteSolo(g, 'zz', 1, a), false);
+    assert.strictEqual(L.noteSolo(g, 'sq', 10, null), false);
     const s = L.spec(g.cars[0]);
     const q = L.estimate(s).et, h = L.estimate(s, L.soloOf('sh').dist).et, m = L.estimate(s, L.soloOf('sm').dist).et;
     assert.ok(q < h && h < m && m < 60, `${q} ${h} ${m}`);
