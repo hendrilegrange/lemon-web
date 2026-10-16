@@ -341,6 +341,57 @@
         '.ommmmmmmmmmwwgwwlwwgwwwmmmmmmmmmmmmmmmmmmo.',
         '.olllllllllllllllllldlllllllllllllllllllllo.'
     ].concat(CAR.slice(8));
+    // A roofline drawn from a few numbers, for the cars that don't have a hand-drawn one: rows 0
+    // to 7 like the tops above. p: roof (the roof's top row, 1-4), rb and rf (the roof's back and
+    // front columns), back and front (where the rear glass and the windshield meet the body, row
+    // 5), pillars (B-pillar columns), deck and hood (true: the trunk or hood stands a row higher),
+    // tail and nose (columns the beltline starts after and ends before), spoiler ('lip', 'duck',
+    // 'wing', 'tall' or 'fin'), scoop ('bulge', 'shaker', 'cowl', 'snorkel') at column scoopAt
+    function roofline(p) {
+        var g = [], W = 44;
+        for (var r = 0; r < 8; r++) g.push(new Array(W).fill('.'));
+        function set(col, row, ch) { if (row >= 0 && row < 8 && col >= 0 && col < W) g[row][col] = ch; }
+        var tail = p.tail || 1, nose = 42 - (p.nose || 0), span = 5 - p.roof;
+        function edges(row) {
+            var t = span ? (row - p.roof) / span : 1;
+            return [Math.round(p.rb + (p.back - p.rb) * t), Math.round(p.rf + (p.front - p.rf) * t)];
+        }
+        // The greenhouse: an outlined roof, a highlight under it, then glass between pillars
+        for (var row = p.roof; row <= 5; row++) {
+            var e = edges(row), a = e[0], b = e[1];
+            for (var col = a; col <= b; col++) {
+                var ch = row === p.roof ? 'o' : col === a || col === b ? 'o' : row === p.roof + 1 ? 'h'
+                    : col === a + 1 || col === b - 1 || (p.pillars || []).indexOf(col) >= 0 ? 'm'
+                    : (col - a + row) % 7 === 0 ? 'g' : 'w';
+                set(col, row, ch);
+            }
+        }
+        // The deck and the hood: a row taller where they stand high, and the beltline under all
+        var e5 = edges(5);
+        if (p.deck) for (var c1 = tail; c1 < e5[0]; c1++) set(c1, 5, c1 === tail ? 'o' : 'o');
+        if (p.hood) for (var c2 = e5[1] + 1; c2 <= nose; c2++) set(c2, 5, 'o');
+        for (var c3 = tail; c3 <= nose; c3++) set(c3, 6, c3 === tail || c3 === nose ? 'o' : 'm');
+        if (p.deck) set(tail, 6, 'o');
+        // Spoilers at the tail
+        var sp = p.spoiler;
+        if (sp === 'lip') { set(tail, 5, 'o'); set(tail + 1, 5, 'o'); set(tail, 4, 'o'); }
+        if (sp === 'duck') { for (var d = 0; d < 5; d++) set(tail + d, 5, 'o'); set(tail, 4, 'o'); set(tail + 1, 4, 'h'); set(tail, 3, 'o'); }
+        if (sp === 'wing' || sp === 'tall') {
+            var top = sp === 'tall' ? 2 : 3;
+            for (var w = 0; w < 6; w++) set(tail - 1 + w, top, 'o');
+            set(tail, top + 1, 'o'); for (var w2 = 1; w2 < 4; w2++) set(tail + w2, top + 1, 'h'); set(tail + 4, top + 1, 'o');
+            for (var pr = top + 2; pr <= 5; pr++) { set(tail + 1, pr, 'o'); set(tail + 2, pr, 'o'); }
+        }
+        if (sp === 'fin') { set(tail - 1, 4, 'o'); set(tail, 4, 'o'); set(tail - 1, 5, 'o'); set(tail, 5, 'h'); set(tail + 1, 5, 'o'); set(tail, 6, 'm'); }
+        // Hood scoops
+        var at = p.scoopAt || e5[1] + 4, sc = p.scoop;
+        if (sc === 'bulge') { for (var k = 0; k < 8; k++) set(at + k, 5, 'o'); }
+        if (sc === 'shaker') { set(at, 4, 'o'); set(at + 1, 4, 'o'); set(at + 2, 4, 'o'); set(at, 5, 'o'); set(at + 1, 5, 'k'); set(at + 2, 5, 'o'); }
+        if (sc === 'cowl') { for (var k2 = 0; k2 < 6; k2++) set(e5[1] + 1 + k2, 5, 'o'); set(e5[1] + 1, 4, 'o'); set(e5[1] + 2, 4, 'o'); }
+        if (sc === 'snorkel') { for (var k3 = 0; k3 < 4; k3++) set(at + k3, 5, 'o'); set(at + 3, 4, 'o'); set(at + 3, 5, 'k'); }
+        g[7] = '.olllllllllllllllllldlllllllllllllllllllllo.'.split('');
+        return g.map(function (r) { return r.join(''); });
+    }
     // The body below the beltline, rows 8 to 21, for the cars after the late-40s fat fenders:
     // a slab side from tail to nose cut by wheel arches, with the era's wheels. p: wheels (the
     // two wheel centres' columns), tire (radius), rim (radius), cy (the wheels' centre row),
@@ -432,9 +483,40 @@
         gt: body(GT, era(MODERN_W, { nose: 2, cy: 18, rocker: 17 })),
         modern: body(MODERN, era(MODERN_W, { nose: 1 })),
         retro: body(RETRO, era(MODERN_W, { wheels: [9, 36] })),
-        supercar: body(SUPERCAR, era(MODERN_W, { nose: 3, tail: 1, cy: 18, rocker: 17, wheels: [10, 35] }))
+        supercar: body(SUPERCAR, era(MODERN_W, { nose: 3, tail: 1, cy: 18, rocker: 17, wheels: [10, 35] })),
+        // Every other car's own roofline, named by its body, so no two cars share a shape
+        merc49: body(roofline({ roof: 3, rb: 12, rf: 26, back: 8, front: 30, pillars: [20], nose: 1 }), era(FIFTIES, { rocker: 17, doors: [21] })),
+        chevy52: body(roofline({ roof: 1, rb: 13, rf: 27, back: 10, front: 31, pillars: [19, 20], deck: true }), era(FIFTIES, { style: 'chrome', doors: [21, 30] })),
+        chevy55: body(roofline({ roof: 1, rb: 14, rf: 29, back: 11, front: 32, pillars: [21], hood: true }), era(FIFTIES, { wheels: [10, 34], doors: [22] })),
+        chevy60: body(roofline({ roof: 1, rb: 15, rf: 30, back: 10, front: 33, spoiler: 'fin', tail: 2 }), era(FIFTIES, { style: 'chrome', wheels: [10, 36], nose: 1, tail: 1 })),
+        nova68: body(roofline({ roof: 1, rb: 12, rf: 26, back: 10, front: 30, pillars: [19], deck: true }), era(SIXTIES, { wheels: [10, 34], tire: 3, cy: 18 })),
+        torino70: body(roofline({ roof: 1, rb: 15, rf: 27, back: 3, front: 31, pillars: [23] }), era(SIXTIES, { wheels: [9, 36], tail: 1 })),
+        camaro69: body(roofline({ roof: 1, rb: 15, rf: 26, back: 11, front: 30, pillars: [22], spoiler: 'lip', scoop: 'cowl' }), era(SIXTIES, { wheels: [10, 34] })),
+        charger69: body(roofline({ roof: 1, rb: 13, rf: 27, back: 6, front: 31, pillars: [21], deck: true, scoop: 'bulge' }), era(SIXTIES, { wheels: [9, 36], doors: [22] })),
+        cuda70: body(roofline({ roof: 2, rb: 14, rf: 26, back: 11, front: 30, spoiler: 'duck', scoop: 'shaker' }), era(SIXTIES, { wheels: [10, 35], rim: 3 })),
+        fox79: body(roofline({ roof: 1, rb: 14, rf: 27, back: 11, front: 31, pillars: [22], deck: true }), era(EIGHTIES_W, { nose: 0, style: 'mag', wheels: [10, 34] })),
+        camaro82: body(roofline({ roof: 2, rb: 14, rf: 26, back: 5, front: 31, spoiler: 'lip' }), era(EIGHTIES_W, {})),
+        irocz85: body(roofline({ roof: 2, rb: 15, rf: 27, back: 5, front: 32, spoiler: 'duck', scoop: 'snorkel', nose: 1 }), era(EIGHTIES_W, { rocker: 17, rim: 3 })),
+        montess84: body(roofline({ roof: 1, rb: 12, rf: 25, back: 10, front: 28, pillars: [19], deck: true, hood: true, spoiler: 'lip' }), era(EIGHTIES_W, { nose: 1 })),
+        gn84: body(roofline({ roof: 1, rb: 12, rf: 26, back: 10, front: 29, pillars: [19, 20], deck: true, spoiler: 'lip', scoop: 'bulge' }), era(EIGHTIES_W, { nose: 0, style: 'mag' })),
+        camaro93: body(roofline({ roof: 2, rb: 16, rf: 27, back: 5, front: 33, spoiler: 'duck', nose: 2 }), era(MODERN_W, { nose: 3 })),
+        firebird94: body(roofline({ roof: 2, rb: 16, rf: 28, back: 5, front: 34, spoiler: 'wing', scoop: 'snorkel', nose: 3 }), era(MODERN_W, { nose: 4, rim: 2 })),
+        cobra93: body(roofline({ roof: 1, rb: 14, rf: 27, back: 6, front: 31, spoiler: 'lip' }), era(MODERN_W, { nose: 1, rim: 2, wheels: [10, 34] })),
+        supra93: body(roofline({ roof: 2, rb: 15, rf: 26, back: 6, front: 31, spoiler: 'tall', nose: 2 }), era(MODERN_W, { nose: 3, tail: 1, cy: 18 })),
+        gtr91: body(roofline({ roof: 1, rb: 14, rf: 27, back: 11, front: 31, pillars: [21], deck: true, spoiler: 'wing' }), era(MODERN_W, { nose: 1, rim: 2 })),
+        sti05: body(roofline({ roof: 1, rb: 14, rf: 26, back: 11, front: 30, pillars: [20], deck: true, spoiler: 'tall', scoop: 'bulge' }), era(MODERN_W, { doors: [20, 29] })),
+        evo05: body(roofline({ roof: 1, rb: 15, rf: 27, back: 11, front: 31, pillars: [21], deck: true, spoiler: 'wing', scoop: 'cowl' }), era(MODERN_W, { nose: 2, doors: [21, 30] })),
+        magnum05: body(roofline({ roof: 2, rb: 4, rf: 28, back: 2, front: 32, pillars: [13, 21] }), era(MODERN_W, { doors: [20, 30], wheels: [9, 36] })),
+        ctsv04: body(roofline({ roof: 1, rb: 13, rf: 27, back: 9, front: 31, pillars: [20], deck: true, spoiler: 'lip' }), era(MODERN_W, { doors: [20, 30], nose: 1 })),
+        vette05: body(roofline({ roof: 2, rb: 13, rf: 25, back: 7, front: 30, nose: 2 }), era(MODERN_W, { nose: 3, tail: 1, cy: 18, wheels: [9, 36] })),
+        challenger23: body(roofline({ roof: 1, rb: 14, rf: 28, back: 10, front: 32, deck: true, spoiler: 'lip', scoop: 'shaker' }), era(MODERN_W, { wheels: [9, 36] })),
+        camaro24: body(roofline({ roof: 2, rb: 16, rf: 27, back: 9, front: 31, spoiler: 'lip', scoop: 'bulge' }), era(MODERN_W, { nose: 2 })),
+        zl1_24: body(roofline({ roof: 2, rb: 16, rf: 27, back: 9, front: 31, spoiler: 'wing', scoop: 'cowl', nose: 1 }), era(MODERN_W, { nose: 2, wheels: [10, 35] })),
+        gt500_22: body(roofline({ roof: 2, rb: 15, rf: 26, back: 4, front: 31, spoiler: 'tall', scoop: 'snorkel' }), era(MODERN_W, { nose: 1 })),
+        gtr24: body(roofline({ roof: 2, rb: 15, rf: 27, back: 6, front: 31, spoiler: 'wing', hood: true }), era(MODERN_W, { nose: 2, cy: 18 }))
     };
     L.CAR_SHAPES = Object.keys(SHAPES);
+    L.carSprite = function (shape) { return SHAPES[shape] || SHAPES.coupe; };
     // How many rows lower than the 40s coupe a shape's body sits
     L.shapeDrop = function (shape) { return SHAPES[shape] && SHAPES[shape] !== CAR ? DROP : 0; };
     var GLASS = { w: '#4a7aa8', g: '#cfe8ff', c: '#d8d8e0', C: '#7a7a86', t: '#141414', T: '#3a3a3a', k: '#060606', r: '#e02020', y: '#fff3b0' };

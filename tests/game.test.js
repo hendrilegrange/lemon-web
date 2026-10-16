@@ -998,3 +998,15 @@ test('the dealership opens once you beat a King and sells every reached era new'
     g.cash = 0;
     assert.match(L.canBuyNew(g, 'dart69'), /afford/);
 });
+
+test('every car body has its own sprite', () => {
+    const seen = {};
+    for (const [id, b] of Object.entries(L.BODIES)) {
+        assert.ok(L.CAR_SHAPES.includes(b.shape), `${id} has no sprite ${b.shape}`);
+        const key = L.carSprite(b.shape).join('\n');
+        assert.strictEqual(seen[key], undefined, `${id} looks just like ${seen[key]}`);
+        seen[key] = id;
+        assert.strictEqual(L.carSprite(b.shape).length, 22);
+        L.carSprite(b.shape).forEach(row => assert.strictEqual(row.length, 44));
+    }
+});
