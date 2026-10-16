@@ -730,3 +730,24 @@ canvas.scene {
 .lot-pic { width: 100%; max-width: 192px; aspect-ratio: 2 / 1; image-rendering: pixelated; background: linear-gradient(transparent 80%, #3a3a3e 80%); align-self: center; }
 .lot-car button { margin: auto 0 0; padding: 6px 10px; }
 .tile.locked { opacity: 0.6; }
+
+/* Solo drags: a card per distance */
+.solo-runs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; }
+.solo-run { display: flex; flex-direction: column; gap: 6px; }
+.solo-run h3 { margin: 0; color: var(--accent); text-transform: uppercase; letter-spacing: 0.06em; }
+.solo-run p { margin: 0; }
+.solo-run button { margin: auto 0 0; }
+.solo-best b { color: var(--good); }
+
+/* The end of the game */
+.panel.celebrate { border: 2px solid var(--accent); box-shadow: var(--shadow), 0 0 28px rgba(255, 210, 63, 0.25); text-align: left; }
+.celebrate .scene { width: 100%; height: auto; image-rendering: pixelated; display: block; margin-bottom: 12px; }
+.celebrate h2 { color: var(--accent); font-size: clamp(1.6rem, 6vw, 2.4rem); text-align: center; text-shadow: 0 0 10px rgba(255, 210, 63, 0.6), 0 0 28px rgba(255, 79, 160, 0.35); }
+.celebrate .lead { font-size: 1.05rem; }
+.celebrate .chips { margin: 10px 0 14px; }
+.kings { list-style: none; padding: 0; margin: 0 0 14px; display: grid; gap: 4px; }
+.kings li { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; background: var(--panel-hi); border-left: 3px solid var(--accent); }
+.kings small { color: var(--muted); }
+.kings b { color: var(--good); white-space: nowrap; }
+.unlocks { margin: 0 0 14px; padding-left: 20px; }
+.unlocks li { margin-bottom: 6px; }

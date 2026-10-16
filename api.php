@@ -50,7 +50,11 @@ const USERNAME_PATTERN = '/^[A-Za-z0-9_]{3,20}$/';
 const BOARDS = ['et' => ['ASC', 5, 60], 'rt' => ['ASC', 0, 2], 'streak' => ['DESC', 1, 100000], 'cash' => ['DESC', 1, 100000000],
                 // fewest weeks from a new game to beating each era's King
                 'k0' => ['ASC', 1, 100000], 'k1' => ['ASC', 1, 100000], 'k2' => ['ASC', 1, 100000],
-                'k3' => ['ASC', 1, 100000], 'k4' => ['ASC', 1, 100000], 'k5' => ['ASC', 1, 100000]];
+                'k3' => ['ASC', 1, 100000], 'k4' => ['ASC', 1, 100000], 'k5' => ['ASC', 1, 100000],
+                // the solo drags, open once you've beaten the game: quarter, half and 1 mile, in seconds
+                'sq' => ['ASC', 5, 60], 'sh' => ['ASC', 8, 100], 'sm' => ['ASC', 12, 200]];
+// The boards kept in seconds, to the thousandth
+const TIMED_BOARDS = ['et', 'rt', 'sq', 'sh', 'sm'];
 // The quarter mile and reaction boards started over from wins only: their own columns, filled
 // only from saves marked winsOnly (the old et and rt columns, which counted losses, are left be)
 const WIN_COLUMNS = ['et' => 'et_win', 'rt' => 'rt_win'];
@@ -125,6 +129,7 @@ function createTables(PDO $db): void {
     for ($k = 0; $k <= 5; $k++) $adds[] = "ADD COLUMN IF NOT EXISTS k$k INT UNSIGNED NULL, ADD COLUMN IF NOT EXISTS k{$k}_at DATETIME NULL";
     $adds[] = 'ADD COLUMN IF NOT EXISTS et_win DECIMAL(6,3) NULL, ADD COLUMN IF NOT EXISTS et_win_at DATETIME NULL';
     $adds[] = 'ADD COLUMN IF NOT EXISTS rt_win DECIMAL(5,3) NULL, ADD COLUMN IF NOT EXISTS rt_win_at DATETIME NULL';
+    foreach (['sq', 'sh', 'sm'] as $k) $adds[] = "ADD COLUMN IF NOT EXISTS $k DECIMAL(7,3) NULL, ADD COLUMN IF NOT EXISTS {$k}_at DATETIME NULL";
     $db->exec('ALTER TABLE lemon_records ' . implode(', ', $adds));
     $db->exec("CREATE TABLE IF NOT EXISTS lemon_rate_limits (
         ip VARCHAR(45) NOT NULL,
@@ -405,7 +410,7 @@ function handle(PDO $db, string $action): never {
                 $col = boardColumn($key);
                 $rows = $db->query("SELECT u.username, r.$col AS v FROM lemon_records r JOIN lemon_users u ON u.id = r.user_id
                                     WHERE r.$col IS NOT NULL ORDER BY r.$col $order, r.{$col}_at, r.user_id LIMIT $limit")->fetchAll();
-                $boards[$key] = array_map(fn($row) => ['name' => $row['username'], 'value' => $key === 'et' || $key === 'rt' ? (float)$row['v'] : (int)$row['v']], $rows);
+                $boards[$key] = array_map(fn($row) => ['name' => $row['username'], 'value' => in_array($key, TIMED_BOARDS, true) ? (float)$row['v'] : (int)$row['v']], $rows);
             }
             respond(['boards' => $boards]);
     }

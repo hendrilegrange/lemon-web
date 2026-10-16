@@ -699,6 +699,30 @@ test('beating The Last King beats the game: every part but the Legendary ones st
     assert.ok(L.beatTheGame(old));
 });
 
+test('the solo drags only count once you beat the game, and keep your best', () => {
+    const g = garage('ford48', FULL, 90, 90);
+    assert.strictEqual(L.noteSolo(g, 'sq', 11.5), false);
+    g.gameBeaten = true;
+    assert.strictEqual(L.noteSolo(g, 'sq', 11.5), true);
+    assert.strictEqual(L.noteSolo(g, 'sq', 11.9), false);
+    assert.strictEqual(L.noteSolo(g, 'sm', 30.25), true);
+    assert.strictEqual(L.records(g).sq, 11.5);
+    assert.strictEqual(L.noteSolo(g, 'zz', 1), false);
+    const s = L.spec(g.cars[0]);
+    const q = L.estimate(s).et, h = L.estimate(s, L.soloOf('sh').dist).et, m = L.estimate(s, L.soloOf('sm').dist).et;
+    assert.ok(q < h && h < m && m < 60, `${q} ${h} ${m}`);
+});
+
+test('a save that beat The Last King before the celebration gets it once', () => {
+    const g = garage('ford48', null, 90, 90);
+    L.records(g)['k' + (L.ERAS.length - 1)] = 46;
+    L.fixSave(g);
+    assert.ok(g.gameBeaten && g.celebrate);
+    delete g.celebrate;
+    L.fixSave(g);
+    assert.ok(!g.celebrate);
+});
+
 test('swapping in an engine from another family says what comes off first', () => {
     const g = garage('ford48', FULL, 90, 90);
     g.inventory.push('v8_327'); g.inventory.push('cam_small_2'); g.inventory.push('v8_409');
