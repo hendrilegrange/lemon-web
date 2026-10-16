@@ -152,8 +152,8 @@
         });
     };
 
-    // The leaderboards: the top 10 on each, or one board's top 100 ('et', 'rt', 'streak' or
-    // 'cash'). Resolves { boards: { key: [{ name, value }] } } or { error }.
+    // The leaderboards: the top 10 on each, or one board's top 100 ('et', 'rt', 'streak',
+    // 'cash', or 'k0' to 'k5' for the Kings). Resolves { boards: { key: [{ name, value }] } } or { error }.
     A.leaders = function (board) {
         return call('leaders' + (board ? '&board=' + encodeURIComponent(board) : '')).then(function (res) {
             return res.ok && res.data.boards ? { boards: res.data.boards } : { error: res.data.error || 'Couldn\'t reach the server.' };

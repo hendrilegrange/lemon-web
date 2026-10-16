@@ -47,7 +47,10 @@ const USERNAME_PATTERN = '/^[A-Za-z0-9_]{3,20}$/';
 // The leaderboards, each a column of lemon_records: [sort order, lowest and highest value
 // believed]. The game runs in the browser, so a record is only as honest as its player; these
 // bounds keep out the impossible ones (and the smoke test's save, whose cash is a timestamp).
-const BOARDS = ['et' => ['ASC', 5, 60], 'rt' => ['ASC', 0, 2], 'streak' => ['DESC', 1, 100000], 'cash' => ['DESC', 1, 100000000]];
+const BOARDS = ['et' => ['ASC', 5, 60], 'rt' => ['ASC', 0, 2], 'streak' => ['DESC', 1, 100000], 'cash' => ['DESC', 1, 100000000],
+                // fewest weeks from a new game to beating each era's King
+                'k0' => ['ASC', 1, 100000], 'k1' => ['ASC', 1, 100000], 'k2' => ['ASC', 1, 100000],
+                'k3' => ['ASC', 1, 100000], 'k4' => ['ASC', 1, 100000], 'k5' => ['ASC', 1, 100000]];
 const RATE_LIMITS = ['login' => [10, 300], 'register' => [5, 3600], 'google' => [20, 300], 'forgot' => [3, 300], 'reset' => [10, 300]];
 
 $action = $_GET['action'] ?? '';
@@ -114,6 +117,10 @@ function createTables(PDO $db): void {
         KEY et (et), KEY rt (rt), KEY streak (streak), KEY cash (cash),
         FOREIGN KEY (user_id) REFERENCES lemon_users (id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    // The King boards came later: add their columns to a table made before them
+    $adds = [];
+    for ($k = 0; $k <= 5; $k++) $adds[] = "ADD COLUMN IF NOT EXISTS k$k INT UNSIGNED NULL, ADD COLUMN IF NOT EXISTS k{$k}_at DATETIME NULL";
+    $db->exec('ALTER TABLE lemon_records ' . implode(', ', $adds));
     $db->exec("CREATE TABLE IF NOT EXISTS lemon_rate_limits (
         ip VARCHAR(45) NOT NULL,
         action VARCHAR(20) NOT NULL,
@@ -190,7 +197,7 @@ function saveSummary(PDO $db, int $userId): ?array {
 function updateRecords(PDO $db, int $userId, array $game): void {
     $records = $game['records'] ?? null;
     if (!is_array($records) || !empty($game['smokeTest'])) return;
-    $stmt = $db->prepare('SELECT et, rt, streak, cash FROM lemon_records WHERE user_id = ?');
+    $stmt = $db->prepare('SELECT ' . implode(', ', array_keys(BOARDS)) . ' FROM lemon_records WHERE user_id = ?');
     $stmt->execute([$userId]);
     $best = $stmt->fetch() ?: [];
     $sets = [];
@@ -396,7 +403,8 @@ try {
     try {
         handle($db, $action);
     } catch (PDOException $e) {
-        if ($e->getCode() !== '42S02') throw $e;      // a table is missing: first run
+        // a table is missing (first run) or a column is (a board added since): make them
+        if ($e->getCode() !== '42S02' && $e->getCode() !== '42S22') throw $e;
         createTables($db);
         handle($db, $action);
     }

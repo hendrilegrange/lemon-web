@@ -203,13 +203,17 @@
         { key: 'rt', name: 'Quickest reaction', fmt: function (v) { return v.toFixed(3) + ' s'; } },
         { key: 'streak', name: 'Longest win streak', fmt: function (v) { return v + (v === 1 ? ' win' : ' wins'); } },
         { key: 'cash', name: 'Most cash on hand', fmt: function (v) { return money(v); } }
-    ];
+    ].concat(L.KINGS.map(function (k, i) {
+        // Fewest weeks from a new game to beating each era's King; the title shows the first's
+        return { key: 'k' + i, name: 'Fewest weeks to ' + k.name, king: i, fmt: function (v) { return v + (v === 1 ? ' week' : ' weeks'); } };
+    }));
+    function titleBoards() { return BOARDS.filter(function (b) { return !b.king; }); }    // the first King's board has king 0
     function boardOf(key) { return BOARDS.filter(function (b) { return b.key === key; })[0]; }
 
-    // The title's four lines, each with the record holder; filled in once the server answers
+    // The title's lines (the four boards and the first King's), each with the record holder; filled in once the server answers
     function leadersBlock() {
         if (!L.account || !L.account.available) return '';
-        return '<div class="leaders-mini"><h3>Leaderboards</h3>' + BOARDS.map(function (b) {
+        return '<div class="leaders-mini"><h3>Leaderboards</h3>' + titleBoards().map(function (b) {
             return '<button data-act="leaders" class="leader-line minor"><span class="what">' + b.name + '</span>' +
                 '<span class="who" id="lead-' + b.key + '">...</span></button>';
         }).join('') + '</div>';
@@ -218,7 +222,7 @@
     function fillLeaders() {
         if (!L.account || !L.account.available) return;
         L.account.leaders().then(function (res) {
-            BOARDS.forEach(function (b) {
+            titleBoards().forEach(function (b) {
                 var cell = document.getElementById('lead-' + b.key);
                 if (!cell) return;       // the player moved on
                 var top = res.boards && res.boards[b.key] && res.boards[b.key][0];
@@ -229,14 +233,14 @@
 
     function leaderRows(b, rows) {
         var me = L.account.user && L.account.user.username;
-        if (!rows.length) return '<p class="sub">Nobody on this board yet. Win some races and it\'s yours.</p>';
+        if (!rows.length) return '<p class="sub">Nobody on this board yet. ' + (b.king !== undefined ? 'Beat this King and it\'s yours.' : 'Win some races and it\'s yours.') + '</p>';
         return '<ol class="board">' + rows.map(function (r, i) {
             return '<li' + (r.name === me ? ' class="you"' : '') + '><span class="rank">' + (i + 1) + '</span>' +
                 '<span class="name">' + esc(r.name) + '</span><span class="val">' + b.fmt(r.value) + '</span></li>';
         }).join('') + '</ol>';
     }
 
-    // The top 10 on all four boards, or (board set) one board's top 100
+    // The top 10 on every board, or (board set) one board's top 100
     var leadersShown = 0;
     L.showLeaders = function (board) {
         var shown = ++leadersShown;
