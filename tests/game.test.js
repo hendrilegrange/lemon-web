@@ -882,3 +882,26 @@ test('Fix all does every job at once, once you have beaten a King', () => {
     h.hours = 1;
     assert.match(L.canFixAll(h), /hours/);
 });
+
+test('the dealership opens once you beat a King and sells every reached era new', () => {
+    const g = L.newGame();
+    g.cash = 100000;
+    assert.match(L.canBuyNew(g, 'chevy57'), /Beat The King/);
+    g.kingBeaten = true;
+    assert.ok(L.dealerCars(g).every((id) => (L.BODIES[id].era || 0) === 0));
+    const price = L.newCarPrice('chevy57');
+    assert.ok(price > L.carValue(L.newCar('chevy57')));
+    assert.strictEqual(L.buyNew(g, 'chevy57'), null);
+    assert.strictEqual(g.cash, 100000 - price);
+    const c = g.cars[0];
+    assert.strictEqual(g.active, 0);
+    assert.strictEqual(c.condition, 100);
+    assert.strictEqual(c.engineCondition, 100);
+    assert.strictEqual(L.fixAll(c).cost, 0);
+    assert.match(L.canBuyNew(g, 'dart69'), /doesn't sell/);     // 1973 isn't open yet
+    g.era = 2;
+    assert.strictEqual(L.dealerCars(g)[0].length > 0 && L.BODIES[L.dealerCars(g)[0]].era, 2);   // newest first
+    assert.strictEqual(L.canBuyNew(g, 'dart69'), null);
+    g.cash = 0;
+    assert.match(L.canBuyNew(g, 'dart69'), /afford/);
+});

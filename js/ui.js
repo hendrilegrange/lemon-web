@@ -439,6 +439,10 @@
         '.........s..', '..kk...s.s..', '..cc..s.....', '..hc.....s..', '.rrrr.......', '.rRrr.......',
         '.rRrr.......', '.rRrr.......', '.rRrr.......', '.rRrr.......', '.rrrr.......', '.kkkk.......'] };
 
+    ICONS.dealer = { k: '#1d1a14', r: '#d7263d', R: '#8a1424', w: '#9ec8f0', s: '#ffd23f', t: '#3a3a3a', rows: [
+        '.s.......s..', '...ssss.....', '..s....s....', '............', '...rrrrr....', '..rrwwwrr...',
+        '.rrrrrrrrrr.', 'rRrrrrrrrrRr', 'rRRRRRRRRRRr', '.tt......tt.', '.kk......kk.', '............'] };
+
     function icon(name) {
         var ic = ICONS[name], out = '';
         ic.rows.forEach(function (row, y) {
@@ -484,8 +488,9 @@
             tile('parts', 'parts', 'Speed shop', stocked + (car ? ' parts for your car' : ' parts') + ' in stock') +
             tile('garage', 'garage', 'Garage', plural(g.cars.length, 'car') + ' · ' + plural(g.inventory.length, 'part') + ' on the shelf') +
             tile('paint', 'paint', 'Paint shop', car ? 'Colours, stripes and flames' : 'Bring a car') +
+            tile('dealer', 'dealer', 'Dealership', L.beatAKing(g) ? 'Brand new cars, ' + L.dealerCars(g).length + ' on the lot' : '🔒 Beat The King to open', L.beatAKing(g) ? '' : 'locked') +
             tile('stand', 'stand', 'Burger stand',
-                g.friday || g.hours === 0 ? 'Racing tonight' : 'Friday night: closes the garage', 'wide' + (g.friday ? ' hot' : '')) +
+                g.friday || g.hours === 0 ? 'Racing tonight' : 'Friday night: closes the garage', g.friday ? 'hot' : '') +
             '</nav>' +
             '<div class="hub-foot">' +
             '<button data-act="week">Next week</button>' +
@@ -499,6 +504,7 @@
                 parts: function () { L.showParts(); },
                 garage: function () { L.showGarage(); },
                 paint: function () { L.showPaint(); },
+                dealer: function () { if (!L.beatAKing(g)) return L.showHub('The dealership only sells to the King of the strip. Beat The King first.'); L.showDealer(); },
                 stand: function () {
                     if (g.friday || g.hours === 0) { L.goFriday(g); L.save(g); return L.showStand(); }
                     ask('Head out to the burger stand? It\'s Friday night, so the garage is closed till next week. You still have ' +
@@ -581,6 +587,46 @@
             var ad = g.ads[+c.getAttribute('data-ad')];
             var paint = L.art.mix(L.BODIES[ad.body].color, '#7a4a2a', (100 - ad.condition) / 100 * 0.7);
             L.drawCar(c.getContext('2d'), 4, 2, paint, { scale: 2, shape: L.BODIES[ad.body].shape });
+        });
+    };
+
+    // ── Dealership ────────────────────────────────────────────────────────
+
+    // Brand new cars from every era you've reached, open once you've beaten a King: stock,
+    // in factory paint, at L.NEW_CAR_PRICE times what one fetches restored
+    L.showDealer = function (msg) {
+        if (!L.beatAKing(g)) return L.showHub('The dealership only sells to the King of the strip. Beat The King first.');
+        var cars = L.dealerCars(g), lastEra = -1, html = '';
+        cars.forEach(function (id) {
+            var body = L.BODIES[id], era = body.era || 0;
+            if (era !== lastEra) {
+                html += (lastEra >= 0 ? '</div>' : '') + '<h3 class="lot-era">' + L.ERAS[era].year + ' models</h3><div class="lot">';
+                lastEra = era;
+            }
+            var st = carStats(L.newCar(id)), price = L.newCarPrice(id);
+            var err = L.canBuyNew(g, id);
+            html += '<article class="lot-car">' +
+                '<canvas class="lot-pic" width="96" height="48" data-body="' + id + '" aria-hidden="true"></canvas>' +
+                '<h4>' + esc(body.name) + '</h4>' +
+                '<p class="sub">' + st.hp + ' hp · ' + st.et.toFixed(2) + ' s · ' + body.kg + ' kg</p>' +
+                '<p class="price">' + money(price) + '</p>' +
+                '<button data-act="buy" data-arg="' + id + '"' + (err ? ' disabled' : '') + '>' +
+                (err && g.cash < price ? "Can't afford it" : err && g.cars.length >= L.MAX_CARS ? 'Garage full' : 'Buy it new') + '</button></article>';
+        });
+        render(
+            status() + flash(msg) +
+            '<div class="panel dealer"><h2>Lemon Motors <span class="sub">new cars</span></h2>' +
+            '<p class="sub">Every car from the years you\'ve raced in, straight from the factory: stock parts, 100% body and engine, and nothing to fix. ' +
+            'It costs more than one restored, and it\'s worth what one restored is the moment you drive it off the lot.</p>' +
+            html + (html ? '</div>' : '') + '</div>' + backBar('Back'),
+            {
+                buy: act(L.showDealer, function (id) { return L.buyNew(g, id) || 'She\'s yours. The ' + L.BODIES[id].name + ' is in your garage.'; }),
+                back: function () { L.showHub(); }
+            }
+        );
+        app.querySelectorAll('canvas.lot-pic').forEach(function (c) {
+            var body = L.BODIES[c.getAttribute('data-body')];
+            L.drawCar(c.getContext('2d'), 4, 2, body.color, { scale: 2, shape: body.shape });
         });
     };
 

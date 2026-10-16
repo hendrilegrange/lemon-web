@@ -772,6 +772,10 @@
         number:    { name: 'Racing number', price: 600, ownColors: true }
     };
 
+    // The dealership, open once you've beaten a King: any car from the eras you've reached,
+    // brand new and stock, for this many times what it fetches restored
+    L.NEW_CAR_PRICE = 1.5;
+
     L.START_CASH = 600;     // enough for one scrappy car and a few repairs
     L.MAX_CARS = 10;
     L.REPAIR_PER_POINT = 2;   // dollars per point of engine condition restored
