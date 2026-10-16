@@ -779,6 +779,15 @@
     L.NEW_CAR_PRICE = 1.5;
 
     L.START_CASH = 600;     // enough for one scrappy car and a few repairs
+    // Borrowing. Before you beat a King, Dad lends DADDY_LOAN when you're down to less than
+    // DADDY_BELOW, interest free, once at a time. After that it's the Loan Shark: up to
+    // SHARK_LIMIT times the era's money, SHARK_RATE interest a week on what's owed, and
+    // SHARK_WEEKS weeks to pay it all back before his boys come for you and the game ends.
+    L.DADDY_BELOW = 300;
+    L.DADDY_LOAN = 500;
+    L.SHARK_LIMIT = 10000;
+    L.SHARK_RATE = 0.5;
+    L.SHARK_WEEKS = 4;
     L.MAX_CARS = 10;        // garage spaces in 1963
     L.CARS_PER_ERA = 5;     // more spaces with each era you reach
     L.REPAIR_PER_POINT = 2;   // dollars per point of engine condition restored

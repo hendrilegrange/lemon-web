@@ -204,7 +204,7 @@
     // already here, its rivals starting from the easy ones again. Your cash, cars and shelf
     // come with you.
     L.newWeek = function (g, first) {
-        if (!first) g.week++;
+        if (!first) { g.week++; sharkWeek(g); }
         if (!first && g.kingBeaten && L.ERAS[L.eraOf(g) + 1]) {
             g.era = L.eraOf(g) + 1;
             g.kingBeaten = false;
@@ -973,6 +973,69 @@
         return why + 'You lost ' + cashText + ' to ' + rival.name + '.' + blown;
     };
 
+    // ── Borrowing ─────────────────────────────────────────────────────────
+    // g.daddy: what you owe Dad, no interest and no hurry. g.shark: { owed, due }, the Loan
+    // Shark's debt and the last week you have to pay it in. g.over: the game ended, with the
+    // week and what was owed when his boys came.
+
+    L.debt = function (g) { return (g.daddy || 0) + (g.shark ? g.shark.owed : 0); };
+    L.sharkOpen = function (g) { return L.beatAKing(g); };
+
+    // Why Dad won't lend right now, or null
+    L.canCallDaddy = function (g) {
+        if (L.sharkOpen(g)) return "Dad says you're the King of the strip now. Kings don't call home for money.";
+        if (g.daddy) return 'Dad wants his ' + '$' + g.daddy.toLocaleString('en-US') + ' back before he lends you more.';
+        if (g.cash >= L.DADDY_BELOW) return "Dad says you're doing fine. He only helps when you're down to less than $" + L.DADDY_BELOW + '.';
+        return null;
+    };
+    L.callDaddy = function (g) {
+        var err = L.canCallDaddy(g);
+        if (err) return err;
+        g.daddy = L.DADDY_LOAN;
+        g.cash += L.DADDY_LOAN;
+        return null;
+    };
+
+    // The most the shark will lend on top of what you already owe him
+    L.sharkRoom = function (g) {
+        var limit = L.SHARK_LIMIT * L.ERAS[L.eraOf(g)].money;
+        return Math.max(0, limit - (g.shark ? g.shark.owed : 0));
+    };
+    L.canBorrowShark = function (g, amount) {
+        if (!L.sharkOpen(g)) return 'The Loan Shark only lends to someone who has beaten The King.';
+        if (!(amount > 0)) return 'Pick how much to borrow.';
+        if (amount > L.sharkRoom(g)) return "He won't lend you that much. You can borrow up to $" + L.sharkRoom(g).toLocaleString('en-US') + ' more.';
+        return null;
+    };
+    // The clock starts on the first dollar: borrowing more later doesn't move the due week
+    L.borrowShark = function (g, amount) {
+        var err = L.canBorrowShark(g, amount);
+        if (err) return err;
+        if (!g.shark || !g.shark.owed) g.shark = { owed: 0, due: g.week + L.SHARK_WEEKS };
+        g.shark.owed += amount;
+        g.cash += amount;
+        return null;
+    };
+
+    // Pays back up to amount to 'daddy' or 'shark'. Returns what was paid.
+    L.repay = function (g, who, amount) {
+        var owed = who === 'daddy' ? (g.daddy || 0) : (g.shark ? g.shark.owed : 0);
+        var pay = Math.floor(Math.min(amount, owed, Math.max(0, g.cash)));
+        if (pay <= 0) return 0;
+        g.cash -= pay;
+        if (who === 'daddy') { g.daddy = owed - pay; if (!g.daddy) delete g.daddy; }
+        else { g.shark.owed = owed - pay; if (!g.shark.owed) delete g.shark; }
+        return pay;
+    };
+
+    // A week goes by: the shark's interest goes on, and once his last week is gone with
+    // money still owed, the game is over
+    function sharkWeek(g) {
+        if (!g.shark || !g.shark.owed) return;
+        g.shark.owed = Math.ceil(g.shark.owed * (1 + L.SHARK_RATE) / 10) * 10;
+        if (g.week > g.shark.due) g.over = { week: g.week, owed: g.shark.owed };
+    }
+
     // ── Records ───────────────────────────────────────────────────────────
     // The player's bests for the leaderboards: quickest quarter mile (et) and reaction time
     // (rt) in seconds, longest win streak, the most cash ever on hand, and the fewest weeks
@@ -1036,7 +1099,8 @@
 
     L.save = function (g) {
         var r = L.records(g);
-        if (g.cash > r.cash) r.cash = g.cash;
+        var net = g.cash - L.debt(g);     // borrowed money isn't a record
+        if (net > r.cash) r.cash = net;
         try { localStorage.setItem(SAVE_KEY, JSON.stringify(g)); } catch (e) { /* private mode: play on unsaved */ }
     };
 

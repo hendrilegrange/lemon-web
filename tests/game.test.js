@@ -1020,3 +1020,52 @@ test('a fresh start can beat the first rivals, who drive tired junkers', () => {
     assert.ok(odds.reduce((a, b) => a + b) / odds.length > 0.6, odds.join(' '));
     assert.ok(Object.values(L.rivalCar(first[0]).partCondition).every(c => c === 60));
 });
+
+test('Dad lends once when you are broke, interest free, until you beat a King', () => {
+    const g = L.newGame();
+    assert.ok(L.canCallDaddy(g));                 // $600 isn't broke
+    g.cash = 100;
+    assert.strictEqual(L.callDaddy(g), null);
+    assert.strictEqual(g.cash, 100 + L.DADDY_LOAN);
+    g.cash = 50;
+    assert.ok(L.canCallDaddy(g));                 // not again till he's paid
+    for (let i = 0; i < 6; i++) L.newWeek(g);
+    assert.strictEqual(g.daddy, L.DADDY_LOAN);    // no interest, no deadline
+    assert.ok(!g.over);
+    g.cash = 1000;
+    assert.strictEqual(L.repay(g, 'daddy', 9999), L.DADDY_LOAN);
+    assert.strictEqual(g.daddy, undefined);
+    g.cash = 10;
+    g.kingBeaten = true;
+    assert.ok(L.canCallDaddy(g));                 // the shark's turn now
+});
+
+test('the Loan Shark charges 50% a week and ends the game after four weeks unpaid', () => {
+    const g = L.newGame();
+    assert.ok(L.canBorrowShark(g, 1000));
+    g.kingBeaten = true;
+    assert.ok(L.canBorrowShark(g, L.sharkRoom(g) + 10));
+    assert.strictEqual(L.borrowShark(g, 1000), null);
+    assert.strictEqual(g.shark.due, g.week + L.SHARK_WEEKS);
+    const due = g.shark.due;
+    L.newWeek(g);
+    assert.strictEqual(g.shark.owed, 1500);
+    L.borrowShark(g, 500);
+    assert.strictEqual(g.shark.due, due);         // more money, same deadline
+    L.save(g);
+    assert.strictEqual(g.records.cash, L.START_CASH);   // borrowed cash isn't a record
+    while (g.week < due) L.newWeek(g);
+    assert.ok(!g.over);
+    L.newWeek(g);
+    assert.ok(g.over && g.over.owed > 0);
+    // paid off in time, he's gone
+    const h = L.newGame();
+    h.kingBeaten = true;
+    L.borrowShark(h, 2000);
+    L.newWeek(h);
+    h.cash = 10000;
+    L.repay(h, 'shark', 10000);
+    assert.strictEqual(h.shark, undefined);
+    for (let i = 0; i < 8; i++) L.newWeek(h);
+    assert.ok(!h.over);
+});

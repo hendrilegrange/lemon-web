@@ -137,7 +137,17 @@
             gauge(L.eraOf(g) ? 'Week, ' + L.ERAS[L.eraOf(g)].year : 'Week', g.week) +
             (g.friday ? gauge('Tonight', 'Racing', 'friday') : gauge('Hours', g.hours + ' h')) +
             gauge('Record', g.wins + '–' + g.losses) +
+            debtGauge(gauge) +
             '</div>' + navbar(here) + '</header>';
+    }
+
+    // What you owe, beside the cash: the shark's debt and his last week first, red when it's due
+    function debtGauge(gauge) {
+        if (g.shark && g.shark.owed) {
+            var left = g.shark.due - g.week;
+            return gauge(left > 0 ? 'Owe, due wk ' + g.shark.due : 'Owe, due now', money(g.shark.owed), 'debt' + (left <= 1 ? ' due' : ''));
+        }
+        return g.daddy ? gauge('Owe Dad', money(g.daddy), 'debt') : '';
     }
 
     var NAV = [['hub', 'home', 'Home'], ['ads', 'ads', 'Ads'], ['parts', 'parts', 'Shop'], ['garage', 'garage', 'Garage'],
@@ -224,7 +234,7 @@
             flash(msg) +
             '<div class="title-menu">' +
             '<p class="tag">Buy a junker. Build a hot rod. Beat The King.</p>' +
-            (saved ? '<button data-act="cont">Continue (week ' + saved.week + ', ' + money(saved.cash) + ')</button>' : '') +
+            (saved ? '<button data-act="cont">' + (saved.over ? 'Continue (game over, week ' + saved.over.week + ')' : 'Continue (week ' + saved.week + ', ' + money(saved.cash) + ')') + '</button>' : '') +
             '<button data-act="new">New game</button>' +
             '<p class="hint">Summer, 1963. You have ' + money(L.START_CASH) + ' and a driver\'s license.</p>' +
             leadersBlock() +
@@ -244,6 +254,7 @@
                     g = saved;
                     var note = g.notice;          // what L.fixSave changed in an older save
                     if (note) { delete g.notice; L.save(g); }
+                    if (g.over) return L.showGameOver();
                     if (g.celebrate) return L.showCelebration();
                     L.showHub(note);
                 },
@@ -531,6 +542,14 @@
         '.s.......s..', '...ssss.....', '..s....s....', '............', '...rrrrr....', '..rrwwwrr...',
         '.rrrrrrrrrr.', 'rRrrrrrrrrRr', 'rRRRRRRRRRRr', '.tt......tt.', '.kk......kk.', '............'] };
 
+    ICONS.phone = { r: '#d7263d', R: '#8a1424', w: '#f4e9c8', k: '#1d1a14', rows: [
+        '............', '.rrrrrrrrrr.', 'rrRRRRRRRRrr', 'rr........rr', '....rrrr....', '...rwwwwr...',
+        '..rwkwwkwr..', '..rwwkkwwr..', '..rwkwwkwr..', '..rrwwwwrr..', '.rrrrrrrrrr.', '.RRRRRRRRRR.'] };
+
+    ICONS.shark = { k: '#1d1a14', g: '#8a96a8', b: '#2f6fb0', B: '#1a3f6a', rows: [
+        '............', '.....k......', '....kk......', '....kgk.....', '...kggk.....', '...kgggk....',
+        '..kggggk....', '..kgggggk...', '.kggggggk...', 'bbbbbbbbbbbb', 'BbBBbBBbBBbB', 'BBBBBBBBBBBB'] };
+
     function icon(name) {
         var ic = ICONS[name], out = '';
         ic.rows.forEach(function (row, y) {
@@ -547,13 +566,33 @@
             '<span><span class="tile-title">' + title + '</span><span class="tile-sub">' + sub + '</span></span></button>';
     }
 
+    // Call Daddy until you beat a King, then the Loan Shark
+    function loanTile() {
+        if (L.sharkOpen(g)) {
+            var sub = g.shark && g.shark.owed ? 'You owe ' + money(g.shark.owed) + ', due week ' + g.shark.due : 'Fast cash, ' + Math.round(L.SHARK_RATE * 100) + '% a week';
+            return tile('loans', 'shark', 'Loan Shark', sub, g.shark && g.shark.owed && g.shark.due - g.week <= 1 ? 'hot' : '');
+        }
+        return tile('loans', 'phone', 'Call Daddy', g.daddy ? 'You owe Dad ' + money(g.daddy) : g.cash < L.DADDY_BELOW ? 'Broke? Dad can help' : 'For when you\'re broke');
+    }
+
     function plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
 
     // On to next week, back at the hub with the news
-    L.startWeek = function () {
+    L.startWeek = function (sure) {
+        if (!sure && g.shark && g.shark.owed && g.week >= g.shark.due) {
+            return ask('This is the Loan Shark\'s last week. Start next week owing him ' + money(g.shark.owed) +
+                ' and his boys come for you, and the game is over. Pay him first?', 'Start next week anyway',
+                function () { L.startWeek(true); }, L.showLoans);
+        }
         L.newWeek(g);
+        if (g.over) { L.save(g); return L.showGameOver(); }
         var news = g.newEra ? L.ERAS[L.eraOf(g)].intro + ' Your garage grew too: room for ' + L.maxCars(g) + ' cars now.' : 'A new week. New ads, a restocked speed shop, new faces at the burger stand.';
         delete g.newEra;
+        if (g.shark && g.shark.owed) {
+            var left = g.shark.due - g.week;
+            news += ' The Loan Shark\'s interest went on: you owe him ' + money(g.shark.owed) + '. ' +
+                (left > 0 ? 'Pay it all by the end of week ' + g.shark.due + '.' : 'This is your last week to pay.');
+        }
         L.save(g);
         L.showHub(news);
     };
@@ -587,6 +626,7 @@
             tile('paint', 'paint', 'Paint shop', car ? 'Colours, stripes and flames' : 'Bring a car') +
             tile('dealer', 'dealer', 'Dealership', L.beatAKing(g) ? 'Brand new cars, ' + L.dealerCars(g).length + ' on the lot' : '🔒 Beat The King to open', L.beatAKing(g) ? '' : 'locked') +
             tile('solo', 'solo', 'Solo drags', L.beatTheGame(g) ? 'Quarter, half and 1 mile, for the leaderboards' : '🔒 Beat The Last King to open', L.beatTheGame(g) ? '' : 'locked') +
+            loanTile() +
             tile('stand', 'stand', 'Burger stand',
                 g.friday || g.hours === 0 ? 'Racing tonight' : 'Friday night: closes the garage', g.friday ? 'hot' : '') +
             '</nav>' +
@@ -605,6 +645,7 @@
                 dealer: GO.dealer,
                 solo: function () { if (!L.beatTheGame(g)) return L.showHub('The solo drags open once you beat The Last King.'); L.showSolo(); },
                 stand: function () { GO.stand(L.showHub); },
+                loans: function () { L.showLoans(); },
                 week: function () {
                     if (g.friday) return L.startWeek();
                     ask('Skip Friday night? You haven\'t been to the burger stand this week, so there\'s no racing and no winnings. ' +
@@ -1439,6 +1480,104 @@
                 );
             }, { distance: s.dist });
     }
+
+    // ── Borrowing: Call Daddy, then the Loan Shark ────────────────────────
+
+    L.showLoans = function (msg) {
+        L.titleScreen(false);
+        var html = '', actions = { back: function () { L.showHub(); } };
+        function paid(who, n) {
+            var name = who === 'daddy' ? 'Dad' : 'the Loan Shark';
+            if (!n) return L.showLoans("You don't have any cash to pay with.");
+            L.sound.cash();
+            L.save(g);
+            var left = who === 'daddy' ? g.daddy : g.shark && g.shark.owed;
+            L.showLoans(left ? 'You paid ' + name + ' ' + money(n) + '. You still owe ' + money(left) + '.' :
+                who === 'daddy' ? 'You paid Dad back in full. "Proud of you, kid."' : 'You paid the Loan Shark in full. He smiles. "Pleasure doing business."');
+        }
+        // Pay back buttons for a debt: a quick amount, and all of it (or all your cash)
+        function payBtns(who, owed) {
+            var step = who === 'daddy' ? 100 : 1000 * L.ERAS[L.eraOf(g)].money;
+            var all = Math.min(owed, Math.max(0, g.cash));
+            var none = g.cash <= 0 ? "You don't have any cash to pay with." : null;
+            actions['pay-' + who] = function (n) { paid(who, L.repay(g, who, Number(n))); };
+            return '<div class="car-btns">' +
+                (owed > step ? '<button data-act="pay-' + who + '" data-arg="' + step + '" class="minor"' + off(none || (g.cash < step ? 'You only have ' + money(Math.max(0, g.cash)) + '.' : null)) + '>Pay ' + money(step) + '</button>' : '') +
+                '<button data-act="pay-' + who + '" data-arg="' + owed + '"' + off(none) + '>' + (all >= owed ? 'Pay it all, ' + money(owed) : 'Pay all your cash, ' + money(all)) + '</button></div>';
+        }
+        if (!L.sharkOpen(g) || g.daddy) {
+            html += '<div class="panel loan daddy"><h2>Call Daddy</h2>';
+            if (g.daddy) {
+                html += '<p class="lead">You owe Dad <b>' + money(g.daddy) + '</b>. No interest and no hurry, but he won\'t lend you more until you pay him back.</p>' + payBtns('daddy', g.daddy);
+            } else {
+                var why = L.canCallDaddy(g);
+                html += '<p class="lead">Down on your luck? Dad will wire you <b>' + money(L.DADDY_LOAN) + '</b> when you\'re down to less than ' + money(L.DADDY_BELOW) +
+                    '. No interest, pay him back when you can. He only does it once till you\'ve paid him.</p>' +
+                    '<div class="car-btns"><button data-act="daddy"' + off(why) + '>Ask Dad for ' + money(L.DADDY_LOAN) + '</button></div>';
+                actions.daddy = function () {
+                    var err = L.callDaddy(g);
+                    if (err) return L.showLoans(err);
+                    L.sound.cash();
+                    L.save(g);
+                    L.showLoans('Dad sighs and wires you ' + money(L.DADDY_LOAN) + '. "Pay me back when you can, kid."');
+                };
+            }
+            html += '</div>';
+        }
+        if (L.sharkOpen(g)) {
+            var owed = g.shark ? g.shark.owed : 0, room = L.sharkRoom(g), m = L.ERAS[L.eraOf(g)].money;
+            html += '<div class="panel loan shark"><h2>The Loan Shark</h2>' +
+                '<p class="lead">He lends big, no questions asked: up to ' + money(L.SHARK_LIMIT * m) + '. ' +
+                'Every week, <b>' + Math.round(L.SHARK_RATE * 100) + '%</b> goes on what you owe. Pay it all back within ' + L.SHARK_WEEKS +
+                ' weeks of borrowing, or his boys come for you <b>and the game is over</b>.</p>';
+            if (owed) {
+                var left = g.shark.due - g.week;
+                html += '<p class="owed' + (left <= 1 ? ' due' : '') + '">You owe <b>' + money(owed) + '</b>. ' +
+                    (left > 0 ? 'Pay it all by the end of week ' + g.shark.due + ' (' + plural(left, 'more week') + '). Next week it grows to ' +
+                        money(Math.ceil(owed * (1 + L.SHARK_RATE) / 10) * 10) + '.' : '<b>This is your last week.</b> Pay it all before you start next week.') + '</p>' +
+                    payBtns('shark', owed);
+            }
+            var picks = [1000 * m, 5000 * m, room].filter(function (n, i, a) { return n > 0 && n <= room && a.indexOf(n) === i; });
+            html += room ? '<h3>' + (owed ? 'Borrow more' : 'Borrow') + '</h3><div class="car-btns">' + picks.map(function (n) {
+                return '<button data-act="borrow" data-arg="' + n + '" class="minor">' + (n === room && picks.length > 1 ? 'All he\'ll lend, ' : 'Borrow ') + money(n) + '</button>';
+            }).join('') + '</div>' + (owed ? '<p class="sub">Borrowing more doesn\'t buy more time: it\'s all due by week ' + g.shark.due + '.</p>' : '') :
+                '<p class="sub">He won\'t lend you any more till you pay some back.</p>';
+            html += '</div>';
+            actions.borrow = function (n) {
+                n = Number(n);
+                ask('Borrow ' + money(n) + ' from the Loan Shark? That\'s ' + money(Math.ceil(n * (1 + L.SHARK_RATE) / 10) * 10) + ' owed next week, and every dollar must be paid back by the end of week ' +
+                    (g.shark && g.shark.owed ? g.shark.due : g.week + L.SHARK_WEEKS) + ', or the game is over.', 'Take the money', function () {
+                    var err = L.borrowShark(g, n);
+                    if (err) return L.showLoans(err);
+                    L.sound.cash();
+                    L.save(g);
+                    L.showLoans('He counts out ' + money(n) + ' in used twenties. "See you soon."');
+                }, L.showLoans);
+            };
+        }
+        keepScroll = !!msg;
+        render(status() + flash(msg) + html + backBar('Back'), actions);
+    };
+
+    // The Loan Shark's boys came for you: the game is over, and only a new one goes on
+    L.showGameOver = function () {
+        L.titleScreen(false);
+        var o = g.over;
+        render(
+            '<div class="panel celebrate gameover">' +
+            '<h2>Game over</h2>' +
+            '<p class="lead">Week ' + o.week + '. You owed the Loan Shark ' + money(o.owed) + ' and his time ran out. ' +
+            'His boys were waiting in the garage. They took the cars, the parts and the keys, and you\'re leaving town on the next bus.</p>' +
+            '<div class="chips"><span class="chip"><b>' + g.wins + '–' + g.losses + '</b> record</span><span class="chip"><b>' + plural(L.eraOf(g) + (g.kingBeaten ? 1 : 0), 'King') + '</b> beaten</span></div>' +
+            '<p class="sub">Your leaderboard records stay.</p>' +
+            '<div class="car-btns"><button data-act="new">New game</button><button data-act="quit" class="minor">Title screen</button></div></div>',
+            {
+                new: function () { g = L.newGame(); L.save(g); L.showHub('A fresh start. Welcome to town. Check the classifieds for your first car.'); },
+                quit: function () { L.showTitle(); }
+            }
+        );
+        L.sound.lose();
+    };
 
     // ── The end: you beat The Last King ───────────────────────────────────
 
