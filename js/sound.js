@@ -8,9 +8,9 @@
     var ctx = null, master = null, sfx = null, musicBus = null, noise = null;
     var engine = null;
     var scene = 'menu';           // menu (jukebox), garage (jukebox, quieter) or race (no music)
-    var MUSIC_VOL = { menu: 0.9, garage: 0.45, race: 0 };
-    var SFX_VOL = 0.7;            // the effects bus, under the music
-    var ENGINE_VOL = 0.13;        // the race engine at full throttle; it idles at 60% of that
+    var MUSIC_VOL = { menu: 0.63, garage: 0.32, race: 0 };
+    var SFX_VOL = 0.82;           // the effects bus
+    var ENGINE_VOL = 0.15;        // the race engine at full throttle; it idles at 60% of that
 
     function load(key) {
         try { return localStorage.getItem(key) !== 'off'; } catch (e) { return true; }
