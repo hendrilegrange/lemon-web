@@ -445,6 +445,31 @@ button.danger:hover:not([disabled]) { box-shadow: 0 0 14px rgba(255, 59, 59, 0.3
 .tier.t4 { color: #ff8c42; }
 .tier.t5 { color: #ffd23f; text-shadow: 0 0 6px rgba(255, 210, 63, 0.6); }
 .row.out { opacity: 0.55; }
+/* Your cars, coloured by their build (L.carTier): a badge and the name in the class's colour,
+   gold with a crown for a car won from a King */
+.car-tier { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 6px; }
+.tier-badge { font-size: 0.65rem; letter-spacing: 1px; text-transform: uppercase; padding: 1px 5px; color: var(--bg); background: var(--muted); align-self: center; }
+.car-tier.t0 .car-name { color: var(--text); }
+.car-tier.t1 .tier-badge { background: #3bff6e; }  .car-tier.t1 .car-name { color: #3bff6e; }
+.car-tier.t2 .tier-badge { background: #4fc3ff; }  .car-tier.t2 .car-name { color: #4fc3ff; }
+.car-tier.t3 .tier-badge { background: #d68cff; }  .car-tier.t3 .car-name { color: #d68cff; }
+.car-tier.t4 .tier-badge { background: #ff8c42; }  .car-tier.t4 .car-name { color: #ff8c42; }
+.car-tier.t5 .tier-badge { background: linear-gradient(90deg, #ffd23f, #ff8c42); }  .car-tier.t5 .car-name { color: #ffd23f; }
+.car-tier.king .tier-badge { background: var(--accent); box-shadow: 0 0 8px rgba(255, 210, 63, 0.6); }
+.car-tier.king .car-name { color: var(--accent); font-weight: bold; text-shadow: 0 0 8px rgba(255, 210, 63, 0.5); }
+h2 .car-tier { text-transform: none; letter-spacing: 0; }
+.car-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* Viewing one of your cars: the car on a little stage, framed in its build's colour */
+.car-view .car-stage { display: flex; justify-content: center; margin: 4px 0 10px; }
+.car-view canvas#car-view { width: 100%; max-width: 400px; aspect-ratio: 2 / 1; image-rendering: pixelated; border: 2px solid var(--line); }
+.car-view.t1 canvas#car-view { border-color: #3bff6e; }
+.car-view.t2 canvas#car-view { border-color: #4fc3ff; }
+.car-view.t3 canvas#car-view { border-color: #d68cff; }
+.car-view.t4 canvas#car-view { border-color: #ff8c42; }
+.car-view.t5 canvas#car-view, .car-view.king canvas#car-view { border-color: var(--accent); box-shadow: 0 0 16px rgba(255, 210, 63, 0.35); }
+.won-from { text-align: center; color: var(--accent); margin: 0 0 8px; }
+.car-view .car-btns { margin-top: 10px; }
 .soldout { color: var(--muted); font-weight: bold; }
 
 .toggles { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
