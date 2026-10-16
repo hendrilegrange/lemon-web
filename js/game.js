@@ -924,7 +924,8 @@
     };
 
     // After a race: et is the player's quarter mile from the green light (null if they didn't
-    // finish or jumped the light), reaction from green to launch. Returns the records it beat.
+    // finish or jumped the light), reaction from green to launch. Only a win counts toward the
+    // quarter mile and reaction records. Returns the records it beat.
     L.noteRace = function (g, result, et, reaction) {
         var r = L.records(g), beat = [];
         if (result === 'win') {
@@ -933,7 +934,7 @@
         } else {
             g.streak = 0;
         }
-        if (result !== 'foul') {
+        if (result === 'win') {           // the boards are for winners: a loss or a red light records nothing
             if (typeof et === 'number' && et > 0 && (r.et === null || et < r.et)) { r.et = Math.round(et * 1000) / 1000; beat.push('et'); }
             if (typeof reaction === 'number' && reaction >= 0 && (r.rt === null || reaction < r.rt)) { r.rt = Math.round(reaction * 1000) / 1000; beat.push('rt'); }
         }

@@ -540,6 +540,7 @@ test('records: quickest run and reaction, longest streak, most cash on hand', ()
     assert.deepStrictEqual(L.noteRace(g, 'win', 14.2, 0.41), ['et', 'rt']);   // a first win isn't a streak yet
     assert.deepStrictEqual(L.noteRace(g, 'win', 14.5, 0.38), ['streak', 'rt']);
     assert.deepStrictEqual(L.noteRace(g, 'lose', null, 0.6), []);              // blew up: no time
+    assert.deepStrictEqual(L.noteRace(g, 'lose', 13.9, 0.2), []);              // the boards are for winners: a loss counts for nothing
     assert.strictEqual(g.streak, 0);
     assert.deepStrictEqual(L.noteRace(g, 'foul', 13, 0.1), []);                // a jumped light counts for nothing
     L.noteRace(g, 'win', 15, 0.5);
