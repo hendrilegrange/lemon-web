@@ -45,6 +45,16 @@
                 GO[key](from ? GO[from] : null);
             });
         });
+        app.querySelectorAll('[data-coach]').forEach(function (b) {
+            b.addEventListener('click', function () {
+                L.sound.click();
+                var box = b.closest('.coach'), key = box.getAttribute('data-key');
+                if (b.getAttribute('data-coach') === 'skip' || key === 'result') delete g.tut;
+                else g.tut.seen[key] = true;
+                L.save(g);
+                box.remove();
+            });
+        });
         var focus = app.querySelector('button:not([disabled]):not([aria-disabled="true"]):not([data-nav])');
         if (focus) focus.focus({ preventScroll: true });
         // A new screen starts at the top. One that redraws after a Buy or an Install stays
@@ -86,6 +96,22 @@
     // A button that can't be used right now: greyed out, and a click says why (a disabled
     // button would just ignore it)
     function off(why) { return why ? ' aria-disabled="true" data-why="' + esc(why) + '"' : ''; }
+
+    // Mac's tip for this screen, the first time it comes up in a game with the tutorial on
+    function tutOn(key) { return !!(g && g.tut && !g.tut.seen[key]); }
+    function coach(key) {
+        if (!tutOn(key) || !L.COACH[key]) return '';
+        return '<aside class="coach" data-key="' + key + '" role="note"><span class="coach-who">Mac, your mechanic</span>' +
+            '<p>' + L.COACH[key] + '</p><span class="coach-btns"><button data-coach="ok">' + (key === 'result' ? 'Thanks, Mac' : 'Got it') + '</button>' +
+            (key === 'result' ? '' : '<button data-coach="skip" class="minor">Skip the tutorial</button>') + '</span></aside>';
+    }
+    // The hub's tip follows how far you've got: no car, a car to fix, a car that can race
+    function hubCoach() {
+        var car = L.activeCar(g);
+        if (!car) return coach('hub-start');
+        if (car.condition < L.MIN_BODY || car.engineCondition <= 0) return coach('hub-car');
+        return coach('hub-ready');
+    }
 
     // The garage is shut once you head out on Friday night (or the week's hours run out)
     function garageClosed() { return g.friday || g.hours === 0; }
@@ -261,8 +287,9 @@
                 new: function () {
                     function start() {
                         g = L.newGame();
+                        g.tut = { seen: {} };
                         L.save(g);
-                        L.showHub('Welcome to town. Check the classifieds for your first car.');
+                        L.showIntro(function () { L.showHub(); });
                     }
                     if (!saved) return start();
                     g = saved;   // so the question's status bar has something to show
@@ -616,7 +643,7 @@
         }
         var stocked = L.catalogFor(g, car).filter(function (x) { return x.inStock && x.fits; }).length;
         render(
-            status('hub') + flash(msg) +
+            status('hub') + flash(msg) + hubCoach() +
             '<canvas class="scene" id="hub-scene" width="320" height="120" aria-hidden="true"></canvas>' +
             carHtml +
             '<nav class="menu tiles">' +
@@ -632,6 +659,7 @@
             '</nav>' +
             '<div class="hub-foot">' +
             '<button data-act="week" class="minor">Next week</button>' +
+            '<button data-act="howto" class="minor">How to play</button>' +
             '<button data-act="quit" class="minor">Title screen</button>' +
             '<span class="toggles"><button data-act="sound" class="minor" id="sound">Sound: ' + (L.sound.on ? 'on' : 'off') + '</button>' +
             '<button data-act="music" class="minor" id="music">Music: ' + (L.sound.music ? 'on' : 'off') + '</button></span></div>',
@@ -651,6 +679,13 @@
                     ask('Skip Friday night? You haven\'t been to the burger stand this week, so there\'s no racing and no winnings. ' +
                         'Next week brings new ads, a restocked speed shop and ' + L.HOURS_PER_WEEK + ' fresh hours.',
                         'Skip to next week', function () { L.startWeek(); }, L.showHub);
+                },
+                howto: function () {
+                    L.showIntro(function () {
+                        g.tut = { seen: {} };
+                        L.save(g);
+                        L.showHub('Mac\'s tips are back on. He\'ll explain each screen the first time you open it.');
+                    });
                 },
                 quit: function () { L.showTitle(); }
             }
@@ -704,7 +739,7 @@
                 (g.cash < ad.price ? 'Can\'t afford it' : 'Buy it for ' + money(ad.price)) + '</button></article>';
         }).join('');
         render(
-            status('ads') + flash(msg) +
+            status('ads') + flash(msg) + coach('ads') +
             '<div class="paper news">' +
             '<header class="masthead"><p class="dateline"><span>Week ' + g.week + ', summer ' + L.ERAS[L.eraOf(g)].year + '</span><span>Five cents</span></p>' +
             '<h2>The Lemon Gazette</h2>' +
@@ -832,7 +867,7 @@
             ? 'Your ' + esc(L.carName(car)) + ' has the ' + esc(L.PARTS[car.parts.engine].name) + '. Carbs, intakes, cams and exhausts only fit their own engine family; engines and the rest fit anything. The green time by a part is how much quicker it makes your quarter mile, fitted new.'
             : 'Everything we carry. Buy a car and we\'ll put what fits it first.';
         render(
-            status('parts') + flash(msg) + '<div class="panel"><h2>Speed Shop</h2><p class="sub">' + intro +
+            status('parts') + flash(msg) + coach('parts') + '<div class="panel"><h2>Speed Shop</h2><p class="sub">' + intro +
             (L.beatTheGame(g) ? ' You beat The Last King, so every part is in stock, every week.'
                 : ' The shelves restock every week with something for every engine, but not every part every week, and the Bestest parts sell out fast.') +
             ' Bestest+ is a hair quicker than Bestest at five times the price. Now and then a Legendary part turns up: as quick as Bestest+, and every one on your car widens the green shift zone.</p>' +
@@ -874,7 +909,7 @@
         }
 
         render(
-            status('paint') + flash(msg) +
+            status('paint') + flash(msg) + coach('paint') +
             '<div class="panel paint-shop"><h2>Paint shop</h2>' +
             '<p class="sub">Sal\'s Custom Paint does it while you wait, so it takes none of your garage hours. It only changes the looks, not what she\'s worth.</p>' +
             '<canvas class="paint-preview" id="paint-preview" width="192" height="96" aria-label="How the car will look"></canvas>' +
@@ -1045,7 +1080,7 @@
 
         var shelf = shelfGroups(car);
         render(
-            status('garage') + flash(msg) + closedBanner() +
+            status('garage') + flash(msg) + coach('garage') + closedBanner() +
             '<div class="panel"><h2>Your cars <span class="sub">' + g.cars.length + ' of ' + L.maxCars(g) + '</span></h2>' + cars + '</div>' + detail +
             '<div class="panel shelf"><h2>Shelf' + (g.inventory.length ? ' <span class="sub">' + plural(g.inventory.length, 'part') +
                 ' · worth ' + money(g.inventory.reduce(function (sum, id, i) { return sum + L.partValue(g, i); }, 0)) + '</span>' : '') + '</h2>' + shelf + '</div>' +
@@ -1187,7 +1222,7 @@
             '<span class="sub">' + (unlocked ? (fixErr ? esc(fixErr) : 'Every job at once, no workbench.') : 'Beat The King to unlock: every job at once, no workbench.') + '</span></div>';
 
         render(
-            status('garage') + flash(msg) +
+            status('garage') + flash(msg) + coach('fix') +
             closedBanner() +
             '<div class="panel' + (garageClosed() ? ' closed' : '') + '"><h2>Fix the ' + esc(L.carName(car)) + '</h2><p class="sub">' + budget + '</p>' + fixAllRow + bodyRow + rows + '</div>' +
             '<p class="hint">Each job opens the workbench: bolts out and back in for parts, grind and fill the rust for bodywork. Jobs use up your garage hours for the week.</p>' +
@@ -1267,7 +1302,7 @@
                 pot.fixedEt.toFixed(2) + ' s, ' + gain.toFixed(2) + ' s quicker.</p>';
         }
         render(
-            status('stand') + flash(msg || why) + fixTip +
+            status('stand') + flash(msg || why) + coach('stand') + fixTip +
             '<div class="panel stand"><header class="stand-sign"><h2>The Burger Stand</h2><p>Friday night. Engines idling, everybody watching.</p></header>' +
             '<div class="rivals">' + rows + '</div></div>' +
             '<details class="stand-help"><summary>How a race works</summary><p>Press Space, Enter or the big button when the start light turns green, then again each time the SHIFT light goes green. Keep out of the red.</p>' +
@@ -1385,6 +1420,7 @@
         var pinks = stake === 'pinks';
         var err = L.canRace(g, rival, stake);
         if (err) return L.showStand(err);
+        if (tutOn('race')) return racePrimer(function () { race(i, stake, bet); });
         var car = L.activeCar(g);
         render('<div class="race-controls"><button class="go" id="go">GO / SHIFT</button>' +
             '<p class="hint">Racing ' + esc(rival.name) + ' ' + (pinks ? 'for pink slips' : stake === 'fun' ? 'just for fun' : 'for ' + money(L.betAmount(g, rival, bet))) +
@@ -1411,7 +1447,7 @@
                 });
                 L.showCanvas(false);
                 render(
-                    status('stand') +
+                    status('stand') + coach('result') +
                     '<div class="panel result ' + result + '"><h2>' + { win: 'You win!', lose: 'You lose', foul: 'Red light!' }[result] + '</h2>' +
                     '<p>' + esc(line) + '</p>' +
                     '<p class="sub">You: ' + esc(sum.me) + (sum.reaction !== null && result !== 'foul' ? ' (reaction ' + sum.reaction.toFixed(3) + ' s)' : '') +
@@ -1423,6 +1459,59 @@
             }
         );
     }
+
+    // Before the first race of a game with the tutorial on: Mac on how to launch and shift
+    function racePrimer(go) {
+        render(
+            status('stand') +
+            '<div class="panel primer"><h2>How to race</h2>' +
+            '<p class="coach-who">Mac, your mechanic</p>' +
+            '<ol class="primer-steps">' +
+            '<li><span class="tree" aria-hidden="true"><i class="amber"></i><i class="amber"></i><i class="amber"></i><i class="green"></i></span>' +
+            '<div><b>Launch on green.</b> Watch the start light: three ambers, then green. On green, hit the big <b>GO</b> button (or Space, or Enter). Go before green and it\'s a red light: you lose.</div></li>' +
+            '<li><span class="shift-pill" aria-hidden="true">SHIFT</span>' +
+            '<div><b>Shift on the light.</b> Hit the button again every time the SHIFT light goes green. Too early and you bog down. Too late and you hit the red line, which wears out your engine.</div></li>' +
+            '<li><span class="flag" aria-hidden="true">🏁</span><div><b>First to the end of the quarter mile wins.</b> A good launch and clean shifts can beat a quicker car.</div></li></ol>' +
+            '<div class="car-btns"><button data-act="go">Line up</button><button data-act="skip" class="minor">Skip the tutorial</button></div></div>',
+            {
+                go: function () { g.tut.seen.race = true; L.save(g); go(); },
+                skip: function () { delete g.tut; L.save(g); go(); }
+            }
+        );
+    }
+
+    // ── The story: a few panels to set the scene, like the old games did ──
+
+    // Shows L.INTRO panel by panel; done() when it's over or skipped
+    L.showIntro = function (done) {
+        var n = 0;
+        function show() {
+            var p = L.INTRO[n], last = n === L.INTRO.length - 1;
+            render(
+                '<div class="story">' +
+                '<canvas class="scene story-scene" id="story" width="320" height="120" aria-hidden="true"></canvas>' +
+                '<p class="story-text">' + esc(p.text) + '</p>' +
+                '<div class="story-foot"><span class="dots" aria-label="Page ' + (n + 1) + ' of ' + L.INTRO.length + '">' +
+                L.INTRO.map(function (x, k) { return '<i' + (k === n ? ' class="on"' : '') + '></i>'; }).join('') + '</span>' +
+                '<button data-act="next">' + (last ? 'Let\'s go' : 'Next') + '</button>' +
+                (last ? '' : '<button data-act="skip" class="minor">Skip</button>') + '</div></div>',
+                {
+                    next: function () { if (last) return done(); n++; show(); },
+                    skip: function () { done(); }
+                }
+            );
+            L.titleScreen(false);
+            var canvas = document.getElementById('story'), ctx = canvas.getContext('2d'), start = null;
+            (function frame(now) {
+                if (!document.body.contains(canvas)) return;
+                if (start === null) start = now;
+                ctx.clearRect(0, 0, 320, 120);
+                p.draw(ctx, 320, 120, (now - start) / 1000);
+                requestAnimationFrame(frame);
+            })(performance.now());
+        }
+        show();
+    };
 
     // ── Solo drags ────────────────────────────────────────────────────────
     // Once you've beaten the game: just you, the tree and the clock, over a quarter, a half
@@ -1572,7 +1661,7 @@
             '<p class="sub">Your leaderboard records stay.</p>' +
             '<div class="car-btns"><button data-act="new">New game</button><button data-act="quit" class="minor">Title screen</button></div></div>',
             {
-                new: function () { g = L.newGame(); L.save(g); L.showHub('A fresh start. Welcome to town. Check the classifieds for your first car.'); },
+                new: function () { g = L.newGame(); L.save(g); L.showHub('A fresh start. Welcome back to town.'); },
                 quit: function () { L.showTitle(); }
             }
         );
