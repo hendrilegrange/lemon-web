@@ -153,6 +153,9 @@
     // A King's livery (flames) is locked in the paint shop until you've beaten a King: the
     // game moves past 1963 the week after, and g.kingBeaten covers the week in between
     L.beatAKing = function (g) { return L.eraOf(g) > 0 || !!g.kingBeaten; };
+    // Beating The Last King, the final era's, beats the game: the speed shop then keeps every
+    // part but the Legendary ones in stock all the time
+    L.beatTheGame = function (g) { return !!g.gameBeaten; };
     L.liveryLocked = function (g, livery) { return !!(L.LIVERIES[livery] && L.LIVERIES[livery].king) && !L.beatAKing(g); };
     L.carLook = function (car) {
         var livery = car.livery && L.LIVERIES[car.livery] && car.livery !== 'none' ? car.livery : null;
@@ -486,7 +489,10 @@
         return shelf;
     };
 
-    L.inStock = function (g, partId) { return (g.shopStock || []).indexOf(partId) >= 0; };
+    L.inStock = function (g, partId) {
+        if (L.beatTheGame(g) && !L.PARTS[partId].legend) return true;
+        return (g.shopStock || []).indexOf(partId) >= 0;
+    };
 
     // Everything the speed shop carries, with whether it's on the shelf this week and whether
     // it fits the car (every part fits when there's no car). Parts for other engine families
@@ -507,7 +513,8 @@
         if (!L.inStock(g, partId)) return 'Sold out this week.';
         if (g.cash < part.price) return "You can't afford it.";
         g.cash -= part.price;
-        g.shopStock.splice(g.shopStock.indexOf(partId), 1);   // one of each on the shelf
+        var at = g.shopStock.indexOf(partId);
+        if (at >= 0) g.shopStock.splice(at, 1);   // one of each on the shelf (always more once you've beaten the game)
         shelve(g, partId, 100);
         return null;
     };
@@ -574,6 +581,48 @@
         }
         car.parts[part.slot] = partId;
         return null;
+    };
+
+    // What swapping in the shelf engine at invIndex would do to the active car, or null if it's
+    // the same family (or not an engine): an engine from another family brings its own stock
+    // carb, intake, cam and exhaust. lost: the better-than-stock parts that come off; fits:
+    // how many shelf parts fit the new engine; et and newEt: the quarter mile before and after.
+    L.swapPreview = function (g, invIndex) {
+        var car = L.activeCar(g), partId = g.inventory[invIndex], part = L.PARTS[partId];
+        if (!car || !part || part.slot !== 'engine' || L.PARTS[car.parts.engine].fam === part.fam) return null;
+        var after = JSON.parse(JSON.stringify(car));
+        after.parts.engine = partId;
+        after.engineCondition = L.shelfCondition(g, invIndex);
+        L.BOLT_ONS.forEach(function (slot) { after.parts[slot] = L.stockPart(partId, slot); after.partCondition = after.partCondition || {}; after.partCondition[slot] = 100; });
+        return {
+            lost: L.BOLT_ONS.map(function (slot) { return car.parts[slot]; }).filter(function (id) { return L.PARTS[id].cls > 0; }),
+            fits: g.inventory.filter(function (id, i) { return i !== invIndex && L.PARTS[id].fam === part.fam && L.PARTS[id].slot !== 'engine'; }).length,
+            et: L.estimate(L.spec(car)).et,
+            newEt: L.estimate(L.spec(after)).et
+        };
+    };
+
+    // Which of your cars a part fits, by name (for the shelf: "fits your '57 Bel Air")
+    L.carsItFits = function (g, partId) {
+        return g.cars.filter(function (c) { return L.fits(partId, c.parts.engine); });
+    };
+
+    // A King's reward: a Legendary part for the car you beat him with, one that fits its engine
+    // and beats what's on it if there's such a part (an engine only from its own family, so
+    // the build stays whole). Returns the part's id, on your shelf, or null.
+    L.kingReward = function (g, car) {
+        var era = L.eraOf(g);
+        var legends = Object.keys(L.PARTS).filter(function (id) {
+            var p = L.PARTS[id];
+            return p.legend && p.era <= era && L.fits(id, car.parts.engine) &&
+                (p.slot !== 'engine' || p.fam === L.PARTS[car.parts.engine].fam);
+        });
+        var better = legends.filter(function (id) { return L.PARTS[car.parts[L.PARTS[id].slot]].cls < 5; });
+        var pool = better.length ? better : legends;
+        if (!pool.length) return null;
+        var id = pool[Math.floor(L.random() * pool.length)];
+        shelve(g, id, 100);
+        return id;
     };
 
     function engineRebuildCost(engineId, condition) {
@@ -874,8 +923,12 @@
         var cash = stake === 'pinks' ? (rival.king ? L.kingPrize(g) : 0) : L.betAmount(g, rival, bet);
         var cashText = '$' + cash.toLocaleString('en-US');
         if (result === 'win') {
+            var reward = '';
             if (rival.king) {
                 g.kingBeaten = true;
+                if (!L.ERAS[(rival.era || 0) + 1]) { g.gameBeaten = true; g.celebrate = true; }
+                var gift = L.kingReward(g, car);
+                if (gift) reward = ' For beating him, the speed shop hands you a ' + L.PARTS[gift].name + ' for your ' + L.carName(car) + '. It\'s on your shelf.';
                 var rec = L.records(g), kingKey = 'k' + (rival.era || 0);    // fewest weeks to beat this era's King
                 if (typeof rec[kingKey] !== 'number' || g.week < rec[kingKey]) rec[kingKey] = g.week;
             }
@@ -894,14 +947,14 @@
                         : ' From ' + L.ERAS[0].year + ' to ' + L.ERAS[L.eraOf(g)].year + ', you beat every King there was.');
                 if (g.cars.length < L.maxCars(g)) {
                     g.cars.push(won);
-                    return 'You won ' + prize + rival.name + "'s " + L.carName(won) + '!' + crown + blown;
+                    return 'You won ' + prize + rival.name + "'s " + L.carName(won) + '!' + crown + reward + blown;
                 }
                 var value = L.carValue(won);
                 g.cash += value;
-                return 'You won ' + prize + rival.name + "'s " + L.carName(won) + ". Your garage is full, so you sold it for $" + value + '.' + crown + blown;
+                return 'You won ' + prize + rival.name + "'s " + L.carName(won) + ". Your garage is full, so you sold it for $" + value + '.' + crown + reward + blown;
             }
             g.cash += cash;
-            return 'You won ' + cashText + ' from ' + rival.name + '.' + blown;
+            return 'You won ' + cashText + ' from ' + rival.name + '.' + reward + blown;
         }
         if (stake === 'pinks') {
             var lost = L.carName(car);
@@ -966,6 +1019,7 @@
     // before only wins counted is cleared, so the boards start over from wins.
     L.fixSave = function (g) {
         if (!g || !g.cars) return g;
+        if (g.records && typeof g.records['k' + (L.ERAS.length - 1)] === 'number') g.gameBeaten = true;   // beat The Last King before it counted
         if (g.records && !g.records.winsOnly) { g.records.et = null; g.records.rt = null; g.records.winsOnly = true; }
         g.cars.forEach(function (c) {
             if (L.carTier(c) === 'king' && !c.paint && !c.livery) { c.paint = 'black'; c.livery = 'flames'; }

@@ -702,7 +702,8 @@ canvas.scene {
 .shelf-cls.t3 { color: #d68cff; } .shelf-cls.t4 { color: #ff8c42; } .shelf-cls.t5 { color: #ffd23f; }
 .shelf-tag { font-size: 0.7rem; margin-left: 6px; white-space: nowrap; }
 .shelf-tag.up { color: var(--good); }
-.shelf-tag.no { color: var(--bad); }
+.shelf-tag.no { color: var(--bad); white-space: normal; }
+.row .fam { color: var(--muted); }
 .shelf-cond { white-space: nowrap; font-size: 0.85rem; }
 .shelf-cond .meter { width: 64px; }
 .like-new { color: var(--good); font-size: 0.8rem; }
