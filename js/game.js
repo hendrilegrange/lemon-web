@@ -500,9 +500,9 @@
             for (var i = 0; i < group.length - 1 && r >= weights[i]; i++) r -= weights[i];
             shelf.push(group[i]);
         });
-        // Now and then a Legendary part turns up
+        // Now and then a Legendary part turns up (never tires: they wear out)
         if (L.random() < L.LEGEND_ODDS) {
-            var legends = ids.filter(function (id) { return L.PARTS[id].legend; });
+            var legends = ids.filter(function (id) { return L.PARTS[id].legend && L.PARTS[id].slot !== 'tires'; });
             shelf.push(legends[Math.floor(L.random() * legends.length)]);
         }
         return shelf;
@@ -626,14 +626,14 @@
         return g.cars.filter(function (c) { return L.fits(partId, c.parts.engine); });
     };
 
-    // A King's reward: a Legendary part for the car you beat him with, one that fits its engine
+    // A King's reward: a Legendary part (never tires, which wear out) for the car you beat him with, one that fits its engine
     // and beats what's on it if there's such a part (an engine only from its own family, so
     // the build stays whole). Returns the part's id, on your shelf, or null.
     L.kingReward = function (g, car) {
         var era = L.eraOf(g);
         var legends = Object.keys(L.PARTS).filter(function (id) {
             var p = L.PARTS[id];
-            return p.legend && p.era <= era && L.fits(id, car.parts.engine) &&
+            return p.legend && p.slot !== 'tires' && p.era <= era && L.fits(id, car.parts.engine) &&
                 (p.slot !== 'engine' || p.fam === L.PARTS[car.parts.engine].fam);
         });
         var better = legends.filter(function (id) { return L.PARTS[car.parts[L.PARTS[id].slot]].cls < 5; });
@@ -947,6 +947,8 @@
                 g.kingBeaten = true;
                 if (!L.ERAS[(rival.era || 0) + 1]) { g.gameBeaten = true; g.celebrate = true; }
                 var gift = L.kingReward(g, car);
+                // What the victory screen shows, once, for every King but the last (he gets the finale)
+                if (!g.celebrate) g.crowned = { era: rival.era || 0, king: rival.name, week: g.week, mine: car.id, part: gift, cash: cash };
                 if (gift) reward = ' For beating him, the speed shop hands you a ' + L.PARTS[gift].name + ' for your ' + L.carName(car) + '. It\'s on your shelf.';
                 var rec = L.records(g), kingKey = 'k' + (rival.era || 0);    // fewest weeks to beat this era's King
                 if (typeof rec[kingKey] !== 'number' || g.week < rec[kingKey]) rec[kingKey] = g.week;
@@ -964,12 +966,14 @@
                 var crown = !rival.king ? '' : ' You are the new King of the strip!' +
                     (next ? ' Next week it\'s ' + next.year + ', and there\'s a new crowd at the burger stand.'
                         : ' From ' + L.ERAS[0].year + ' to ' + L.ERAS[L.eraOf(g)].year + ', you beat every King there was.');
+                if (rival.king && g.crowned) g.crowned.car = { id: won.id, name: L.carName(won) };
                 if (g.cars.length < L.maxCars(g)) {
                     g.cars.push(won);
                     return 'You won ' + prize + rival.name + "'s " + L.carName(won) + '!' + crown + reward + blown;
                 }
                 var value = L.carValue(won);
                 g.cash += value;
+                if (rival.king && g.crowned) g.crowned.sold = value;
                 return 'You won ' + prize + rival.name + "'s " + L.carName(won) + ". Your garage is full, so you sold it for $" + value + '.' + crown + reward + blown;
             }
             g.cash += cash;

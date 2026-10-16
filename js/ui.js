@@ -286,6 +286,7 @@
                     if (note) { delete g.notice; L.save(g); }
                     if (g.over) return L.showGameOver();
                     if (g.celebrate) return L.showCelebration();
+                    if (g.crowned) return L.showCrowned();
                     L.showHub(note);
                 },
                 new: function () {
@@ -878,8 +879,10 @@
             ' Bestest+ is a hair quicker than Bestest at five times the price. Now and then a Legendary part turns up: as quick as Bestest+, and every one on your car widens the green shift zone.</p>' +
             catalog.filter(function (x) { return L.PARTS[x.id].legend; }).map(function (x) {
                 var p = L.PARTS[x.id];
-                return '<p class="legend-find"><span class="cls cls5">Legendary</span> Just in: the ' + esc(p.name) + ', ' + money(p.price) +
-                    (car && !x.fits ? '. It doesn\'t fit your engine.' : '. It won\'t be here long.') + '</p>';
+                // Bought right here, so it's never lost in a folded-away group further down
+                return '<div class="legend-find"><p><span class="cls cls5">Legendary</span> Just in: the ' + esc(p.name) + ', ' + money(p.price) +
+                    (car && !x.fits ? '. It doesn\'t fit your engine.' : '. It won\'t be here long.') + '</p>' +
+                    '<button data-act="buy" data-arg="' + x.id + '"' + off(g.cash < p.price ? 'It costs ' + money(p.price) + ' and you have ' + money(g.cash) + '.' : '') + '>Buy it</button></div>';
             }).join('') + html + '</div>' +
             backBar('Back', 'back', [['Garage', 'garage']]),
             {
@@ -1471,8 +1474,8 @@
                     '<p class="sub">You: ' + esc(sum.me) + (sum.reaction !== null && result !== 'foul' ? ' (reaction ' + sum.reaction.toFixed(3) + ' s)' : '') +
                     '<br>' + esc(rival.name) + ': ' + esc(sum.them) + '</p>' +
                     (best.length ? '<p class="record">New personal best: ' + best.join(', ') + '!</p>' : '') + '</div>' +
-                    (g.celebrate ? backBar('Continue', 'party') : backBar('Back to the burger stand', 'stand')),
-                    { stand: function () { L.showStand(); }, party: function () { L.showCelebration(); } }
+                    (g.celebrate || g.crowned ? backBar('Continue', 'party') : backBar('Back to the burger stand', 'stand')),
+                    { stand: function () { L.showStand(); }, party: function () { if (g.celebrate) L.showCelebration(); else L.showCrowned(); } }
                 );
             }
         );
@@ -1686,6 +1689,56 @@
         L.sound.lose();
     };
 
+    // ── You beat a King (every one but the last, who gets the finale) ─────
+
+    // Each era's colour for its King's night: 1963 gold, 1973 orange, 1985 neon pink,
+    // 1995 blue, 2005 green
+    var KING_GLOW = ['#ffd23f', '#ff7a2f', '#ff4fa0', '#4fc3ff', '#3bff6e'];
+
+    L.showCrowned = function () {
+        var c = g.crowned;
+        if (!c) return L.showHub();
+        delete g.crowned;
+        L.save(g);
+        var i = c.era, next = L.ERAS[i + 1], king = L.KINGS[i] || L.KING;
+        var mine = g.cars.filter(function (x) { return x.id === c.mine; })[0] || L.activeCar(g);
+        var won = [];
+        if (c.car) won.push(c.sold ? '<li><b>His ' + esc(c.car.name) + '.</b> Your garage was full, so it went for ' + money(c.sold) + '.</li>'
+            : '<li><b>His ' + esc(c.car.name) + '.</b> In his black paint and flames, parked in your garage.</li>');
+        if (c.cash) won.push('<li><b>' + money(c.cash) + '</b> on top.</li>');
+        if (c.part) won.push('<li><b>' + esc(L.PARTS[c.part].name) + '.</b> A Legendary part' + (mine ? ' for your ' + esc(L.carName(mine)) : '') + ', on your shelf.</li>');
+        var unlocks = [];
+        if (next) unlocks.push('<li><b>' + next.year + ' arrives next week.</b> New cars in the paper, new parts at the speed shop, new rivals at the burger stand, and a new King waiting for you.</li>');
+        unlocks.push('<li><b>A bigger garage.</b> Room for ' + (L.MAX_CARS + L.CARS_PER_ERA * (i + 1)) + ' cars from next week.</li>');
+        if (i === 0) {
+            unlocks.push('<li><b>Lemon Motors.</b> The dealership sells to you now: brand-new cars, straight off the lot.</li>');
+            unlocks.push('<li><b>Fix all.</b> Every job on a car at once, no workbench.</li>');
+            unlocks.push('<li><b>The flames.</b> The King\'s livery is yours at the paint shop.</li>');
+            unlocks.push('<li><b>The Loan Shark.</b> Dad\'s done lending. The shark lends big, at 50% a week.</li>');
+        } else if (next) {
+            unlocks.push('<li><b>Lemon Motors</b> gets ' + next.year + '\'s new cars on the lot.</li>');
+        }
+        render(
+            '<div class="panel celebrate crowned" style="--glow: ' + KING_GLOW[i % KING_GLOW.length] + '">' +
+            '<canvas class="scene" id="party" width="320" height="140" aria-hidden="true"></canvas>' +
+            '<h2>You beat ' + esc(c.king) + '!</h2>' +
+            '<p class="lead">' + L.ERAS[i].name + ', week ' + c.week + '. ' + esc(c.king) + ' handed over his keys, and the burger stand has a new King: you.</p>' +
+            '<div class="chips"><span class="chip"><b>' + plural(i + 1, 'King') + '</b> beaten</span><span class="chip"><b>' + g.wins + '–' + g.losses + '</b> record</span>' +
+            '<span class="chip"><b>' + money(g.cash) + '</b> in the bank</span></div>' +
+            (won.length ? '<h3>You won</h3><ul class="unlocks">' + won.join('') + '</ul>' : '') +
+            '<h3>Unlocked</h3><ul class="unlocks">' + unlocks.join('') + '</ul>' +
+            '<div class="car-btns"><button data-act="stand">Back to the burger stand</button><button data-act="hub" class="minor">Garage</button></div></div>',
+            { stand: function () { L.showStand(); }, hub: function () { L.showHub(); } }
+        );
+        L.titleScreen(false);
+        L.sound.win();
+        party(document.getElementById('party'), mine ? L.carLook(mine) : null, {
+            title: 'NEW KING OF ' + L.ERAS[i].year,
+            glow: KING_GLOW[i % KING_GLOW.length],
+            rival: L.rivalLook(Object.assign({}, king, { king: true }))
+        });
+    };
+
     // ── The end: you beat The Last King ───────────────────────────────────
 
     L.showCelebration = function () {
@@ -1716,10 +1769,14 @@
         party(document.getElementById('party'), car ? L.carLook(car) : null);
     };
 
-    // Fireworks over the strip, your car parked in front, until the screen goes
-    function party(canvas, look) {
+    // Fireworks over the strip, your car parked in front, until the screen goes. opts:
+    // { title, glow (a colour that leads the fireworks and the title), rival (a look: the
+    // King's car, parked beside yours) }
+    function party(canvas, look, opts) {
+        opts = opts || {};
         var ctx = canvas.getContext('2d'), W = canvas.width, H = canvas.height;
         var COLORS = ['#ffd23f', '#ff4fa0', '#3bff6e', '#4fc3ff', '#ff7a2f', '#f4e9c8'];
+        if (opts.glow) COLORS = COLORS.concat([opts.glow, opts.glow, opts.glow]);
         var sparks = [], t = 0, last = null, next = 0;
         function burst() {
             var x = 30 + Math.random() * (W - 60), y = 15 + Math.random() * 50, c = COLORS[Math.floor(Math.random() * COLORS.length)];
@@ -1747,8 +1804,12 @@
             ctx.fillStyle = '#2a2a2a'; ctx.fillRect(0, 112, W, 28);
             ctx.fillStyle = '#ffd23f';
             for (var d = 0; d < W; d += 24) ctx.fillRect(d, 126, 12, 2);
-            if (look) L.drawCar(ctx, W / 2 - 44, 70, look, { scale: 2 });
-            L.text(ctx, 'KING OF THE STRIP', W / 2, 20, { color: '#ffd23f', scale: 2, align: 'center' });
+            if (opts.rival) {
+                L.drawCar(ctx, W / 2 + 12, 70, opts.rival, { scale: 2 });
+                if (look) L.drawCar(ctx, W / 2 - 100, 70, look, { scale: 2 });
+            } else if (look) L.drawCar(ctx, W / 2 - 44, 70, look, { scale: 2 });
+            var title = opts.title || 'KING OF THE STRIP';
+            L.text(ctx, title, W / 2, 20, { color: opts.glow || '#ffd23f', scale: L.textWidth(title, 2) <= W - 16 ? 2 : 1, align: 'center' });
             requestAnimationFrame(frame);
         }
         requestAnimationFrame(frame);

@@ -801,7 +801,7 @@
     L.HOURS_PER_WEEK = 30;
     L.JOB_HOURS = { engine: 10, carb: 2, intake: 3, cam: 5, exhaust: 3, trans: 6, rear: 4, tires: 1 };
     L.REBUILD_HOURS = 12;
-    L.REPAIR_SHARE = 0.5;   // repairing a part takes half the hours of swapping it, less the less it's worn
+    L.REPAIR_SHARE = 0.75;  // repairing a part takes three quarters of the hours of swapping it, less the less it's worn
 
     // Bodywork: the body must be at least MIN_BODY to race. Each point restored costs
     // BODY_PER_POINT dollars.
