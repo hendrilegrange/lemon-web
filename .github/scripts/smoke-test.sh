@@ -33,6 +33,16 @@ else
     exit 1   # nothing else can work
 fi
 
+# A browser must check back for index.html after a deploy, or it keeps loading the old scripts
+cache=$(curl -sS -I --max-time 30 "$SITE_URL/" 2>/dev/null | tr -d '\r' | grep -i '^cache-control:' | head -1)
+if echo "$cache" | grep -qi 'no-cache'; then
+    pass "home page says no-cache"
+elif [ "${CHECK_FILES:-}" = 1 ]; then
+    fail "home page has no Cache-Control: no-cache (${cache:-none}), so browsers can keep an old copy after a deploy"
+else
+    echo "WARN  home page has no Cache-Control: no-cache yet (${cache:-none})"
+fi
+
 for asset in $(grep -oE '(src|href)="(js|css)/[^"?]+' "$WORK/index.html" | sed -E 's/^[a-z]+="//'); do
     code=$(get "$SITE_URL/$asset" "$WORK/asset")
     [ "$code" = 200 ] && [ -s "$WORK/asset" ] && pass "$asset loads" || fail "$asset returned HTTP $code"
