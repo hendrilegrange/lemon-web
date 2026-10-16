@@ -567,7 +567,7 @@
                 stand: function () { GO.stand(L.showHub); },
                 week: function () {
                     L.newWeek(g);
-                    var news = g.newEra ? L.ERAS[L.eraOf(g)].intro : 'A new week. New ads, a restocked speed shop, new faces at the burger stand.';
+                    var news = g.newEra ? L.ERAS[L.eraOf(g)].intro + ' Your garage grew too: room for ' + L.maxCars(g) + ' cars now.' : 'A new week. New ads, a restocked speed shop, new faces at the burger stand.';
                     delete g.newEra;
                     L.save(g);
                     L.showHub(news);
@@ -666,7 +666,7 @@
                 '<p class="sub">' + st.hp + ' hp · ' + st.et.toFixed(2) + ' s · ' + body.kg + ' kg</p>' +
                 '<p class="price">' + money(price) + '</p>' +
                 '<button data-act="buy" data-arg="' + id + '"' + (err ? ' disabled' : '') + '>' +
-                (err && g.cash < price ? "Can't afford it" : err && g.cars.length >= L.MAX_CARS ? 'Garage full' : 'Buy it new') + '</button></article>';
+                (err && g.cash < price ? "Can't afford it" : err && g.cars.length >= L.maxCars(g) ? 'Garage full' : 'Buy it new') + '</button></article>';
         });
         render(
             status('dealer') + flash(msg) +
@@ -948,7 +948,7 @@
         var shelf = shelfGroups(car);
         render(
             status('garage') + flash(msg) +
-            '<div class="panel"><h2>Your cars <span class="sub">' + g.cars.length + ' of ' + L.MAX_CARS + '</span></h2>' + cars + '</div>' + detail +
+            '<div class="panel"><h2>Your cars <span class="sub">' + g.cars.length + ' of ' + L.maxCars(g) + '</span></h2>' + cars + '</div>' + detail +
             '<div class="panel shelf"><h2>Shelf' + (g.inventory.length ? ' <span class="sub">' + plural(g.inventory.length, 'part') +
                 ' · worth ' + money(g.inventory.reduce(function (sum, id, i) { return sum + L.partValue(g, i); }, 0)) + '</span>' : '') + '</h2>' + shelf + '</div>' +
             backBar('Back'),

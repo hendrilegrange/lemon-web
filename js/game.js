@@ -304,7 +304,7 @@
     L.canBuyNew = function (g, bodyId) {
         if (!L.beatAKing(g)) return 'Beat The King to open the dealership.';
         if (L.dealerCars(g).indexOf(bodyId) < 0) return "The dealer doesn't sell that one.";
-        if (g.cars.length >= L.MAX_CARS) return 'Your garage is full. Sell a car first.';
+        if (g.cars.length >= L.maxCars(g)) return 'Your garage is full. Sell a car first.';
         if (g.cash < L.newCarPrice(bodyId)) return "You can't afford it.";
         return null;
     };
@@ -322,7 +322,7 @@
         var ad = g.ads[index];
         if (!ad) return 'That ad is gone.';
         if (g.cash < ad.price) return "You can't afford it.";
-        if (g.cars.length >= L.MAX_CARS) return 'Your garage is full. Sell a car first.';
+        if (g.cars.length >= L.maxCars(g)) return 'Your garage is full. Sell a car first.';
         g.cash -= ad.price;
         g.cars.push(L.makeCar(g, ad.body, null, ad.condition, ad.engineCondition, ad.parts));
         if (g.active < 0) g.active = g.cars.length - 1;
@@ -892,7 +892,7 @@
                 var crown = !rival.king ? '' : ' You are the new King of the strip!' +
                     (next ? ' Next week it\'s ' + next.year + ', and there\'s a new crowd at the burger stand.'
                         : ' From ' + L.ERAS[0].year + ' to ' + L.ERAS[L.eraOf(g)].year + ', you beat every King there was.');
-                if (g.cars.length < L.MAX_CARS) {
+                if (g.cars.length < L.maxCars(g)) {
                     g.cars.push(won);
                     return 'You won ' + prize + rival.name + "'s " + L.carName(won) + '!' + crown + blown;
                 }
