@@ -312,6 +312,29 @@
     };
     L.newCarPrice = function (bodyId) { return roundTo(L.carValue(L.newCar(bodyId)) * L.NEW_CAR_PRICE, 50); };
 
+    // Lemon Motors opens for new cars once you've beaten a King, and before that to sell you
+    // back a car you lost for pink slips
+    L.dealerOpen = function (g) { return L.beatAKing(g) || !!(g.lost && g.lost.length); };
+    L.buybackPrice = function (car) { return roundTo(L.carValue(car) * L.BUYBACK_PRICE, 50); };
+
+    L.canBuyBack = function (g, index) {
+        var lost = g.lost && g.lost[index];
+        if (!lost) return 'That car is gone.';
+        if (g.cars.length >= L.maxCars(g)) return 'Your garage is full. Sell a car first.';
+        if (g.cash < L.buybackPrice(lost.car)) return "You can't afford it.";
+        return null;
+    };
+
+    L.buyBack = function (g, index) {
+        var err = L.canBuyBack(g, index);
+        if (err) return err;
+        var car = g.lost.splice(index, 1)[0].car;
+        g.cash -= L.buybackPrice(car);
+        g.cars.push(car);
+        if (g.active < 0) g.active = g.cars.length - 1;
+        return null;
+    };
+
     L.canBuyNew = function (g, bodyId) {
         if (!L.beatAKing(g)) return 'Beat The King to open the dealership.';
         if (L.dealerCars(g).indexOf(bodyId) < 0) return "The dealer doesn't sell that one.";
@@ -982,7 +1005,8 @@
         if (stake === 'pinks') {
             var lost = L.carName(car);
             dropCar(g, g.active);
-            return why + rival.name + ' drives off in your ' + lost + '.';
+            g.lost = [{ car: car, week: g.week, rival: rival.name }].concat(g.lost || []).slice(0, L.MAX_LOST);
+            return why + rival.name + ' drives off in your ' + lost + '. Lemon Motors can get it back for you, for ' + '$' + L.buybackPrice(car) + '.';
         }
         g.cash -= cash;
         return why + 'You lost ' + cashText + ' to ' + rival.name + '.' + blown;

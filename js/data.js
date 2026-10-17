@@ -786,6 +786,10 @@
     // The dealership, open once you've beaten a King: any car from the eras you've reached,
     // brand new and stock, for this many times what it fetches restored
     L.NEW_CAR_PRICE = 1.5;
+    // A car lost for pink slips: the dealership will sell it back, as it was, for this many times
+    // what it's worth, and keeps the last MAX_LOST of them (it opens for that before any King)
+    L.BUYBACK_PRICE = 1.5;
+    L.MAX_LOST = 5;
 
     L.START_CASH = 600;     // enough for one scrappy car and a few repairs
     // Borrowing. Before you beat a King, Dad lends DADDY_LOAN when you're down to less than

@@ -41,7 +41,7 @@
                 L.sound.begin();
                 L.sound.click();
                 var key = b.getAttribute('data-nav'), from = here && BACK_TO[here.getAttribute('data-nav')];
-                if (key === 'dealer' && !L.beatAKing(g)) return toast('The dealership only sells to the King of the strip. Beat The King first.');
+                if (key === 'dealer' && !L.dealerOpen(g)) return toast('The dealership only sells to the King of the strip. Beat The King first.');
                 GO[key](from ? GO[from] : null);
             });
         });
@@ -180,7 +180,7 @@
                ['paint', 'paint', 'Paint'], ['dealer', 'dealer', 'Dealer'], ['stand', 'stand', 'Race']];
     function navbar(here) {
         return '<nav class="navbar" aria-label="Main">' + NAV.map(function (n) {
-            var locked = n[0] === 'dealer' && !L.beatAKing(g);
+            var locked = n[0] === 'dealer' && !L.dealerOpen(g);
             var hot = n[0] === 'stand' && g.friday;
             return '<button data-nav="' + n[0] + '" class="minor' + (n[0] === here ? ' here' : '') + (hot ? ' hot' : '') + (locked ? ' locked' : '') + '"' +
                 (n[0] === here ? ' aria-current="page"' : '') + (locked ? ' title="Beat The King to open"' : '') + '>' +
@@ -196,7 +196,7 @@
         parts: function () { L.showParts(); },
         garage: function () { L.showGarage(); },
         paint: function () { L.showPaint(); },
-        dealer: function () { if (!L.beatAKing(g)) return L.showHub('The dealership only sells to the King of the strip. Beat The King first.'); L.showDealer(); },
+        dealer: function () { if (!L.dealerOpen(g)) return L.showHub('The dealership only sells to the King of the strip. Beat The King first.'); L.showDealer(); },
         stand: function (from) {
             if (g.friday || g.hours === 0) { L.goFriday(g); L.save(g); return L.showStand(); }
             ask('Head out to the burger stand? It\'s Friday night, so the garage is closed till next week. You still have ' +
@@ -712,7 +712,8 @@
             tile('parts', 'parts', 'Speed shop', stocked + (car ? ' parts for your car' : ' parts') + ' in stock') +
             tile('garage', 'garage', 'Garage', plural(g.cars.length, 'car') + ' · ' + plural(g.inventory.length, 'part') + ' on the shelf') +
             tile('paint', 'paint', 'Paint shop', car ? 'Colours, stripes and flames' : 'Bring a car') +
-            tile('dealer', 'dealer', 'Dealership', L.beatAKing(g) ? 'Brand new cars, ' + L.dealerCars(g).length + ' on the lot' : '🔒 Beat The King to open', L.beatAKing(g) ? '' : 'locked') +
+            tile('dealer', 'dealer', 'Dealership', L.beatAKing(g) ? 'Brand new cars, ' + L.dealerCars(g).length + ' on the lot' :
+                L.dealerOpen(g) ? 'Buy back the car you lost' : '🔒 Beat The King to open', L.dealerOpen(g) ? '' : 'locked') +
             tile('solo', 'solo', 'Solo drags', L.beatTheGame(g) ? 'Quarter, half and 1 mile, for the leaderboards' : '🔒 Beat The Last King to open', L.beatTheGame(g) ? '' : 'locked') +
             loanTile() +
             tile('stand', 'stand', 'Burger stand',
@@ -827,8 +828,19 @@
     // Brand new cars from every era you've reached, open once you've beaten a King: stock,
     // in factory paint, at L.NEW_CAR_PRICE times what one fetches restored
     L.showDealer = function (msg) {
-        if (!L.beatAKing(g)) return L.showHub('The dealership only sells to the King of the strip. Beat The King first.');
-        var cars = L.dealerCars(g), lastEra = -1, html = '';
+        if (!L.dealerOpen(g)) return L.showHub('The dealership only sells to the King of the strip. Beat The King first.');
+        var cars = L.beatAKing(g) ? L.dealerCars(g) : [], lastEra = -1, html = '';
+        // Cars lost for pink slips, as they were when they went, newest first
+        var back = (g.lost || []).map(function (l, i) {
+            var c = l.car, price = L.buybackPrice(c), err = L.canBuyBack(g, i);
+            return '<article class="lot-car">' +
+                '<canvas class="lot-pic" width="96" height="48" data-lost="' + i + '" aria-hidden="true"></canvas>' +
+                '<h4>' + esc(L.carName(c)) + '</h4>' +
+                '<p class="sub">Lost to ' + esc(l.rival) + ', week ' + l.week + ' · ' + L.estimate(L.spec(c)).et.toFixed(2) + ' s</p>' +
+                '<p class="price">' + money(price) + '</p>' +
+                '<button data-act="back-buy" data-arg="' + i + '"' + off(err) + '>' +
+                (err && g.cash < price ? "Can't afford it" : err && g.cars.length >= L.maxCars(g) ? 'Garage full' : 'Buy it back') + '</button></article>';
+        }).join('');
         cars.forEach(function (id) {
             var body = L.BODIES[id], era = body.era || 0;
             if (era !== lastEra) {
@@ -847,16 +859,27 @@
         });
         render(
             status('dealer') + flash(msg) +
+            (back ? '<div class="panel dealer"><h2>Lemon Motors <span class="sub">buy-backs</span></h2>' +
+                '<p class="sub">The cars you lost for pink slips. Lemon Motors bought them off the winners and will sell them back as they were, parts, paint and wear, for ' +
+                L.BUYBACK_PRICE + ' times what they\'re worth.</p><div class="lot">' + back + '</div></div>' : '') +
+            (!cars.length ? '<p class="sub">New cars are for the King of the strip. Beat The King and the whole lot is yours to pick from.</p>' :
             '<div class="panel dealer"><h2>Lemon Motors <span class="sub">new cars</span></h2>' +
             '<p class="sub">Every car from the years you\'ve raced in, straight from the factory: stock parts, 100% body and engine, and nothing to fix. ' +
             'It costs more than one restored, and it\'s worth what one restored is the moment you drive it off the lot.</p>' +
-            html + (html ? '</div>' : '') + '</div>' + backBar('Back'),
+            html + (html ? '</div>' : '') + '</div>') + backBar('Back'),
             {
+                'back-buy': act(L.showDealer, function (i) {
+                    var name = g.lost[+i] ? L.carName(g.lost[+i].car) : '';
+                    return L.buyBack(g, +i) || 'Welcome home. Your ' + name + ' is back in your garage.';
+                }),
                 buy: act(L.showDealer, function (id) { return L.buyNew(g, id) || 'She\'s yours. The ' + L.BODIES[id].name + ' is in your garage.'; }),
                 back: function () { L.showHub(); }
             }
         );
-        app.querySelectorAll('canvas.lot-pic').forEach(function (c) {
+        app.querySelectorAll('canvas.lot-pic[data-lost]').forEach(function (c) {
+            L.drawCar(c.getContext('2d'), 4, 2, L.carLook(g.lost[+c.getAttribute('data-lost')].car), { scale: 2 });
+        });
+        app.querySelectorAll('canvas.lot-pic[data-body]').forEach(function (c) {
             var body = L.BODIES[c.getAttribute('data-body')];
             L.drawCar(c.getContext('2d'), 4, 2, body.color, { scale: 2, shape: body.shape });
         });
@@ -1115,6 +1138,32 @@
         }).join('');
     }
 
+    // Fit a part from the shelf on the car you drive, then back to screen (the garage or Fix car)
+    function installShelf(i, screen) {
+        var err = L.canInstall(g, i);
+        if (err) return screen(err);
+        var car = L.activeCar(g), part = L.PARTS[g.inventory[i]];
+        function go() {
+            wrench(part.slot, 'Installing: ' + part.name, L.PARTS[car.parts[part.slot]].name, part.name, 1,
+                act(screen, function () {
+                    var out = {};
+                    return L.installPart(g, i, out) || 'Installed the ' + part.name + '.' +
+                        (out.shelved.length ? ' The old ' + out.shelved.join(', ') + ' went on the shelf.' : '') +
+                        (out.binned.length ? ' The old ' + out.binned.join(', ') + (out.binned.length > 1 ? ' were' : ' was') + ' shot, so ' + (out.binned.length > 1 ? 'they' : 'it') + ' went in the bin.' : '');
+                }), screen);
+        }
+        // An engine from another family takes the carb, intake, cam and exhaust with it
+        var swap = L.swapPreview(g, i);
+        if (!swap) return go();
+        var fam = L.FAMILIES[part.fam].name.toLowerCase();
+        ask('The ' + part.name + ' is a ' + fam + ', and your carb, intake, cam and exhaust only fit a ' +
+            L.FAMILIES[L.PARTS[car.parts.engine].fam].name.toLowerCase() + '. They come off and go on the shelf, and the car gets the new engine\'s stock ones.' +
+            (swap.lost.length ? ' That takes off your ' + swap.lost.map(function (id) { return L.PARTS[id].name; }).join(', ') + '.' : '') +
+            ' With those, your quarter mile goes from ' + swap.et.toFixed(2) + ' s to about ' + swap.newEt.toFixed(2) + ' s.' +
+            (swap.fits ? ' You have ' + plural(swap.fits, 'part') + ' on your shelf that ' + (swap.fits === 1 ? 'fits' : 'fit') + ' a ' + fam + '.' : ' Nothing on your shelf fits a ' + fam + ' yet.'),
+            'Swap the engine', go, screen);
+    }
+
     L.showGarage = function (msg) {
         var car = L.activeCar(g);
         var cars = g.cars.map(function (c, i) {
@@ -1172,30 +1221,7 @@
                         money(L.stripValue(c)) + ' scrap.', 'Strip it',
                         act(L.showGarage, function () { return L.stripCar(g, +i); }), L.showGarage);
                 },
-                install: function (i) {
-                    var err = L.canInstall(g, +i);
-                    if (err) return L.showGarage(err);
-                    var part = L.PARTS[g.inventory[+i]];
-                    function go() {
-                        wrench(part.slot, 'Installing: ' + part.name, L.PARTS[car.parts[part.slot]].name, part.name, 1,
-                            act(L.showGarage, function () {
-                                var out = {};
-                                return L.installPart(g, +i, out) || 'Installed the ' + part.name + '.' +
-                                    (out.shelved.length ? ' The old ' + out.shelved.join(', ') + ' went on the shelf.' : '') +
-                                    (out.binned.length ? ' The old ' + out.binned.join(', ') + (out.binned.length > 1 ? ' were' : ' was') + ' shot, so ' + (out.binned.length > 1 ? 'they' : 'it') + ' went in the bin.' : '');
-                            }), L.showGarage);
-                    }
-                    // An engine from another family takes the carb, intake, cam and exhaust with it
-                    var swap = L.swapPreview(g, +i);
-                    if (!swap) return go();
-                    var fam = L.FAMILIES[part.fam].name.toLowerCase();
-                    ask('The ' + part.name + ' is a ' + fam + ', and your carb, intake, cam and exhaust only fit a ' +
-                        L.FAMILIES[L.PARTS[car.parts.engine].fam].name.toLowerCase() + '. They come off and go on the shelf, and the car gets the new engine\'s stock ones.' +
-                        (swap.lost.length ? ' That takes off your ' + swap.lost.map(function (id) { return L.PARTS[id].name; }).join(', ') + '.' : '') +
-                        ' With those, your quarter mile goes from ' + swap.et.toFixed(2) + ' s to about ' + swap.newEt.toFixed(2) + ' s.' +
-                        (swap.fits ? ' You have ' + plural(swap.fits, 'part') + ' on your shelf that ' + (swap.fits === 1 ? 'fits' : 'fit') + ' a ' + fam + '.' : ' Nothing on your shelf fits a ' + fam + ' yet.'),
-                        'Swap the engine', go, L.showGarage);
-                },
+                install: function (i) { installShelf(+i, L.showGarage); },
                 sellpart: act(L.showGarage, function (i) { return L.sellPart(g, +i); }),
                 rebuild: act(L.showGarage, function (i) {
                     var name = L.PARTS[g.inventory[+i]].name;
@@ -1299,10 +1325,30 @@
             '<button data-act="fixall"' + off(unlocked ? fixErr : 'Beat The King to unlock Fix all.') + '>' + (unlocked ? 'Fix all ' + cost(plan.cost, plan.hours) : '🔒 Fix all') + '</button>' +
             '<span class="sub">' + (unlocked ? (fixErr ? esc(fixErr) : 'Every job at once, no workbench.') : 'Beat The King to unlock: every job at once, no workbench.') + '</span></div>';
 
+        // Spares on the shelf that fit this car, upgrades first, to fit right here
+        var nowEt = L.estimate(L.spec(car)).et;
+        var spares = [];
+        g.inventory.forEach(function (id, i) {
+            if (!L.fits(id, car.parts.engine) || id === car.parts[L.PARTS[id].slot]) return;
+            var cond = L.shelfCondition(g, i), q = quickerWith(car, id, cond, nowEt);
+            spares.push({ id: id, i: i, cond: cond, q: q });
+        });
+        spares.sort(function (a, b) { return b.q - a.q || L.SLOTS.indexOf(L.PARTS[a.id].slot) - L.SLOTS.indexOf(L.PARTS[b.id].slot); });
+        var shelfPanel = !spares.length ? '' : '<div class="panel shelf"><h2>From your shelf <span class="sub">' + plural(spares.length, 'part') + ' that fit' + (spares.length === 1 ? 's' : '') + '</span></h2>' +
+            spares.map(function (it) {
+                var p = L.PARTS[it.id], fitted = L.PARTS[car.parts[p.slot]];
+                return '<div class="shelf-item">' +
+                    '<span class="shelf-name"><span class="slot">' + L.SLOT_NAMES[p.slot] + '</span> ' + partName(it.id) + ' <span class="shelf-cls t' + p.cls + '">' + L.CLASSES[p.cls] + '</span>' +
+                    vsFitted(it.id, car, p.cls >= fitted.cls ? it.q : 0, true) + '</span>' +
+                    '<span class="shelf-cond">' + (it.cond < 100 ? bar(it.cond, 'Condition') : '<span class="like-new">Like new</span>') + '</span>' +
+                    '<span class="shelf-acts"><button data-act="install" data-arg="' + it.i + '"' + off(L.canInstall(g, it.i)) + '>Install · ' + L.JOB_HOURS[p.slot] + ' h</button></span></div>';
+            }).join('') + '</div>';
+
         render(
             status('garage') + flash(msg) + coach('fix') +
             closedBanner() +
             '<div class="panel' + (garageClosed() ? ' closed' : '') + '"><h2>Fix the ' + esc(L.carName(car)) + '</h2><p class="sub">' + budget + '</p>' + fixAllRow + bodyRow + rows + '</div>' +
+            shelfPanel +
             '<p class="hint">Each job opens the workbench: bolts out and back in for parts, grind and fill the rust for bodywork. Jobs use up your garage hours for the week.</p>' +
             backBar('Back to the garage'),
             closedActions({
@@ -1342,6 +1388,37 @@
 
     // ── Burger stand: pick a race ─────────────────────────────────────────
 
+    // Why a car can't race tonight, or ''
+    function cantRace(car) {
+        return car.engineCondition <= 0 ? 'Your engine is blown. Rebuild it in the garage next week.' :
+            car.condition < L.MIN_BODY ? 'Nobody races a rust bucket: the body has to be ' + L.MIN_BODY + '%. Fix it up in the garage next week.' : '';
+    }
+
+    // Pick which of your cars to race: after losing one for pink slips, or from the stand
+    function pickCar(msg) {
+        var rows = g.cars.map(function (c, i) {
+            var why = cantRace(c);
+            return '<div class="row pick-car"><canvas class="stand-car" width="96" height="48" data-car="' + i + '" aria-hidden="true"></canvas>' +
+                '<span class="pick-name"><b>' + esc(L.carName(c)) + '</b><br>' + L.estimate(L.spec(c)).et.toFixed(2) + ' s' +
+                (why ? '<br><span class="shot">' + (c.engineCondition <= 0 ? 'Engine blown' : 'Body under ' + L.MIN_BODY + '%') + '</span>' : '') + '</span>' +
+                (i === g.active && !why ? '<span class="price">Racing this one</span>' : '<button data-act="race" data-arg="' + i + '"' + off(why) + '>Race this one</button>') +
+                '</div>';
+        }).join('');
+        render(
+            status('stand') + flash(msg) +
+            '<div class="panel"><h2>Pick a car to race</h2>' + rows + '</div>' +
+            backBar('Back to the burger stand', 'stand'),
+            {
+                race: function (i) { g.active = +i; L.save(g); L.showStand('You\'re racing the ' + L.carName(g.cars[g.active]) + ' tonight.'); },
+                stand: function () { L.showStand(); }
+            }
+        );
+        document.querySelectorAll('canvas[data-car]').forEach(function (cv) {
+            var c = g.cars[+cv.getAttribute('data-car')];
+            L.drawCar(cv.getContext('2d'), 4, 2, L.carLook(c), { scale: 2 });
+        });
+    }
+
     L.showStand = function (msg) {
         var car = L.activeCar(g);
         var myEt = car ? L.estimate(L.spec(car)).et : null;
@@ -1368,9 +1445,10 @@
                 '</div><div class="rival-btns">' + buttons + '</div>' +
                 '</div>';
         }).join('') || '<p class="empty-lot">Nobody wants to race you this week. Come back next week.</p>';
-        var why = !car ? 'You need a car to race.' :
-            car.engineCondition <= 0 ? 'Your engine is blown. Rebuild it in the garage next week.' :
-            car.condition < L.MIN_BODY ? 'Nobody races a rust bucket: the body has to be ' + L.MIN_BODY + '%. Fix it up in the garage next week.' : '';
+        var why = !car ? 'You need a car to race.' : cantRace(car);
+        // With more than one car, which one you're racing tonight, and a way to swap
+        var ride = car && g.cars.length > 1 ? '<div class="panel ride"><p>Racing tonight: <b>' + esc(L.carName(car)) + '</b>, ' + myEt.toFixed(2) + ' s</p>' +
+            '<button data-act="pick" class="minor">Race another car</button></div>' : '';
         // A worn car is a slow car: say how much quicker fixing it would make you
         var fixTip = '';
         if (car && !why) {
@@ -1380,7 +1458,7 @@
                 pot.fixedEt.toFixed(2) + ' s, ' + gain.toFixed(2) + ' s quicker.</p>';
         }
         render(
-            status('stand') + flash(msg || why) + coach('stand') + fixTip +
+            status('stand') + flash(msg || why) + coach('stand') + ride + fixTip +
             '<div class="panel stand"><header class="stand-sign"><h2>The Burger Stand</h2><p>Friday night. Engines idling, everybody watching.</p></header>' +
             '<div class="rivals">' + rows + '</div></div>' +
             '<details class="stand-help"><summary>How a race works</summary><p>Press Space, Enter or the big button when the start light turns green, then again each time the SHIFT light goes green. Keep out of the red.</p>' +
@@ -1389,6 +1467,7 @@
             backBar('Back', 'back', [['Call it a night: next week', 'week']]),
             {
                 week: function () { L.startWeek(); },
+                pick: function () { pickCar(); },
                 cash: function (i) { showBet(+i); },
                 fun: function (i) { race(+i, 'fun'); },
                 pinks: function (i) {
@@ -1516,7 +1595,9 @@
             { spec: L.spec(car), color: L.carLook(car), condition: car.engineCondition },
             { spec: L.spec(rcar), color: L.rivalLook(rival), skill: rival.skill },
             function (result, damage, sum) {
+                var before = g.cars.length, raced = L.carName(car);
                 var line = L.settleRace(g, i, stake, result, damage, bet);
+                var lostCar = g.cars.length < before ? raced : '';
                 var beat = L.noteRace(g, result, sum.et, sum.reaction);
                 L.save(g);
                 var rec = L.records(g);
@@ -1531,8 +1612,10 @@
                     '<p class="sub">You: ' + esc(sum.me) + (sum.reaction !== null && result !== 'foul' ? ' (reaction ' + sum.reaction.toFixed(3) + ' s)' : '') +
                     '<br>' + esc(rival.name) + ': ' + esc(sum.them) + '</p>' +
                     (best.length ? '<p class="record">New personal best: ' + best.join(', ') + '!</p>' : '') + '</div>' +
-                    (g.celebrate || g.crowned ? backBar('Continue', 'party') : backBar('Back to the burger stand', 'stand')),
-                    { stand: function () { L.showStand(); }, party: function () { if (g.celebrate) L.showCelebration(); else L.showCrowned(); } }
+                    (g.celebrate || g.crowned ? backBar('Continue', 'party') :
+                        lostCar && g.cars.length ? backBar('Pick your next car', 'pick', [['Back to the burger stand', 'stand']]) : backBar('Back to the burger stand', 'stand')),
+                    { stand: function () { L.showStand(); }, pick: function () { pickCar('Your ' + lostCar + ' is gone. Which car races next?'); },
+                      party: function () { if (g.celebrate) L.showCelebration(); else L.showCrowned(); } }
                 );
             }
         );

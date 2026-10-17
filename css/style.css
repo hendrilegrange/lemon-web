@@ -885,3 +885,11 @@ button.kid-swatch.here { border-color: var(--accent); box-shadow: 0 0 16px rgba(
 .race-controls.kids .kid-go.ready { background: var(--good); color: #0b0b1a; border-bottom-color: #1f9a45; box-shadow: 0 0 24px rgba(59, 255, 110, 0.55); }
 .kid-board .name { font-size: 1.1rem; }
 .kids .kid-board { text-align: left; }
+
+/* The burger stand's "Racing tonight" line, and the pick-a-car list after a pink slips loss */
+.panel.ride { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.panel.ride p { margin: 0; }
+.row.pick-car { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.row.pick-car:last-child { border-bottom: 0; }
+.pick-car .pick-name { flex: 1 1 140px; min-width: 0; line-height: 1.5; }
+.pick-car .stand-car { width: 96px; height: 48px; }

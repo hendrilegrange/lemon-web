@@ -1183,3 +1183,28 @@ test("kids' garage: fixing makes the car quicker up to the best part, and the to
     assert.ok(top.some((r) => r.name === 'SAM'));
     assert.ok(!top.some((r) => r.name === 'Kid11'));
 });
+
+test('a car lost for pink slips can be bought back from Lemon Motors, as it was, at a markup', () => {
+    const g = L.newGame();
+    g.cars.push(L.makeCar(g, 'ford48', null, 90, 100), L.makeCar(g, 'chevy55', null, 90, 100));
+    g.active = 0;
+    L.goFriday(g);
+    g.rivals = [{ name: 'A', tier: 1, skill: 0.5, body: 'merc49', engineCondition: 90 }];
+    assert.ok(!L.dealerOpen(g));
+    const gone = L.activeCar(g);
+    L.settleRace(g, 0, 'pinks', 'lose', 0);
+    assert.strictEqual(g.cars.length, 1);
+    assert.ok(L.dealerOpen(g), 'the dealership opens to sell it back before any King');
+    assert.strictEqual(g.lost[0].car, gone);
+    const price = L.buybackPrice(gone);
+    assert.ok(price > L.carValue(gone));
+    g.cash = price - 1;
+    assert.ok(L.canBuyBack(g, 0));
+    g.cash = price;
+    assert.strictEqual(L.buyBack(g, 0), null);
+    assert.strictEqual(g.cash, 0);
+    assert.strictEqual(g.cars.length, 2);
+    assert.strictEqual(g.cars[1], gone);
+    assert.strictEqual(g.lost.length, 0);
+    assert.ok(!L.dealerOpen(g));
+});
