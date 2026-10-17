@@ -1,7 +1,7 @@
 // The kids' garage: an easy mode for little ones, from the title screen. No account and no
 // money: pick a car, race it, fix it. Nothing wears out. Every fix bolts on a shinier part that
 // makes the car quicker, and the race shifts by itself, so all there is to do is press GO on
-// green; a big kid's race (kid.gears) has them change gear too, pressing GO each time it lights
+// green; with Change gears switched on (kid.gears, a big kid's race) they change gear too, pressing GO each time it lights
 // green, with a top ten of its own. The player's name and car last for the browser session (sessionStorage); the ten
 // quickest times go on the kids' own leaderboard (api.php's kids and kid_time), or this
 // browser's own top ten when the server doesn't answer.
@@ -307,19 +307,23 @@
     }
 
     // Before the race: the one thing to know, in big letters
-    // Little kids press GO once; big kids change gear too, pressing GO each time it goes green
+    // Little kids press GO once; big kids switch on Change gears and press GO each time it goes green
     function kidRaceReady() {
-        function pick(gears) { kid.gears = gears; save(); kidRace(); }
+        var gears = !!kid.gears;
         screen(
             '<div class="panel kid-panel"><h2>Ready to race?</h2>' +
-            '<ol class="kid-steps"><li>Watch the traffic light.</li><li>When it turns <b class="green">GREEN</b>, press <b>GO!</b></li></ol>' +
+            '<button data-act="gears" class="kid-switch' + (gears ? ' on' : '') + '" role="switch" aria-checked="' + gears + '">' +
+            '<span class="label">🏎️ I change gears myself</span><span class="knob">' + (gears ? 'ON' : 'OFF') + '</span></button>' +
+            '<ol class="kid-steps"><li>Watch the traffic light.</li><li>When it turns <b class="green">GREEN</b>, press <b>GO!</b></li>' +
+            (gears ? '<li>Each time GO turns <b class="green">GREEN</b> again, press it to change gear!</li>' : '<li>Your car changes gears by itself.</li>') + '</ol>' +
             '<p class="kid-say">You race Mac in his grey car.</p>' +
-            '<div class="kid-buttons kid-modes">' +
-            '<button data-act="easy" class="kid-big go-race' + (kid.gears ? '' : ' picked') + '">🚗 Easy race<small>The car changes gears by itself</small></button>' +
-            '<button data-act="gears" class="kid-big go-gears' + (kid.gears ? ' picked' : '') + '">🏎️ Big kid race<small>Press GO again each time it turns green, to change gear</small></button>' +
-            '</div></div>' +
+            '<button data-act="go" class="kid-big go-race">I\'m ready!</button></div>' +
             U.backBar('Back to my garage'),
-            { easy: function () { pick(false); }, gears: function () { pick(true); }, back: function () { kidHub(); } }
+            {
+                gears: function () { kid.gears = !gears; save(); kidRaceReady(); },
+                go: kidRace,
+                back: function () { kidHub(); }
+            }
         );
     }
 
