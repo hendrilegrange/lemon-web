@@ -515,6 +515,71 @@
         gt500_22: body(roofline({ roof: 2, rb: 15, rf: 26, back: 4, front: 31, spoiler: 'tall', scoop: 'snorkel' }), era(MODERN_W, { nose: 1 })),
         gtr24: body(roofline({ roof: 2, rb: 15, rf: 27, back: 6, front: 31, spoiler: 'wing', hood: true }), era(MODERN_W, { nose: 2, cy: 18 }))
     };
+    // The kids' garage's working vehicles, drawn from boxes and wheels on the same 44 x 22 grid:
+    // box(x0, y0, x1, y1, ch) fills, wheel(cx, cy, tire, rim) puts a tire on, and every paint
+    // pixel next to an empty one becomes the outline
+    function build(draw) {
+        var g = [];
+        for (var r = 0; r < 22; r++) g.push(new Array(44).fill('.'));
+        function at(col, row) { return row >= 0 && row < 22 && col >= 0 && col < 44 ? g[row][col] : '.'; }
+        function box(x0, y0, x1, y1, ch) {
+            for (var row = y0; row <= y1; row++) for (var col = x0; col <= x1; col++) if (row >= 0 && row < 22 && col >= 0 && col < 44) g[row][col] = ch;
+        }
+        function wheel(cx, cy, tire, rim) {
+            for (var ar = cy - tire - 2; ar <= 21; ar++) for (var ac = cx - tire - 2; ac <= cx + tire + 2; ac++) {
+                var adx = ac - cx, ady = ar - cy;
+                if (ady <= 0 ? adx * adx + ady * ady <= (tire + 1.4) * (tire + 1.4) : Math.abs(adx) <= tire + 1) box(ac, ar, ac, ar, '.');
+            }
+            for (var row = cy - tire; row <= cy + tire; row++) for (var col = cx - tire; col <= cx + tire; col++) {
+                var dx = col - cx, dy = row - cy, d = Math.sqrt(dx * dx + dy * dy);
+                if (d > tire + 0.45) continue;
+                box(col, row, col, row, d <= 0.5 ? 'k' : d <= rim - 0.6 ? 'c' : d <= rim + 0.45 ? 'C' : d > tire - 0.6 && dx < 0 && dy < 0 ? 'T' : 't');
+            }
+        }
+        draw(box, wheel);
+        var out = [];
+        for (var r2 = 0; r2 < 22; r2++) for (var c2 = 0; c2 < 44; c2++) {
+            if ('mldh'.indexOf(g[r2][c2]) < 0) continue;
+            if ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(function (d) { return at(c2 + d[0], r2 + d[1]) === '.'; })) out.push([c2, r2]);
+        }
+        out.forEach(function (q) { g[q[1]][q[0]] = 'o'; });
+        return g.map(function (r) { return r.join(''); });
+    }
+    // A pickup: a cab with a big window, a long hood and an open bed at the back
+    SHAPES.pickup = build(function (box, wheel) {
+        box(19, 1, 31, 9, 'm'); box(20, 1, 30, 1, 'h'); box(21, 3, 30, 7, 'w'); box(25, 3, 25, 7, 'm'); box(27, 3, 27, 3, 'g');
+        box(1, 7, 18, 15, 'm'); box(2, 7, 17, 7, 'l'); box(2, 8, 17, 8, 'd');
+        box(19, 8, 42, 15, 'm'); box(32, 7, 42, 7, 'l'); box(19, 10, 42, 10, 'l'); box(1, 15, 42, 16, 'd'); box(31, 8, 31, 14, 'd'); box(18, 7, 18, 15, 'd');
+        box(0, 12, 0, 15, 'c'); box(43, 12, 43, 15, 'c'); box(1, 9, 1, 10, 'r'); box(42, 8, 42, 9, 'y');
+        wheel(9, 17, 4, 2); wheel(35, 17, 4, 2);
+    });
+    // A big yellow bulldozer: a cab on top, the engine and its exhaust stack, tracks, a blade
+    SHAPES.digger = build(function (box, wheel) {
+        box(8, 0, 21, 7, 'm'); box(9, 0, 20, 0, 'h'); box(10, 2, 19, 6, 'w'); box(14, 2, 14, 6, 'm'); box(12, 2, 12, 2, 'g');
+        box(26, 2, 27, 8, 'k');
+        box(5, 8, 33, 14, 'm'); box(6, 8, 32, 8, 'l'); box(23, 10, 31, 10, 'd'); box(23, 12, 31, 12, 'd');
+        box(31, 11, 37, 12, 'd');
+        box(37, 7, 41, 20, 'm'); box(38, 7, 38, 20, 'l'); box(41, 8, 42, 20, 'd'); box(42, 19, 43, 20, 'C');
+        box(2, 15, 35, 21, 't'); box(3, 15, 34, 15, 'T'); box(1, 16, 1, 20, 't'); box(36, 16, 36, 20, 't');
+        [6, 13, 20, 27, 32].forEach(function (x) { box(x - 1, 17, x + 1, 19, 'C'); box(x, 18, x, 18, 'k'); });
+    });
+    // A jeep: no roof, a roll bar, a flat windshield, a spare on the back and big knobby tires
+    SHAPES.jeep = build(function (box, wheel) {
+        box(26, 0, 28, 6, 'm'); box(27, 1, 28, 5, 'w'); box(27, 1, 27, 1, 'g');
+        box(10, 1, 11, 6, 'd'); box(10, 1, 19, 2, 'd');
+        box(3, 6, 41, 13, 'm'); box(4, 6, 40, 6, 'l'); box(4, 7, 25, 7, 'd'); box(29, 7, 41, 7, 'h'); box(3, 9, 41, 9, 'l');
+        box(42, 7, 42, 12, 'C'); box(42, 8, 42, 8, 'y'); box(3, 8, 3, 9, 'r'); box(20, 8, 20, 13, 'd');
+        box(0, 7, 2, 13, 't'); box(1, 9, 1, 11, 'C');
+        wheel(10, 16, 5, 2); wheel(34, 16, 5, 2);
+    });
+    // A garbage truck: a big box at the back with a chrome hopper, a cab up front, three wheels
+    SHAPES.garbage = build(function (box, wheel) {
+        box(2, 1, 28, 15, 'm'); box(3, 1, 27, 1, 'h'); box(3, 7, 27, 8, 'l'); box(2, 14, 28, 15, 'd');
+        box(0, 4, 1, 14, 'C'); box(0, 5, 0, 13, 'c');
+        box(30, 4, 42, 15, 'm'); box(31, 4, 41, 4, 'h'); box(34, 6, 40, 9, 'w'); box(36, 6, 36, 6, 'g'); box(30, 11, 42, 11, 'l');
+        box(29, 6, 29, 15, 'k'); box(43, 12, 43, 15, 'c'); box(42, 10, 42, 10, 'y'); box(2, 3, 2, 4, 'r');
+        wheel(9, 17, 4, 2); wheel(19, 17, 4, 2); wheel(36, 17, 4, 2);
+    });
     L.CAR_SHAPES = Object.keys(SHAPES);
     L.carSprite = function (shape) { return SHAPES[shape] || SHAPES.coupe; };
     // How many rows lower than the 40s coupe a shape's body sits
