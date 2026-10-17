@@ -139,7 +139,8 @@
             ctx.fillRect(0, 0, c.width, c.height);
             ctx.save();
             ctx.translate(-30, -30);     // the part's middle of the workbench, so it fills the tile
-            L.drawPart(ctx, c.getAttribute('data-part'), c.getAttribute('data-new') === '1', 0, 0);
+            var cls = c.getAttribute('data-cls');
+            L.drawPart(ctx, c.getAttribute('data-part'), c.getAttribute('data-new') === '1', 0, 0, cls === null ? undefined : +cls);
             ctx.restore();
         });
     }
@@ -258,7 +259,7 @@
             '<div class="kid-parts">' + L.KID_JOBS.map(function (j) {
                 var maxed = L.kidMaxed(kc, j[0]);
                 return '<button data-act="job" data-arg="' + j[0] + '" class="kid-card' + (maxed ? ' maxed' : '') + '">' +
-                    '<canvas class="kid-part" width="260" height="140" data-part="' + j[0] + '" data-new="' + (maxed ? 1 : 0) + '"></canvas>' +
+                    '<canvas class="kid-part" width="260" height="140" data-part="' + j[0] + '" data-new="' + (maxed ? 1 : 0) + '" data-cls="' + L.PARTS[kc.parts[j[0]]].cls + '"></canvas>' +
                     (maxed ? '<span class="kid-done" aria-label="All fixed">✓</span>' : '') +
                     '<span>' + j[1] + '</span>' + fixDots(L.PARTS[kc.parts[j[0]]].cls) + '</button>';
             }).join('') + '</div>' +
@@ -274,7 +275,10 @@
     function kidJob(slot) {
         var word = L.KID_JOBS.filter(function (j) { return j[0] === slot; })[0][1].toLowerCase();
         U.bench(function (canvas, onLine, done) {
-            return L.startWrench(canvas, { job: slot, title: 'Fixing the ' + word, oldName: 'old ' + word, newName: 'shiny new ' + word, share: 0.3, big: true, onLine: onLine }, done);
+            // The new part is the next class up, so it looks shinier than the old one
+            var cls = L.PARTS[kid.car.parts[slot]].cls;
+            return L.startWrench(canvas, { job: slot, title: 'Fixing the ' + word, oldName: 'old ' + word, newName: 'shiny new ' + word, share: 0.3, big: true,
+                oldCls: cls, newCls: Math.min(cls + 1, BEST), onLine: onLine }, done);
         }, function () {
             var faster = L.kidUpgrade(kid.car, slot);
             save();
