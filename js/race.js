@@ -11,10 +11,13 @@
     // Starts a race on the canvas. player/rival: { spec, color, condition, skill (rival only) }.
     // done(result, damage) gets 'win', 'lose' or 'foul' and the engine damage the player did.
     // A solo run has no rival (null) and opts.distance in m: 'win' is crossing the line, 'lose'
-    // blowing the engine or never launching.
+    // blowing the engine or never launching. opts.kids: the kids' garage's easy race, where
+    // a press before green just waits, the car shifts itself and can't be hurt, and it goes
+    // on its own a few seconds after green if nobody presses.
     L.startRace = function (canvas, button, player, rival, done, opts) {
         var ctx = canvas.getContext('2d');
         var solo = !rival;
+        var kids = !!(opts && opts.kids);
         var dist = (opts && opts.distance) || L.QUARTER_MILE;
         if (solo) rival = { spec: player.spec, color: player.color, skill: 1 };     // a stand-in that never runs
         var state = {
@@ -27,7 +30,7 @@
                 reaction: 0.2 + (1 - rival.skill) * (0.25 + L.random() * 0.3),
                 shiftError: function () { return (1 - rival.skill) * (L.random() * 900 - 600); }
             },
-            message: 'STAGE',
+            message: kids ? 'GET READY' : 'STAGE',
             lastAmber: -1,
             greenBeeped: false,
             shiftBeeped: -1,
@@ -37,10 +40,16 @@
             stopped: false
         };
         state.them.nextShiftAt = L.shiftRpm(rival.spec, 0) + state.them.shiftError();
+        if (kids) {         // the kids' car shifts itself, right on time
+            state.me.auto = true;
+            state.me.shiftError = function () { return 0; };
+            state.me.nextShiftAt = L.shiftRpm(player.spec, 0);
+        }
 
         function press() {
-            if (state.phase === 'tree') {
-                if (state.clock < state.greenAt) { state.foul = true; finish(); return; }
+            if (state.phase === 'tree' && state.clock < state.greenAt) {
+                if (kids) { state.message = 'WAIT FOR GREEN!'; return; }
+                state.foul = true; finish(); return;
             }
             if (state.phase !== 'racing' && state.phase !== 'tree') return;
             var me = state.me;
@@ -48,7 +57,7 @@
                 me.launchedAt = state.clock;
                 state.phase = 'racing';
                 L.sound.launch();
-            } else if (!me.blown && !me.run.done) {
+            } else if (!kids && !me.blown && !me.run.done) {
                 if (L.shift(player.spec, me.run)) L.sound.shift();
             }
         }
@@ -111,7 +120,7 @@
                 state.greenBeeped = true;
                 L.sound.beep(880, 0.3);
             }
-            var light = shiftLight();
+            var light = kids ? null : shiftLight();
             if (light === 'shift' && state.shiftBeeped !== me.run.gear) {
                 state.shiftBeeped = me.run.gear;
                 L.sound.beep(1320, 0.1);
@@ -134,7 +143,7 @@
             else result = me.finishAt <= them.finishAt ? 'win' : 'lose';
             state.result = result;
             state.message = solo ? { win: 'FINISH!', lose: me.blown ? 'BLOWN!' : 'NO TIME', foul: 'RED LIGHT!' }[result]
-                : { win: 'YOU WIN!', lose: 'YOU LOSE', foul: 'RED LIGHT!' }[result];
+                : { win: 'YOU WIN!', lose: kids ? 'SO CLOSE!' : 'YOU LOSE', foul: 'RED LIGHT!' }[result];
             L.sound[result]();
             draw();
             setTimeout(function () { cleanup(); done(result, me.damage, summary()); }, 1800);
@@ -157,11 +166,14 @@
 
         function stepCar(car, spec, isRival, condition) {
             if (car.launchedAt === null || car.run.done || car.blown) return;
-            if (isRival && car.run.shiftLeft <= 0 && car.run.rpm >= car.nextShiftAt) {
-                if (L.shift(spec, car.run)) car.nextShiftAt = L.shiftRpm(spec, car.run.gear) + car.shiftError();
+            if ((isRival || car.auto) && car.run.shiftLeft <= 0 && car.run.rpm >= car.nextShiftAt) {
+                if (L.shift(spec, car.run)) {
+                    car.nextShiftAt = L.shiftRpm(spec, car.run.gear) + car.shiftError();
+                    if (car.auto) L.sound.shift();
+                }
             }
             var damage = L.step(spec, car.run, DT);
-            if (!isRival) {
+            if (!isRival && !kids) {
                 car.damage += damage;
                 if (car.damage >= condition) { car.blown = true; L.sound.blow(); }
             }
@@ -172,6 +184,7 @@
             state.clock += dt;
             var me = state.me, them = state.them;
             if (state.phase === 'tree' && state.clock >= state.greenAt) state.message = 'GO!';
+            if (kids && state.phase === 'tree' && state.clock > state.greenAt + 3) press();      // off it goes anyway
             if (!solo && them.launchedAt === null && state.clock >= state.greenAt + them.reaction) them.launchedAt = state.clock;
             if (state.phase === 'racing' && state.clock > state.greenAt + 0.6) state.message = '';
             var before = me.run.rpm, gear = me.run.gear;
@@ -262,7 +275,7 @@
 
             if (state.message) {
                 L.text(ctx, state.message, W / 2, 40, {
-                    color: state.message === 'GO!' || state.message === 'YOU WIN!' || state.message === 'FINISH!' ? '#3bff6e' : state.message === 'STAGE' ? '#ffd23f' : '#ff3b3b',
+                    color: state.message === 'GO!' || state.message === 'YOU WIN!' || state.message === 'FINISH!' ? '#3bff6e' : state.message === 'STAGE' || state.message === 'GET READY' || state.message === 'SO CLOSE!' ? '#ffd23f' : '#ff3b3b',
                     scale: 3, align: 'center'
                 });
             }
@@ -321,12 +334,12 @@
             L.text(ctx, String(Math.round(L.mph(me.run.v))), 112, 190);
 
             // Shift light: amber when it's nearly time, green to shift now, flashing red past redline
-            var light = shiftLight();
+            var light = kids ? null : shiftLight();
             var lamp = { ready: '#ffb000', shift: '#3bff6e', over: Math.floor(state.clock * 8) % 2 ? '#ff3b3b' : '#5a1010' }[light] || '#2a2a2a';
             ctx.fillStyle = lamp;
             ctx.fillRect(148, 153, 46, 14);
             ctx.fillStyle = light ? '#111' : '#555';
-            L.text(ctx, 'SHIFT', 171, 164, { align: 'center' });
+            L.text(ctx, kids ? 'AUTO' : 'SHIFT', 171, 164, { align: 'center' });
             if (me.run.spinning && me.run.v > 0) L.text(ctx, 'SPIN', 150, 181, { color: '#ff3b3b' });
             if (me.blown) L.text(ctx, 'BLOWN!', 150, 195, { color: '#ff3b3b' });
 

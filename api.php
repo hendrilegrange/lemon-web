@@ -14,6 +14,9 @@
  *                                 records in it that beat the player's best
  *   GET  api.php?action=leaders   the top 10 on each leaderboard; &board=et|rt|streak|cash for
  *                                 that board's top 100
+ *   GET  api.php?action=kids      the kids' garage's top 10: [{ name, car, t }], no account needed
+ *   POST api.php?action=kid_time  { name, car, t }  a kids' garage time; keeps each name's best,
+ *                                 answers its rank when it's in the top 10
  *
  * Google sign-in, email resets, the mailer and the CA bundle in certs/ are copied from dnd-web.
  * Every response is JSON through respond(). POSTs must carry X-Requested-With: XMLHttpRequest;
@@ -60,11 +63,17 @@ const SOLO_CARS_PER_SAVE = 200;     // the most cars one save's times are read f
 // The quarter mile and reaction boards started over from wins only: their own columns, filled
 // only from saves marked winsOnly (the old et and rt columns, which counted losses, are left be)
 const WIN_COLUMNS = ['et' => 'et_win', 'rt' => 'rt_win'];
-const RATE_LIMITS = ['login' => [10, 300], 'register' => [5, 3600], 'google' => [20, 300], 'forgot' => [3, 300], 'reset' => [10, 300]];
+const RATE_LIMITS = ['login' => [10, 300], 'register' => [5, 3600], 'google' => [20, 300], 'forgot' => [3, 300], 'reset' => [10, 300],
+                     'kid_time' => [30, 300]];
+// The kids' garage: no accounts, a name for the session. A time is believed between these
+// (seconds); a name is letters, numbers and spaces, a car one of the kids' cars.
+const KID_TIMES = [5, 60];
+const KID_NAME_PATTERN = '/^[A-Za-z0-9](?:[A-Za-z0-9 ]{0,10}[A-Za-z0-9])?$/';
+const KID_CARS = ['Hot Rod', 'Cruiser', 'Muscle Car', 'Turbo Car', 'Sports Car', 'Super Car'];
 
 $action = $_GET['action'] ?? '';
-$posts = ['register', 'login', 'google', 'forgot', 'reset', 'logout', 'save'];
-$gets = ['me', 'load', 'leaders'];
+$posts = ['register', 'login', 'google', 'forgot', 'reset', 'logout', 'save', 'kid_time'];
+$gets = ['me', 'load', 'leaders', 'kids'];
 if (!in_array($action, $posts, true) && !in_array($action, $gets, true)) {
     respond(['error' => 'Unknown action'], 404);
 }
@@ -144,6 +153,15 @@ function createTables(PDO $db): void {
         KEY board_t (board, t),
         FOREIGN KEY (user_id) REFERENCES lemon_users (id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    // The kids' garage's times: each name's best (names compare without case)
+    $db->exec("CREATE TABLE IF NOT EXISTS lemon_kids (
+        name VARCHAR(12) NOT NULL,
+        car VARCHAR(20) NOT NULL,
+        t DECIMAL(6,3) NOT NULL,
+        t_at DATETIME NOT NULL,
+        PRIMARY KEY (name),
+        KEY t (t)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
     $db->exec("CREATE TABLE IF NOT EXISTS lemon_rate_limits (
         ip VARCHAR(45) NOT NULL,
         action VARCHAR(20) NOT NULL,
@@ -291,6 +309,12 @@ function freeUsername(PDO $db, string $name, string $email): string {
         if (!$stmt->fetchColumn()) return $name;
     }
     return 'driver' . bin2hex(random_bytes(4));
+}
+
+// The kids' garage's ten quickest
+function kidsTop(PDO $db): array {
+    $rows = $db->query('SELECT name, car, t FROM lemon_kids ORDER BY t, t_at, name LIMIT 10')->fetchAll();
+    return array_map(fn($row) => ['name' => $row['name'], 'car' => $row['car'], 't' => (float)$row['t']], $rows);
 }
 
 // ── Actions ────────────────────────────────────────────────────────────────
@@ -456,6 +480,28 @@ function handle(PDO $db, string $action): never {
                 $boards[$key] = array_map(fn($row) => ['name' => $row['username'], 'value' => in_array($key, TIMED_BOARDS, true) ? (float)$row['v'] : (int)$row['v']], $rows);
             }
             respond(['boards' => $boards]);
+
+        case 'kids':
+            respond(['top' => kidsTop($db)]);
+
+        case 'kid_time':
+            $in = body();
+            $name = trim(preg_replace('/\s+/', ' ', (string)($in['name'] ?? '')));
+            $car = (string)($in['car'] ?? '');
+            $t = $in['t'] ?? null;
+            if (!preg_match(KID_NAME_PATTERN, $name) || !in_array($car, KID_CARS, true) || !is_numeric($t)
+                || (float)$t < KID_TIMES[0] || (float)$t > KID_TIMES[1]) respond(['error' => 'That time doesn\'t look right.'], 400);
+            $t = round((float)$t, 3);
+            // A name's best stays: a slower time changes nothing
+            $db->prepare('INSERT INTO lemon_kids (name, car, t, t_at) VALUES (?, ?, ?, NOW())
+                          ON DUPLICATE KEY UPDATE car = IF(VALUES(t) < t, VALUES(car), car),
+                                                  t_at = IF(VALUES(t) < t, VALUES(t_at), t_at),
+                                                  t = LEAST(t, VALUES(t))')->execute([$name, $car, $t]);
+            $rank = null;
+            foreach (kidsTop($db) as $i => $row) {
+                if (strcasecmp($row['name'], $name) === 0 && abs($row['t'] - $t) < 0.0005) $rank = $i + 1;
+            }
+            respond(['ok' => true, 'rank' => $rank]);
     }
     respond(['error' => 'Unknown action'], 404);
 }
