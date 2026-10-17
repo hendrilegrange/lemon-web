@@ -700,14 +700,15 @@ canvas.scene {
 
 /* The garage shelf: parts grouped by slot under a header that shows what's on your car, each
    part a tidy row of name, condition and buttons in fixed columns */
-.shelf-group { margin-top: 12px; }
-.shelf-group:first-of-type { margin-top: 4px; }
+/* Each slot is a card of its own, under a solid header bar, with a clear gap to the next */
+.shelf-group { margin-top: 22px; border: 2px solid var(--line); border-radius: 4px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35); }
+.shelf-group:first-of-type { margin-top: 6px; }
 .shelf-group h3 {
     display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px;
-    margin: 0; padding: 6px 10px; background: var(--bg); border-left: 4px solid var(--accent);
-    font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em;
+    margin: 0; padding: 8px 12px; background: var(--accent); color: var(--bg);
+    font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.12em;
 }
-.shelf-group h3 .count { display: inline-block; min-width: 1.6em; padding: 0 4px; margin-left: 4px; text-align: center; background: var(--line); color: var(--text); letter-spacing: 0; }
+.shelf-group h3 .count { display: inline-block; min-width: 1.6em; padding: 0 4px; margin-left: 6px; text-align: center; background: var(--bg); color: var(--accent); letter-spacing: 0; }
 .shelf-group h3 .on-car { color: var(--muted); text-transform: none; letter-spacing: 0; font-weight: normal; font-size: 0.85rem; }
 .shelf-item {
     display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
