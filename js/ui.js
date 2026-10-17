@@ -364,12 +364,17 @@
     function titleBoards() { return BOARDS.filter(function (b) { return !b.king && !b.solo; }); }    // the first King's board has king 0, the quarter mile's solo 0
     function boardOf(key) { return BOARDS.filter(function (b) { return b.key === key; })[0]; }
 
-    // The title's lines (the four boards and the first King's), each with the record holder; filled in once the server answers
+    // The title's lines (the four boards, the first King's and the solo quarter mile's), each with
+    // its top three; filled in once the server answers, their lines there from the start so nothing moves
+    var TITLE_TOP = 3;
     function leadersBlock() {
         if (!L.account || !L.account.available) return '';
         return '<div class="leaders-mini"><h3>Leaderboards</h3>' + titleBoards().map(function (b) {
-            return '<button data-act="leaders" class="leader-line minor"><span class="what">' + b.name + '</span>' +
-                '<span class="who waiting" id="lead-' + b.key + '">Loading…</span></button>';
+            var lines = '';
+            for (var i = 0; i < TITLE_TOP; i++) {
+                lines += '<span class="who waiting' + (i ? ' minor-place' : '') + '" id="lead-' + b.key + '-' + i + '">' + (i ? '&nbsp;' : 'Loading…') + '</span>';
+            }
+            return '<button data-act="leaders" class="leader-line minor"><span class="what">' + b.name + '</span>' + lines + '</button>';
         }).join('') + '</div>';
     }
 
@@ -377,11 +382,16 @@
         if (!L.account || !L.account.available) return;
         L.account.leaders().then(function (res) {
             titleBoards().forEach(function (b) {
-                var cell = document.getElementById('lead-' + b.key);
-                if (!cell) return;       // the player moved on
-                var top = res.boards && res.boards[b.key] && res.boards[b.key][0];
-                cell.classList.remove('waiting');
-                cell.textContent = res.error ? '—' : top ? b.fmt(top.value) + ' · ' + top.name + (top.car ? ', ' + top.car : '') : 'nobody yet';
+                var rows = (res.boards && res.boards[b.key]) || [];
+                for (var i = 0; i < TITLE_TOP; i++) {
+                    var cell = document.getElementById('lead-' + b.key + '-' + i);
+                    if (!cell) return;       // the player moved on
+                    var r = rows[i];
+                    cell.classList.toggle('waiting', !r && i > 0);
+                    cell.textContent = res.error ? (i ? '\u00a0' : '—')
+                        : r ? (i + 1) + '. ' + b.fmt(r.value) + ' · ' + r.name + (r.car ? ', ' + r.car : '')
+                        : i ? '\u00a0' : 'nobody yet';
+                }
             });
         });
     }
