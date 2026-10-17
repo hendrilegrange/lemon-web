@@ -221,6 +221,13 @@
         );
     }
 
+    // How many of a part's fixes are done: a light per fix, all lit once it's all fixed
+    function fixDots(cls) {
+        var s = '<span class="kid-dots" aria-label="' + Math.min(cls, BEST) + ' of ' + BEST + ' fixes">';
+        for (var i = 1; i <= BEST; i++) s += '<i class="' + (i <= cls ? 'on' : '') + '"></i>';
+        return s + '</span>';
+    }
+
     function kidFix(msg) {
         var kc = kid.car;
         screen(
@@ -231,9 +238,10 @@
                 var maxed = L.kidMaxed(kc, j[0]);
                 return '<button data-act="job" data-arg="' + j[0] + '" class="kid-card' + (maxed ? ' maxed' : '') + '">' +
                     '<canvas class="kid-part" width="260" height="140" data-part="' + j[0] + '" data-new="' + (maxed ? 1 : 0) + '"></canvas>' +
-                    '<span>' + j[1] + (maxed ? ' ★' : '') + '</span></button>';
+                    (maxed ? '<span class="kid-done" aria-label="All fixed">✓</span>' : '') +
+                    '<span>' + j[1] + '</span>' + fixDots(L.PARTS[kc.parts[j[0]]].cls) + '</button>';
             }).join('') + '</div>' +
-            '<p class="kid-say small">A ★ part is super shiny already. You can still fix it for fun!</p></div>' +
+            '<p class="kid-say small">Each fix lights a light. A part with a big green tick is all fixed, so find one without a tick!</p></div>' +
             U.backBar('Back to my garage'),
             {
                 job: function (slot) { kidJob(slot); },
