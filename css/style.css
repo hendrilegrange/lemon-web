@@ -330,6 +330,7 @@ button.danger:hover:not([disabled]) { box-shadow: 0 0 14px rgba(255, 59, 59, 0.3
 .leader-line .what { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; }
 .leader-line .who { color: var(--accent); font-weight: bold; }
 .leader-line .who.waiting { color: var(--muted); font-weight: normal; }
+.leader-line .who.minor-place { font-size: 0.9em; opacity: 0.85; }
 .leaders .boards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 12px; }
 .leaders section { min-width: 0; }
 .board { list-style: none; margin: 0 0 6px; padding: 0; }
