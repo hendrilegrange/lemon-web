@@ -22,7 +22,11 @@
         { id: 'truck', body: 'chevy55', shape: 'pickup', color: '#d7263d', name: 'Truck' },
         { id: 'digger', body: 'merc49', shape: 'digger', color: '#ffc20e', name: 'Digger' },
         { id: 'jeep', body: 'nova68', shape: 'jeep', color: '#7a9a3a', name: 'Jeep' },
-        { id: 'garbage', body: 'chevy52', shape: 'garbage', color: '#2e9e44', name: 'Garbage Truck' }
+        { id: 'garbage', body: 'chevy52', shape: 'garbage', color: '#2e9e44', name: 'Garbage Truck' },
+        { id: 'ambulance', body: 'magnum05', shape: 'ambulance', color: '#e6e2d6', name: 'Ambulance' },
+        { id: 'police', body: 'charger69', shape: 'police', color: '#20202a', name: 'Cop Car' },
+        { id: 'firetruck', body: 'chevy60', shape: 'firetruck', color: '#d7263d', name: 'Fire Truck' },
+        { id: 'bus', body: 'fox79', shape: 'bus', color: '#ffc20e', name: 'Bus' }
     ];
     // Which of them a kid's car is (a car from before the working vehicles keeps only its body)
     L.kidType = function (kc) {
