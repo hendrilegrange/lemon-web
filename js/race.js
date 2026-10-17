@@ -6,6 +6,7 @@
     var W = 320, H = 200;
     var DT = 1 / 120;
     var PX_PER_M = 2.2;
+    var YELLOW = 0.8;          // seconds the start light shows yellow before green
     var LANE_Y = [96, 122];      // rival lane, player lane (screen y of the car's roof)
 
     // Starts a race on the canvas. player/rival: { spec, color, condition, skill (rival only) }.
@@ -13,11 +14,13 @@
     // A solo run has no rival (null) and opts.distance in m: 'win' is crossing the line, 'lose'
     // blowing the engine or never launching. opts.kids: the kids' garage's easy race, where
     // a press before green just waits, the car shifts itself and can't be hurt, and it goes
-    // on its own a few seconds after green if nobody presses.
+    // on its own a few seconds after green if nobody presses; with opts.gears too (the older
+    // kids' race) it doesn't shift itself, and each press after the launch changes gear.
     L.startRace = function (canvas, button, player, rival, done, opts) {
         var ctx = canvas.getContext('2d');
         var solo = !rival;
         var kids = !!(opts && opts.kids);
+        var gears = kids && !!opts.gears;
         var dist = (opts && opts.distance) || L.QUARTER_MILE;
         if (solo) rival = { spec: player.spec, color: player.color, skill: 1 };     // a stand-in that never runs
         var state = {
@@ -31,7 +34,7 @@
                 shiftError: function () { return (1 - rival.skill) * (L.random() * 900 - 600); }
             },
             message: kids ? 'GET READY' : 'STAGE',
-            lastAmber: -1,
+            yellowBeeped: false,
             greenBeeped: false,
             shiftBeeped: -1,
             rpmRate: 0,               // how fast your revs are climbing, rpm a second
@@ -40,7 +43,7 @@
             stopped: false
         };
         state.them.nextShiftAt = L.shiftRpm(rival.spec, 0) + state.them.shiftError();
-        if (kids) {         // the kids' car shifts itself, right on time
+        if (kids && !gears) {         // the kids' car shifts itself, right on time
             state.me.auto = true;
             state.me.shiftError = function () { return 0; };
             state.me.nextShiftAt = L.shiftRpm(player.spec, 0);
@@ -57,7 +60,7 @@
                 me.launchedAt = state.clock;
                 state.phase = 'racing';
                 L.sound.launch();
-            } else if (!kids && !me.blown && !me.run.done) {
+            } else if ((!kids || gears) && !me.blown && !me.run.done) {
                 if (L.shift(player.spec, me.run)) L.sound.shift();
             }
         }
@@ -119,17 +122,16 @@
 
         function sounds() {
             var me = state.me;
-            // Start lights: a tick for each amber, a high beep for green
-            var ambers = Math.floor((state.clock - (state.greenAt - 1.5)) / 0.5);
-            if (state.phase === 'tree' && ambers >= 0 && ambers < 3 && ambers !== state.lastAmber) {
-                state.lastAmber = ambers;
+            // The start light: a tick for yellow, a high beep for green
+            if (!state.yellowBeeped && state.phase === 'tree' && state.clock >= state.greenAt - YELLOW) {
+                state.yellowBeeped = true;
                 L.sound.beep(440, 0.12);
             }
             if (!state.greenBeeped && state.clock >= state.greenAt && !state.foul) {
                 state.greenBeeped = true;
                 L.sound.beep(880, 0.3);
             }
-            var light = kids ? null : shiftLight();
+            var light = kids && !gears ? null : shiftLight();
             if (light === 'shift' && state.shiftBeeped !== me.run.gear) {
                 state.shiftBeeped = me.run.gear;
                 L.sound.beep(1320, 0.1);
@@ -196,8 +198,12 @@
             if (kids && state.phase === 'tree' && state.clock > state.greenAt + 3) press();      // off it goes anyway
             if (!solo && them.launchedAt === null && state.clock >= state.greenAt + them.reaction) them.launchedAt = state.clock;
             if (state.phase === 'racing' && state.clock > state.greenAt + 0.6) state.message = '';
-            // The kids' GO button is only green while a press does something: from green until launch
-            if (kids) button.classList.toggle('ready', state.phase === 'tree' && state.clock >= state.greenAt);
+            // The GO button follows the light: grey at red, yellow at yellow, green from green till
+            // the launch (never red: too fierce). In the older kids' race it then lights up for
+            // each shift, yellow as the revs come up and green when it's time.
+            var lamp = state.phase === 'tree' ? (state.clock >= state.greenAt ? 'ready' : state.clock >= state.greenAt - YELLOW ? 'amber' : 'wait')
+                : gears && state.phase === 'racing' ? { shift: 'ready', over: 'ready', ready: 'amber' }[shiftLight()] || 'wait' : '';
+            ['wait', 'amber', 'ready'].forEach(function (c) { button.classList.toggle(c, c === lamp); });
             var before = me.run.rpm, gear = me.run.gear;
             stepCar(me, player.spec, false, player.condition);
             // Smooth the climb rate; a shift or the launch clutch resets it
@@ -301,18 +307,29 @@
             }
         }
 
+        // The start light, a traffic light: red, then yellow, then green (red again for a jump)
         function drawTree() {
             if (state.clock > state.greenAt + 2) return;
-            var x = 296, y = 10;
+            var x = 301, y = 18;
+            var lit = state.foul ? 0 : state.clock >= state.greenAt ? 2 : state.clock >= state.greenAt - YELLOW ? 1 : 0;
+            ctx.fillStyle = '#4a4a54';
+            ctx.fillRect(x - 1, y + 39, 2, 14);                  // the pole
             ctx.fillStyle = '#111';
-            ctx.fillRect(x - 6, y - 4, 16, 60);
-            var ambersLit = Math.floor((state.clock - (state.greenAt - 1.5)) / 0.5);
-            for (var i = 0; i < 3; i++) {
-                ctx.fillStyle = state.clock < state.greenAt && ambersLit > i ? '#ffb000' : '#333';
-                ctx.fillRect(x - 2, y + i * 12, 8, 8);
-            }
-            ctx.fillStyle = state.foul ? '#ff3b3b' : state.clock >= state.greenAt ? '#3bff6e' : '#333';
-            ctx.fillRect(x - 2, y + 40, 8, 8);
+            ctx.fillRect(x - 8, y - 7, 16, 46);                  // the housing, with a lip over each lamp
+            ctx.fillStyle = '#2a2a30';
+            ctx.fillRect(x - 8, y - 7, 16, 1);
+            [['#ff3b3b', '#4a1414'], ['#ffd23f', '#4a3a10'], ['#3bff6e', '#10401c']].forEach(function (c, i) {
+                var cy = y + i * 14 + 2, on = i === lit;
+                if (on) {
+                    ctx.fillStyle = c[0];
+                    ctx.globalAlpha = 0.25;
+                    ctx.beginPath(); ctx.arc(x, cy, 9, 0, Math.PI * 2); ctx.fill();     // the glow
+                    ctx.globalAlpha = 1;
+                }
+                ctx.fillStyle = on ? c[0] : c[1];
+                ctx.beginPath(); ctx.arc(x, cy, 5, 0, Math.PI * 2); ctx.fill();
+                if (on) { ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.6; ctx.fillRect(x - 3, cy - 3, 2, 2); ctx.globalAlpha = 1; }
+            });
         }
 
         function drawDash() {
@@ -354,12 +371,12 @@
             L.text(ctx, String(Math.round(L.mph(me.run.v))), 112, 190);
 
             // Shift light: amber when it's nearly time, green to shift now, flashing red past redline
-            var light = kids ? null : shiftLight();
+            var light = kids && !gears ? null : shiftLight();
             var lamp = { ready: '#ffb000', shift: '#3bff6e', over: Math.floor(state.clock * 8) % 2 ? '#ff3b3b' : '#5a1010' }[light] || '#2a2a2a';
             ctx.fillStyle = lamp;
             ctx.fillRect(148, 153, 46, 14);
             ctx.fillStyle = light ? '#111' : '#555';
-            L.text(ctx, kids ? 'AUTO' : 'SHIFT', 171, 164, { align: 'center' });
+            L.text(ctx, kids && !gears ? 'AUTO' : 'SHIFT', 171, 164, { align: 'center' });
             if (me.run.spinning && me.run.v > 0) L.text(ctx, 'SPIN', 150, 181, { color: '#ff3b3b' });
             if (me.blown) L.text(ctx, 'BLOWN!', 150, 195, { color: '#ff3b3b' });
 

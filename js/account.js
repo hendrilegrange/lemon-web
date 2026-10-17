@@ -172,10 +172,10 @@
     };
 
     // The kids' garage's top ten, no account needed. kids() resolves { top: [{ name, car, t }] }
-    // or { error }; kidTime({ name, car, t }) sends a time and resolves { rank } (1-10 when it's
-    // on the board, else null) or { error }.
-    A.kids = function () {
-        return call('kids').then(function (res) {
+    // or { error }; kidTime({ name, car, t, gears }) sends a time and resolves { rank } (1-10 when
+    // it's on the board, else null) or { error }. gears is the big kids' board, who shift themselves.
+    A.kids = function (gears) {
+        return call('kids' + (gears ? '&gears=1' : '')).then(function (res) {
             return res.ok && Array.isArray(res.data.top) ? { top: res.data.top } : { error: res.data.error || 'Couldn\'t reach the server.' };
         });
     };
