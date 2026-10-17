@@ -12,6 +12,7 @@
     // The cars to pick from, each with a name a five-year-old can read: one from each era, then
     // the working vehicles, each on a car's chassis (body) for the physics with a picture
     // (shape) and paint (color) of its own
+    var GROOT_BLOU = '#1c4fd8';          // big blue
     L.KID_CARS = [
         { id: 'ford48', body: 'ford48', name: 'Hot Rod' },
         { id: 'chevy57', body: 'chevy57', name: 'Cruiser' },
@@ -26,7 +27,11 @@
         { id: 'ambulance', body: 'magnum05', shape: 'ambulance', color: '#e6e2d6', name: 'Ambulance' },
         { id: 'police', body: 'charger69', shape: 'police', color: '#20202a', name: 'Cop Car' },
         { id: 'firetruck', body: 'chevy60', shape: 'firetruck', color: '#d7263d', name: 'Fire Truck' },
-        { id: 'bus', body: 'fox79', shape: 'bus', color: '#ffc20e', name: 'Bus' }
+        { id: 'bus', body: 'fox79', shape: 'bus', color: '#ffc20e', name: 'Bus' },
+        // Hendri's Yotas, in groot blou
+        { id: 'corolla', body: 'cobra93', shape: 'corolla', color: GROOT_BLOU, name: 'Yota Corolla' },
+        { id: 'ranger', body: 'magnum05', shape: 'ranger', color: GROOT_BLOU, name: 'Yota Ranger' },
+        { id: 'bakkie', body: 'camaro82', shape: 'bakkie', color: GROOT_BLOU, name: 'Yota Bakkie' }
     ];
     // Which of them a kid's car is (a car from before the working vehicles keeps only its body)
     L.kidType = function (kc) {
@@ -34,7 +39,7 @@
         return L.KID_CARS.filter(function (c) { return c.id === id; })[0] || null;
     };
     function kidShape(type) { return type.shape || L.BODIES[type.body].shape; }
-    L.KID_COLORS = ['#d7263d', '#f07a28', '#ffd23f', '#3bb273', '#2fb8ac', '#2f7fd6', '#7a2fa0', '#ff4fa0', '#16161c', '#e6e2d6'];
+    L.KID_COLORS = ['#d7263d', '#f07a28', '#ffd23f', '#3bb273', '#2fb8ac', '#2f7fd6', GROOT_BLOU, '#7a2fa0', '#ff4fa0', '#16161c', '#e6e2d6'];
     // The parts to fix, in short words
     L.KID_JOBS = [['engine', 'Engine'], ['tires', 'Tires'], ['exhaust', 'Pipes'], ['carb', 'Fuel'],
         ['intake', 'Air'], ['cam', 'Cam'], ['trans', 'Gears'], ['rear', 'Axle']];
