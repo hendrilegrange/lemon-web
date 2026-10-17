@@ -9,15 +9,27 @@
 
     var SESSION_KEY = 'lemon_kid', LOCAL_TOP = 'lemon_kid_top';
 
-    // The cars to pick from, one from each era, each with a name a five-year-old can read
+    // The cars to pick from, each with a name a five-year-old can read: one from each era, then
+    // the working vehicles, each on a car's chassis (body) for the physics with a picture
+    // (shape) and paint (color) of its own
     L.KID_CARS = [
-        { body: 'ford48', name: 'Hot Rod' },
-        { body: 'chevy57', name: 'Cruiser' },
-        { body: 'camaro69', name: 'Muscle Car' },
-        { body: 'gn84', name: 'Turbo Car' },
-        { body: 'supra93', name: 'Sports Car' },
-        { body: 'gtr24', name: 'Super Car' }
+        { id: 'ford48', body: 'ford48', name: 'Hot Rod' },
+        { id: 'chevy57', body: 'chevy57', name: 'Cruiser' },
+        { id: 'camaro69', body: 'camaro69', name: 'Muscle Car' },
+        { id: 'gn84', body: 'gn84', name: 'Turbo Car' },
+        { id: 'supra93', body: 'supra93', name: 'Sports Car' },
+        { id: 'gtr24', body: 'gtr24', name: 'Super Car' },
+        { id: 'truck', body: 'chevy55', shape: 'pickup', color: '#d7263d', name: 'Truck' },
+        { id: 'digger', body: 'merc49', shape: 'digger', color: '#ffc20e', name: 'Digger' },
+        { id: 'jeep', body: 'nova68', shape: 'jeep', color: '#7a9a3a', name: 'Jeep' },
+        { id: 'garbage', body: 'chevy52', shape: 'garbage', color: '#2e9e44', name: 'Garbage Truck' }
     ];
+    // Which of them a kid's car is (a car from before the working vehicles keeps only its body)
+    L.kidType = function (kc) {
+        var id = typeof kc === 'string' ? kc : kc.kind || kc.body;
+        return L.KID_CARS.filter(function (c) { return c.id === id; })[0] || null;
+    };
+    function kidShape(type) { return type.shape || L.BODIES[type.body].shape; }
     L.KID_COLORS = ['#d7263d', '#f07a28', '#ffd23f', '#3bb273', '#2fb8ac', '#2f7fd6', '#7a2fa0', '#ff4fa0', '#16161c', '#e6e2d6'];
     // The parts to fix, in short words
     L.KID_JOBS = [['engine', 'Engine'], ['tires', 'Tires'], ['exhaust', 'Pipes'], ['carb', 'Fuel'],
@@ -30,19 +42,18 @@
         return String(s || '').replace(/[^A-Za-z0-9 ]/g, '').replace(/\s+/g, ' ').trim().slice(0, L.KID_NAME_MAX).trim();
     };
 
-    // A new kid's car: the body's own parts, in its own colour
-    L.kidNewCar = function (body) {
-        return { body: body, color: L.BODIES[body].color, parts: Object.assign({}, L.BODIES[body].parts) };
+    // A new kid's car: its chassis's own parts, in its own colour
+    L.kidNewCar = function (id) {
+        var type = L.kidType(id), body = type.body;
+        return { kind: id, body: body, color: type.color || L.BODIES[body].color, parts: Object.assign({}, L.BODIES[body].parts) };
     };
 
     // The car as the physics sees it: brand new, and it never wears
     L.kidCar = function (kc) {
         return { body: kc.body, condition: 100, engineCondition: 100, partCondition: {}, parts: kc.parts };
     };
-    L.kidLook = function (kc) { return { color: kc.color, shape: L.BODIES[kc.body].shape }; };
-    L.kidCarName = function (kc) {
-        return (L.KID_CARS.filter(function (c) { return c.body === kc.body; })[0] || { name: 'Car' }).name;
-    };
+    L.kidLook = function (kc) { return { color: kc.color, shape: kidShape(L.kidType(kc)) }; };
+    L.kidCarName = function (kc) { return (L.kidType(kc) || { name: 'Car' }).name; };
 
     // Is this part as shiny as it gets?
     L.kidMaxed = function (kc, slot) { return L.PARTS[kc.parts[slot]].cls >= BEST; };
@@ -75,7 +86,7 @@
     // The car to race: the same car as yours, stock and a little tired, driven by Mac
     L.kidRival = function (kc) {
         var car = { body: kc.body, condition: 100, engineCondition: 85, partCondition: {}, parts: Object.assign({}, L.BODIES[kc.body].parts) };
-        return { spec: L.spec(car), color: { color: '#8a8aa8', shape: L.BODIES[kc.body].shape }, skill: 0.3 };
+        return { spec: L.spec(car), color: { color: '#8a8aa8', shape: kidShape(L.kidType(kc)) }, skill: 0.3 };
     };
 
     // This browser's own top ten, kept for when the server doesn't answer
@@ -98,7 +109,7 @@
     function load() {
         try { kid = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); } catch (e) { kid = null; }
         if (!kid || typeof kid !== 'object') kid = {};
-        if (kid.car && !(L.BODIES[kid.car.body] && L.PARTS[kid.car.parts.engine])) delete kid.car;
+        if (kid.car && !(L.kidType(kid.car) && L.BODIES[kid.car.body] && L.PARTS[kid.car.parts.engine])) delete kid.car;
     }
     function save() { try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(kid)); } catch (e) { /* private window: it lasts till the page closes */ } }
     function esc(s) { return U.esc(s); }
@@ -106,9 +117,9 @@
     // Pixel pictures drawn after the screen is built: [data-car] cars, [data-part] parts
     function paint() {
         document.querySelectorAll('canvas[data-car]').forEach(function (c) {
-            var ctx = c.getContext('2d'), body = c.getAttribute('data-car');
+            var ctx = c.getContext('2d'), type = L.kidType(c.getAttribute('data-car'));
             ctx.clearRect(0, 0, c.width, c.height);
-            var look = { color: c.getAttribute('data-color') || L.BODIES[body].color, shape: L.BODIES[body].shape };
+            var look = { color: c.getAttribute('data-color') || type.color || L.BODIES[type.body].color, shape: kidShape(type) };
             var scale = Number(c.getAttribute('data-scale')) || 2;
             L.drawCar(ctx, (c.width - 44 * scale) / 2, 2 * scale, look, { scale: scale });
         });
@@ -123,8 +134,8 @@
         });
     }
 
-    function carCanvas(body, color, scale, cls) {
-        return '<canvas class="' + (cls || 'kid-car') + '" width="' + (44 * scale + 8 * scale) + '" height="' + (28 * scale) + '" data-car="' + body + '"' +
+    function carCanvas(kind, color, scale, cls) {
+        return '<canvas class="' + (cls || 'kid-car') + '" width="' + (44 * scale + 8 * scale) + '" height="' + (28 * scale) + '" data-car="' + kind + '"' +
             (color ? ' data-color="' + color + '"' : '') + ' data-scale="' + scale + '"></canvas>';
     }
 
@@ -174,12 +185,12 @@
             '<div class="panel kid-panel"><h2>Pick your car, ' + esc(kid.name) + '!</h2>' +
             '<p class="kid-say">Tap the car you like best.</p>' +
             '<div class="kid-cars">' + L.KID_CARS.map(function (c) {
-                return '<button data-act="pick" data-arg="' + c.body + '" class="kid-card">' + carCanvas(c.body, null, 3) + '<span>' + c.name + '</span></button>';
+                return '<button data-act="pick" data-arg="' + c.id + '" class="kid-card">' + carCanvas(c.id, null, 3) + '<span>' + c.name + '</span></button>';
             }).join('') + '</div></div>' +
             U.backBar(kid.car ? 'Back to my garage' : 'Back to the title'),
             {
-                pick: function (body) {
-                    kid.car = L.kidNewCar(body);
+                pick: function (id) {
+                    kid.car = L.kidNewCar(id);
                     save();
                     kidHub('Great pick! This is your ' + L.kidCarName(kid.car) + '.');
                 },
@@ -199,7 +210,7 @@
         screen(
             (msg ? '<p class="kid-msg">' + esc(msg) + '</p>' : '') +
             '<div class="panel kid-panel kid-hub"><h2>' + esc(kid.name) + '\'s ' + L.kidCarName(kc) + '</h2>' +
-            carCanvas(kc.body, kc.color, 4, 'kid-car big') +
+            carCanvas(L.kidType(kc).id, kc.color, 4, 'kid-car big') +
             '<p class="kid-speed">Speed ' + stars(L.kidStars(kc)) + '</p>' +
             '<div class="kid-buttons">' +
             '<button data-act="race" class="kid-big go-race">🏁 Race!</button>' +
@@ -266,7 +277,7 @@
         var kc = kid.car;
         screen(
             '<div class="panel kid-panel"><h2>Paint your car!</h2>' +
-            carCanvas(kc.body, kc.color, 4, 'kid-car big') +
+            carCanvas(L.kidType(kc).id, kc.color, 4, 'kid-car big') +
             '<p class="kid-say">Tap a color.</p>' +
             '<div class="kid-colors">' + L.KID_COLORS.map(function (c) {
                 return '<button data-act="color" data-arg="' + c + '" class="kid-swatch' + (c === kc.color ? ' here' : '') + '" style="background:' + c + '" aria-label="Color ' + c + '"></button>';

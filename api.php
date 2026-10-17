@@ -69,7 +69,7 @@ const RATE_LIMITS = ['login' => [10, 300], 'register' => [5, 3600], 'google' => 
 // (seconds); a name is letters, numbers and spaces, a car one of the kids' cars.
 const KID_TIMES = [5, 60];
 const KID_NAME_PATTERN = '/^[A-Za-z0-9](?:[A-Za-z0-9 ]{0,10}[A-Za-z0-9])?$/';
-const KID_CARS = ['Hot Rod', 'Cruiser', 'Muscle Car', 'Turbo Car', 'Sports Car', 'Super Car'];
+const KID_CARS = ['Hot Rod', 'Cruiser', 'Muscle Car', 'Turbo Car', 'Sports Car', 'Super Car', 'Truck', 'Digger', 'Jeep', 'Garbage Truck'];
 
 $action = $_GET['action'] ?? '';
 $posts = ['register', 'login', 'google', 'forgot', 'reset', 'logout', 'save', 'kid_time'];

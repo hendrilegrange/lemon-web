@@ -1152,7 +1152,7 @@ test('a dearer part is never slower: every class in the speed shop beats the one
 
 test("kids' garage: fixing makes the car quicker up to the best part, and the top ten keeps each name's best", () => {
     for (const c of L.KID_CARS) {
-        const kc = L.kidNewCar(c.body);
+        const kc = L.kidNewCar(c.id);
         let et = L.estimate(L.spec(L.kidCar(kc))).et;
         const stars = L.kidStars(kc);
         for (let round = 0; round < 4; round++) {
