@@ -1114,6 +1114,29 @@
         L.drawCar(ctx, 12, 2, L.carLook(c), { scale: 4 });
     };
 
+    // A shelf part's buttons: Install when it fits the car you drive, Rebuild when it's worn, and
+    // Sell (or Bin it when it's worth nothing). The garage's shelf and Fix car's share them.
+    function shelfActs(i, canFit) {
+        var reb = L.shelfRebuild(g, i), value = L.partValue(g, i);
+        // What a rebuild adds to the part's value, less its cost, when that's a profit
+        var up = reb ? L.partValue(g, i, 100) - value - reb.cost : 0;
+        return '<span class="shelf-acts">' +
+            (canFit ? '<button data-act="install" data-arg="' + i + '"' + off(L.canInstall(g, i)) + '>Install · ' + L.JOB_HOURS[L.PARTS[g.inventory[i]].slot] + ' h</button>' : '') +
+            (reb ? '<button data-act="rebuild" data-arg="' + i + '" class="minor"' + off(L.canRebuildShelf(g, i)) + '>Rebuild ' + money(reb.cost) + ' · ' + reb.hours + ' h' + (up > 0 ? ' · +' + money(up) + ' value' : '') + '</button>' : '') +
+            '<button data-act="sellpart" data-arg="' + i + '" class="minor">' + (value ? 'Sell ' + money(value) : 'Bin it') + '</button></span>';
+    }
+
+    // What the shelf's Sell and Rebuild buttons do, then back to screen
+    function shelfDeeds(screen) {
+        return {
+            sellpart: act(screen, function (i) { return L.sellPart(g, +i); }),
+            rebuild: act(screen, function (i) {
+                var name = L.PARTS[g.inventory[+i]].name;
+                return L.rebuildShelf(g, +i) || 'Rebuilt the ' + name + '. It\'s like new, and worth ' + money(L.partValue(g, +i)) + ' now.';
+            })
+        };
+    }
+
     // The shelf grouped by slot in the car's order, each group headed by what's on your car now,
     // best class and best condition first. A part that beats what's fitted says so; one that
     // doesn't fit your engine says what it fits instead of offering to install.
@@ -1130,16 +1153,10 @@
             var onCar = fitted ? '<div class="shelf-item fitted">' + partArt(car.parts[slot]) + '<span class="shelf-name">' + partName(car.parts[slot]) +
                 ' <span class="shelf-cls t' + fitted.cls + '">' + L.CLASSES[fitted.cls] + '</span>' + vsFitted(car.parts[slot], car) + '</span>' +
                 '<span class="shelf-cond">' + bar(L.partCondition(car, slot), 'Condition') + '</span></div>' : '';
-            // What a rebuild adds to a part's value, less its cost, when that's a profit
-            function rebuildGain(i, cost) {
-                var up = L.partValue(g, i, 100) - L.partValue(g, i) - cost;
-                return up > 0 ? ' · +' + money(up) + ' value' : '';
-            }
             return '<div class="shelf-group"><h3><span>' + L.SLOT_NAMES[slot] + ' <span class="count">' + items.length + '</span></span>' +
                 '</h3>' + onCar +
                 items.map(function (it) {
                     var fits = !car || L.fits(it.id, car.parts.engine);
-                    var reb = L.shelfRebuild(g, it.i), value = L.partValue(g, it.i);
                     var others = fits ? [] : L.carsItFits(g, it.id);
                     var tag = !fits ? '<span class="vs no">✖ Fits a ' + esc(L.FAMILIES[L.PARTS[it.id].fam].name.toLowerCase()) +
                             (others.length ? ', like your ' + esc(L.carName(others[0])) + (others.length > 1 ? ' and ' + (others.length - 1) + ' more' : '') : '') + '</span>'
@@ -1147,10 +1164,7 @@
                     return '<div class="shelf-item' + (fits ? '' : ' nofit') + '">' + partArt(it.id) +
                         '<span class="shelf-name">' + partName(it.id) + ' <span class="shelf-cls t' + it.cls + '">' + L.CLASSES[it.cls] + '</span>' + tag + '</span>' +
                         '<span class="shelf-cond">' + (it.cond < 100 ? bar(it.cond, 'Condition') : '<span class="like-new">Like new</span>') + '</span>' +
-                        '<span class="shelf-acts">' +
-                        (car && fits ? '<button data-act="install" data-arg="' + it.i + '"' + off(L.canInstall(g, it.i)) + '>Install · ' + L.JOB_HOURS[slot] + ' h</button>' : '') +
-                        (reb ? '<button data-act="rebuild" data-arg="' + it.i + '" class="minor"' + off(L.canRebuildShelf(g, it.i)) + '>Rebuild ' + money(reb.cost) + ' · ' + reb.hours + ' h' + rebuildGain(it.i, reb.cost) + '</button>' : '') +
-                        '<button data-act="sellpart" data-arg="' + it.i + '" class="minor">' + (value ? 'Sell ' + money(value) : 'Bin it') + '</button></span></div>';
+                        shelfActs(it.i, car && fits) + '</div>';
                 }).join('') + '</div>';
         }).join('');
     }
@@ -1162,6 +1176,7 @@
         var car = L.activeCar(g), part = L.PARTS[g.inventory[i]];
         function go() {
             wrench(part.slot, 'Installing: ' + part.name, L.PARTS[car.parts[part.slot]].name, part.name, 1,
+                [L.PARTS[car.parts[part.slot]].cls, part.cls],
                 act(screen, function () {
                     var out = {};
                     return L.installPart(g, i, out) || 'Installed the ' + part.name + '.' +
@@ -1239,11 +1254,8 @@
                         act(L.showGarage, function () { return L.stripCar(g, +i); }), L.showGarage);
                 },
                 install: function (i) { installShelf(+i, L.showGarage); },
-                sellpart: act(L.showGarage, function (i) { return L.sellPart(g, +i); }),
-                rebuild: act(L.showGarage, function (i) {
-                    var name = L.PARTS[g.inventory[+i]].name;
-                    return L.rebuildShelf(g, +i) || 'Rebuilt the ' + name + '. It\'s like new, and worth ' + money(L.partValue(g, +i)) + ' now.';
-                }),
+                sellpart: shelfDeeds(L.showGarage).sellpart,
+                rebuild: shelfDeeds(L.showGarage).rebuild,
                 fix: function () { L.showFix(); },
                 shop: function () { L.showParts(); },
                 back: function () { L.showHub(); }
@@ -1315,7 +1327,9 @@
             // A repair only needs as many bolts as the wear: a lightly worn part is a quick job
             var d = L.diagnose(car).filter(function (x) { return x.slot === slot; })[0];
             var bolts = how === 'repair' ? 1 - d.condition / 100 : 1;
-            wrench(slot === 'engine' ? 'rebuild' : slot, title, oldName, newName, bolts, act(L.showFix, function () {
+            // A used stock part goes on in place of the worn one; a repair or a new one is the same class
+            var classes = [part.cls, how === 'junk' ? 0 : part.cls];
+            wrench(slot === 'engine' ? 'rebuild' : slot, title, oldName, newName, bolts, classes, act(L.showFix, function () {
                 var e = how === 'repair' ? L.repairPart(g, slot) : L.replacePart(g, slot, how);
                 return e || (slot === 'engine' ? 'Engine rebuilt. Good as new.' : 'The ' + L.SLOT_NAMES[slot].toLowerCase() + ' is sorted.');
             }), L.showFix);
@@ -1369,7 +1383,7 @@
                             '<span class="shelf-name">' + partName(it.id) + ' <span class="shelf-cls t' + p.cls + '">' + L.CLASSES[p.cls] + '</span>' +
                             vsFitted(it.id, car, p.cls >= fitted.cls ? it.q : 0, true) + '</span>' +
                             '<span class="shelf-cond">' + (it.cond < 100 ? bar(it.cond, 'Condition') : '<span class="like-new">Like new</span>') + '</span>' +
-                            '<span class="shelf-acts"><button data-act="install" data-arg="' + it.i + '"' + off(L.canInstall(g, it.i)) + '>Install · ' + L.JOB_HOURS[slot] + ' h</button></span></div>';
+                            shelfActs(it.i, true) + '</div>';
                     }).join('') + '</div>';
             }).join('') + '</div>';
 
@@ -1386,6 +1400,9 @@
                 new: function (slot) { job(slot, 'new'); },
                 body: bodyJob,
                 fixall: act(L.showFix, function () { return L.fixEverything(g) || 'All done. Every job on her is sorted.'; }),
+                install: function (i) { installShelf(+i, L.showFix); },
+                sellpart: shelfDeeds(L.showFix).sellpart,
+                rebuild: shelfDeeds(L.showFix).rebuild,
                 back: function () { L.showGarage(); }
             })
         );
@@ -1408,10 +1425,12 @@
         });
     }
 
-    // Bolts out and back in for a part
-    function wrench(job, title, oldName, newName, share, finish, back) {
+    // Bolts out and back in for a part; classes is [old, new], the class of the part coming off
+    // and the one going on, so each shows the picture the shop and shelf give it
+    function wrench(job, title, oldName, newName, share, classes, finish, back) {
         bench(function (canvas, onLine, done) {
-            return L.startWrench(canvas, { job: job, title: title, oldName: oldName, newName: newName, share: share, onLine: onLine }, done);
+            return L.startWrench(canvas, { job: job, title: title, oldName: oldName, newName: newName, share: share,
+                oldCls: classes[0], newCls: classes[1], onLine: onLine }, done);
         }, finish, back);
     }
 

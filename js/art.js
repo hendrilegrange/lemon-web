@@ -990,12 +990,14 @@
             (job.circles || []).some(function (c) { return Math.hypot(x - c[0], y - c[1]) < c[2] - 1; });
     }
 
-    // Draws a job's part, worn (with rust and grease) or new (with a glint), lifted by dy
-    L.drawPart = function (ctx, jobId, isNew, dy, clock) {
+    // Draws a job's part, worn (with rust and grease) or new (with a glint), lifted by dy. With a
+    // class, cls, it's that class's picture, the same one the shop and the shelf show
+    L.drawPart = function (ctx, jobId, isNew, dy, clock, cls) {
         var job = L.WRENCH[jobId];
         ctx.save();
         ctx.translate(0, Math.round(dy));
-        PARTS[jobId](ctx, isNew ? NEW : OLD);
+        if (cls != null && jobId !== 'rebuild') L.drawPartClass(ctx, jobId, cls, !isNew);
+        else PARTS[jobId](ctx, isNew ? NEW : OLD);
         if (!isNew) {
             speckle(ctx, 30, 20, 260, 140, jobId.length * 97 + 13, ['#8b4513', '#5c2e0e', '#1a1410', '#a0522d'], 0.05,
                 function (x, y) { return onPart(job, x, y); });
@@ -1115,8 +1117,9 @@
         return [x0, y0, x1 - x0, y1 - y0];
     }
 
-    // Draws a part's picture for its slot and class, on the workbench's scale
-    L.drawPartClass = function (ctx, slot, cls) {
+    // Draws a part's picture for its slot and class, on the workbench's scale; worn, it's left
+    // without its glints and pinstripe for the rust to go over
+    L.drawPartClass = function (ctx, slot, cls, worn) {
         var m = classMats(cls);
         // Parts with no paint of their own wear the class's colour: a painted case and housing,
         // and a coloured header flange over pipes from bare steel up to titanium and gold
@@ -1127,7 +1130,7 @@
             if (cls === 4) m.pipe = L.ramp('#8a78c8');
         }
         if (slot === 'tires') tireArt(ctx, cls, m); else PARTS[slot](ctx, m);
-        classDetails(ctx, slot, cls);
+        if (!worn) classDetails(ctx, slot, cls);
     };
 
     // A part's picture as an image URL, made once per slot and class: the part cut out of the

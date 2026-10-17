@@ -175,7 +175,7 @@
                 if (t < 1) { color = OLD; dy = -t * t * 170; }
                 else { color = NEW; dy = -(1 - (t - 1)) * (1 - (t - 1)) * 170; }
             }
-            L.drawPart(ctx, opts.job, color === NEW, dy, st.clock);
+            L.drawPart(ctx, opts.job, color === NEW, dy, st.clock, color === NEW ? opts.newCls : opts.oldCls);
             bolts.forEach(function (b) {
                 // The part's own bolts are out while it moves; ones holding something else stay
                 if (st.phase === 'swap' && !b.reason) return;
