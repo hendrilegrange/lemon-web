@@ -1009,6 +1009,156 @@
         ctx.restore();
     };
 
+    // ── Part pictures by class ────────────────────────────────────────────
+    // The shop, the shelf and Fix car show each part as a small picture, and a better class
+    // looks better: stock is plain cast iron and bare steel, Better wears green paint, Best blue
+    // with polished alloy, Bestest purple with a pinstripe, Bestest+ orange anodizing with more
+    // chrome, and Legendary is gold all over, glowing and sparkling.
+    var CLASS_TINT = ['#4a4e58', '#2f9e4f', '#2f7fd0', '#9a4fd0', '#e0662a', '#c9a227'];
+    var CLASS_LIGHT = ['#8a8e98', '#3bff6e', '#4fc3ff', '#d68cff', '#ff8c42', '#ffd23f'];
+
+    function classMats(cls) {
+        var m = {};
+        Object.keys(NEW).forEach(function (k) { m[k] = NEW[k]; });
+        m.paint = L.ramp(CLASS_TINT[cls]);
+        if (cls === 0) {
+            m.chrome = NEW.steel; m.pipe = L.ramp('#6a645c'); m.alum = L.ramp('#8a8c90');
+        } else if (cls === 1) {
+            m.pipe = NEW.steel;
+        } else if (cls === 2) {
+            m.alum = L.ramp('#b8c8d8');
+        } else if (cls === 3) {
+            m.alum = L.ramp('#b49ad6');
+        } else if (cls === 4) {
+            m.alum = L.ramp('#f09a5a'); m.steel = NEW.chrome; m.iron = L.ramp('#5a5a66');
+        } else if (cls >= 5) {
+            m.chrome = L.ramp('#ffcf3a'); m.alum = L.ramp('#f0c040'); m.pipe = L.ramp('#e8b030');
+            m.steel = L.ramp('#9a7a24'); m.iron = L.ramp('#3a3020');
+        }
+        return m;
+    }
+
+    // A four-point sparkle
+    function sparkle(ctx, x, y, size, color) {
+        rect(ctx, x - size, y, size * 2 + 1, 1, color);
+        rect(ctx, x, y - size, 1, size * 2 + 1, color);
+        rect(ctx, x - 1, y - 1, 3, 3, color);
+    }
+
+    // The tires, a set of their own for each class: steelies and dog-dish caps, chrome caps and
+    // whitewalls, five-spoke mags, slicks with red stripes, slicks on chrome eight-spokes, and
+    // gold rims
+    function tireArt(ctx, cls, m) {
+        var slick = cls >= 3, R = slick ? 52 : 50;
+        ball(ctx, 160, 100, R, m.rubber);
+        if (!slick) {
+            for (var k = 0; k < 30; k++) {
+                var a = k * Math.PI / 15;
+                rect(ctx, 160 + Math.cos(a) * (R - 3) - 1, 100 + Math.sin(a) * (R - 3) - 1, 3, 3, m.rubber[0]);
+            }
+        } else {
+            rect(ctx, 160 - R * 0.5, 100 - R + 4, R * 0.6, 2, m.rubber[3]);       // the slick's shine
+        }
+        if (cls === 1) ring(ctx, 160, 100, 36, 4, '#e8e4d8');                     // whitewall
+        if (cls >= 3) ring(ctx, 160, 100, 40, 2, cls === 3 ? '#ff3b3b' : CLASS_LIGHT[cls]);   // sidewall stripe
+        ring(ctx, 160, 100, 38 - (cls >= 3 ? 3 : 0), 1, m.rubber[3]);
+        var rim = cls >= 5 ? m.chrome : cls >= 2 ? m.alum : m.steel;
+        ball(ctx, 160, 100, 30, rim);
+        if (cls <= 1) {
+            ring(ctx, 160, 100, 26, 1, rim[1]);
+            for (var h = 0; h < 5; h++) {                                           // lug holes
+                var b = h * Math.PI * 2 / 5 - Math.PI / 2;
+                disc(ctx, 160 + Math.cos(b) * 19, 100 + Math.sin(b) * 19, 1.5, '#0a0a0a');
+            }
+            ball(ctx, 160, 100, cls === 1 ? 17 : 11, m.chrome);                    // hubcap
+            return;
+        }
+        var spokes = cls >= 4 ? 8 : 5;
+        disc(ctx, 160, 100, 27, rim[0]);
+        for (var i = 0; i < spokes; i++) {                                          // the spokes, with dark gaps between
+            var t = i * Math.PI * 2 / spokes - Math.PI / 2;
+            for (var r = 8; r < 27; r++) {
+                var w = cls >= 4 ? 2 : 3;
+                rect(ctx, 160 + Math.cos(t) * r - w / 2, 100 + Math.sin(t) * r - w / 2, w, w, r < 16 ? rim[3] : rim[2]);
+            }
+        }
+        ring(ctx, 160, 100, 28, 2, rim[3]);                                         // polished lip
+        ball(ctx, 160, 100, 9, cls >= 5 ? m.chrome : NEW.chrome);                  // centre cap
+        if (cls >= 4) disc(ctx, 160, 100, 3, CLASS_LIGHT[cls]);
+    }
+
+    // What a better class adds on top: a pinstripe from Bestest, glints from Best up
+    function classDetails(ctx, slot, cls) {
+        var job = L.WRENCH && L.WRENCH[slot];
+        var r = job && job.rects && job.rects[0];
+        if (cls >= 3 && r && slot !== 'tires') {
+            rect(ctx, r[0] + 3, r[1] + Math.round(r[3] * 0.6), r[2] - 6, 2, CLASS_LIGHT[cls]);
+            rect(ctx, r[0] + 3, r[1] + Math.round(r[3] * 0.6) + 3, r[2] - 6, 1, CLASS_LIGHT[cls]);
+        }
+        var b = partBounds(slot);
+        if (cls >= 2) sparkle(ctx, b[0] + Math.round(b[2] * 0.25), b[1] + 8, 3, '#ffffff');
+        if (cls >= 4) sparkle(ctx, b[0] + Math.round(b[2] * 0.8), b[1] + Math.round(b[3] * 0.55), 2, '#ffffff');
+        if (cls >= 5) {
+            sparkle(ctx, b[0] + Math.round(b[2] * 0.55), b[1] + 4, 4, '#fff6c0');
+            sparkle(ctx, b[0] + 6, b[1] + b[3] - 10, 3, '#fff6c0');
+            sparkle(ctx, b[0] + b[2] - 8, b[1] + 10, 3, '#fff6c0');
+        }
+    }
+
+    // The area a slot's part takes on the workbench: [x, y, w, h]
+    function partBounds(slot) {
+        var job = L.WRENCH[slot], x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+        (job.rects || []).forEach(function (r) { x0 = Math.min(x0, r[0]); y0 = Math.min(y0, r[1]); x1 = Math.max(x1, r[0] + r[2]); y1 = Math.max(y1, r[1] + r[3]); });
+        (job.circles || []).forEach(function (c) { x0 = Math.min(x0, c[0] - c[2]); y0 = Math.min(y0, c[1] - c[2]); x1 = Math.max(x1, c[0] + c[2]); y1 = Math.max(y1, c[1] + c[2]); });
+        if (slot === 'trans') y0 = Math.min(y0, 24);                                // the shifter sticks up
+        if (slot === 'tires') { x0 = 106; y0 = 46; x1 = 214; y1 = 154; }
+        return [x0, y0, x1 - x0, y1 - y0];
+    }
+
+    // Draws a part's picture for its slot and class, on the workbench's scale
+    L.drawPartClass = function (ctx, slot, cls) {
+        var m = classMats(cls);
+        // Parts with no paint of their own wear the class's colour: a painted case and housing,
+        // and a coloured header flange over pipes from bare steel up to titanium and gold
+        if (cls >= 1 && (slot === 'trans' || slot === 'rear')) m.iron = m.paint;
+        if (slot === 'exhaust') {
+            if (cls >= 1) m.steel = m.paint;
+            if (cls === 3) m.pipe = L.ramp('#d8d4e8');
+            if (cls === 4) m.pipe = L.ramp('#8a78c8');
+        }
+        if (slot === 'tires') tireArt(ctx, cls, m); else PARTS[slot](ctx, m);
+        classDetails(ctx, slot, cls);
+    };
+
+    // A part's picture as an image URL, made once per slot and class: the part cut out of the
+    // workbench and fitted in a 96x72 frame (twice that, for sharp screens)
+    var ART_CACHE = {};
+    L.partArtURL = function (slot, cls) {
+        var key = slot + cls;
+        if (ART_CACHE[key]) return ART_CACHE[key];
+        if (typeof document === 'undefined' || !PARTS[slot]) return '';
+        var full = document.createElement('canvas');
+        full.width = 320; full.height = 200;
+        L.drawPartClass(full.getContext('2d'), slot, cls);
+        var b = partBounds(slot), pad = 6;
+        var sx = b[0] - pad, sy = b[1] - pad, sw = b[2] + pad * 2, sh = b[3] + pad * 2;
+        var out = document.createElement('canvas');
+        out.width = 192; out.height = 144;
+        var o = out.getContext('2d');
+        var k = Math.min(out.width / sw, out.height / sh);
+        var dw = sw * k, dh = sh * k;
+        o.imageSmoothingEnabled = k < 1;
+        if (cls >= 5) {                                                             // a warm glow behind a Legendary part
+            var glow = o.createRadialGradient(96, 72, 10, 96, 72, 96);
+            glow.addColorStop(0, 'rgba(255, 210, 63, 0.55)');
+            glow.addColorStop(1, 'rgba(255, 210, 63, 0)');
+            o.fillStyle = glow;
+            o.fillRect(0, 0, out.width, out.height);
+        }
+        o.drawImage(full, sx, sy, sw, sh, (out.width - dw) / 2, (out.height - dh) / 2, dw, dh);
+        return (ART_CACHE[key] = out.toDataURL());
+    };
+
     // A bracket behind a bolt that holds something else, so it isn't floating in air
     L.drawBracket = function (ctx, x, y) {
         box(ctx, x - 7, y - 7, 15, 15, OLD.steel);

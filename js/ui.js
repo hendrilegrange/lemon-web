@@ -269,6 +269,13 @@
         return '<span class="tier t' + p.cls + '" title="' + (L.CLASSES[p.cls] || '') + '">' + esc(p.name) + '</span>';
     }
 
+    // A part's picture, drawn for its slot and class (art.js): plainer for stock, shinier and
+    // more colourful up the classes, gold for a Legendary one
+    function partArt(id) {
+        var p = L.PARTS[id], url = p && L.partArtURL ? L.partArtURL(p.slot, p.cls) : '';
+        return url ? '<img class="part-art t' + p.cls + '" src="' + url + '" alt="" width="64" height="48">' : '';
+    }
+
     function bar(value, label) {
         var cls = value < 35 ? 'bad' : value < 70 ? 'ok' : 'good';
         return '<span class="meter ' + cls + '" title="' + label + '"><span style="width:' + value + '%"></span></span> ' + value + '%';
@@ -910,7 +917,7 @@
         function row(x) {
             var p = L.PARTS[x.id], d = gain(x);
             var owned = g.inventory.filter(function (id) { return id === x.id; }).length;
-            return '<div class="row' + (x.inStock ? '' : ' out') + '"><span><span class="cls cls' + p.cls + '">' + L.CLASSES[p.cls] + '</span> ' + esc(p.name) +
+            return '<div class="row' + (x.inStock ? '' : ' out') + '">' + partArt(x.id) + '<span><span class="cls cls' + p.cls + '">' + L.CLASSES[p.cls] + '</span> ' + esc(p.name) +
                 (p.legend ? ' <em class="legend-note">· widens your green shift zone</em>' : '') +
                 (owned ? ' <em>· ' + owned + ' on your shelf</em>' : '') + ' ' + vsFitted(x.id, car, d) + '</span>' +
                 '<span class="price">' + money(p.price) + '</span>' +
@@ -963,7 +970,7 @@
             catalog.filter(function (x) { return L.PARTS[x.id].legend; }).map(function (x) {
                 var p = L.PARTS[x.id];
                 // Bought right here, so it's never lost in a folded-away group further down
-                return '<div class="legend-find"><p><span class="cls cls5">Legendary</span> Just in: the ' + esc(p.name) + ', ' + money(p.price) +
+                return '<div class="legend-find">' + partArt(x.id) + '<p><span class="cls cls5">Legendary</span> Just in: the ' + esc(p.name) + ', ' + money(p.price) +
                     (car && !x.fits ? '. It doesn\'t fit your engine.' : '. It won\'t be here long.') + '</p>' +
                     '<button data-act="buy" data-arg="' + x.id + '"' + off(g.cash < p.price ? 'It costs ' + money(p.price) + ' and you have ' + money(g.cash) + '.' : '') + '>Buy it</button></div>';
             }).join('') + html + '</div>' +
@@ -1120,7 +1127,7 @@
             items.sort(function (a, b) { return b.cls - a.cls || b.cond - a.cond; });
             var fitted = car && L.PARTS[car.parts[slot]];
             // What's on the car comes first, so you can see it next to what could replace it
-            var onCar = fitted ? '<div class="shelf-item fitted"><span class="shelf-name">' + partName(car.parts[slot]) +
+            var onCar = fitted ? '<div class="shelf-item fitted">' + partArt(car.parts[slot]) + '<span class="shelf-name">' + partName(car.parts[slot]) +
                 ' <span class="shelf-cls t' + fitted.cls + '">' + L.CLASSES[fitted.cls] + '</span>' + vsFitted(car.parts[slot], car) + '</span>' +
                 '<span class="shelf-cond">' + bar(L.partCondition(car, slot), 'Condition') + '</span></div>' : '';
             // What a rebuild adds to a part's value, less its cost, when that's a profit
@@ -1137,7 +1144,7 @@
                     var tag = !fits ? '<span class="vs no">✖ Fits a ' + esc(L.FAMILIES[L.PARTS[it.id].fam].name.toLowerCase()) +
                             (others.length ? ', like your ' + esc(L.carName(others[0])) + (others.length > 1 ? ' and ' + (others.length - 1) + ' more' : '') : '') + '</span>'
                         : vsFitted(it.id, car, fitted && it.cls >= fitted.cls ? quickerWith(car, it.id, it.cond, nowEt) : 0, true);
-                    return '<div class="shelf-item' + (fits ? '' : ' nofit') + '">' +
+                    return '<div class="shelf-item' + (fits ? '' : ' nofit') + '">' + partArt(it.id) +
                         '<span class="shelf-name">' + partName(it.id) + ' <span class="shelf-cls t' + it.cls + '">' + L.CLASSES[it.cls] + '</span>' + tag + '</span>' +
                         '<span class="shelf-cond">' + (it.cond < 100 ? bar(it.cond, 'Condition') : '<span class="like-new">Like new</span>') + '</span>' +
                         '<span class="shelf-acts">' +
@@ -1287,7 +1294,7 @@
                     (d.fresh ? '<button data-act="new" data-arg="' + d.slot + '" class="minor"' + off(stocked ? why(d.fresh, d.hours) : 'The speed shop is sold out of a new one this week. Fit a used one, or try next week.') + '>' +
                         (stocked ? 'New ' + gain(d.slot, 'new') + cost(d.fresh, d.hours) : 'New: sold out this week') + '</button>' : '');
             }
-            return '<div class="row fix"><span><span class="slot">' + L.SLOT_NAMES[d.slot] + '</span>' + name + '<br>' +
+            return '<div class="row fix">' + partArt(d.part) + '<span><span class="slot">' + L.SLOT_NAMES[d.slot] + '</span>' + name + '<br>' +
                 bar(d.condition, 'Condition') + '</span>' + btns + '</div>';
         }).join('');
         var budget = total.cost
@@ -1354,11 +1361,11 @@
             slots.map(function (slot) {
                 var fitted = L.PARTS[car.parts[slot]];
                 return '<div class="shelf-group"><h3><span>' + L.SLOT_NAMES[slot] + ' <span class="count">' + bySlot[slot].length + '</span></span></h3>' +
-                    '<div class="shelf-item fitted"><span class="shelf-name">' + partName(car.parts[slot]) + ' <span class="shelf-cls t' + fitted.cls + '">' + L.CLASSES[fitted.cls] + '</span>' +
+                    '<div class="shelf-item fitted">' + partArt(car.parts[slot]) + '<span class="shelf-name">' + partName(car.parts[slot]) + ' <span class="shelf-cls t' + fitted.cls + '">' + L.CLASSES[fitted.cls] + '</span>' +
                     vsFitted(car.parts[slot], car) + '</span><span class="shelf-cond">' + bar(L.partCondition(car, slot), 'Condition') + '</span></div>' +
                     bySlot[slot].map(function (it) {
                         var p = L.PARTS[it.id];
-                        return '<div class="shelf-item">' +
+                        return '<div class="shelf-item">' + partArt(it.id) +
                             '<span class="shelf-name">' + partName(it.id) + ' <span class="shelf-cls t' + p.cls + '">' + L.CLASSES[p.cls] + '</span>' +
                             vsFitted(it.id, car, p.cls >= fitted.cls ? it.q : 0, true) + '</span>' +
                             '<span class="shelf-cond">' + (it.cond < 100 ? bar(it.cond, 'Condition') : '<span class="like-new">Like new</span>') + '</span>' +
