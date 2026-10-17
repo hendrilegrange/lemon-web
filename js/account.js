@@ -112,7 +112,18 @@
             if (!res.ok) return { error: res.data.error || 'Couldn\'t reach the server.' };
             A.user = res.data.user;
             A.remote = res.data.save;
+            A.fresh = !!res.data.fresh;     // a new Google account, its name made from the Google one
             return sync(true);
+        });
+    };
+
+    // Changes the signed-in player's name. Resolves { error } or {}.
+    A.rename = function (username) {
+        return call('rename', { username: username }).then(function (res) {
+            if (!res.ok) return { error: res.data.error || 'Couldn\'t reach the server.' };
+            A.user = res.data.user;
+            A.fresh = false;
+            return {};
         });
     };
 

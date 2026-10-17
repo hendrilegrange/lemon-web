@@ -10,6 +10,9 @@
  *   POST api.php?action=forgot    { email }  emails a password reset link
  *   POST api.php?action=reset     { token, password }  sets a new password from that link
  *   POST api.php?action=logout
+ *   POST api.php?action=rename    { username }  changes the signed-in player's name, the one on
+ *                                 the leaderboards (a new Google account starts with one made
+ *                                 from its Google name, and is offered this straight away)
  *   POST api.php?action=save      { game }  replaces the player's online save, and keeps any
  *                                 records in it that beat the player's best
  *   GET  api.php?action=leaders   the top 10 on each leaderboard; &board=et|rt|streak|cash for
@@ -63,7 +66,7 @@ const SOLO_CARS_PER_SAVE = 200;     // the most cars one save's times are read f
 // The quarter mile and reaction boards started over from wins only: their own columns, filled
 // only from saves marked winsOnly (the old et and rt columns, which counted losses, are left be)
 const WIN_COLUMNS = ['et' => 'et_win', 'rt' => 'rt_win'];
-const RATE_LIMITS = ['login' => [10, 300], 'register' => [5, 3600], 'google' => [20, 300], 'forgot' => [3, 300], 'reset' => [10, 300],
+const RATE_LIMITS = ['login' => [10, 300], 'register' => [5, 3600], 'google' => [20, 300], 'forgot' => [3, 300], 'reset' => [10, 300], 'rename' => [10, 300],
                      'kid_time' => [30, 300]];
 // The kids' garage: no accounts, a name for the session. A time is believed between these
 // (seconds); a name is letters, numbers and spaces, a car one of the kids' cars.
@@ -73,7 +76,7 @@ const KID_CARS = ['Hot Rod', 'Cruiser', 'Muscle Car', 'Turbo Car', 'Sports Car',
     'Ambulance', 'Cop Car', 'Fire Truck', 'Bus', 'Yota Corolla', 'Yota Ranger', 'Yota Bakkie'];
 
 $action = $_GET['action'] ?? '';
-$posts = ['register', 'login', 'google', 'forgot', 'reset', 'logout', 'save', 'kid_time'];
+$posts = ['register', 'login', 'google', 'forgot', 'reset', 'logout', 'rename', 'save', 'kid_time'];
 $gets = ['me', 'load', 'leaders', 'kids'];
 if (!in_array($action, $posts, true) && !in_array($action, $gets, true)) {
     respond(['error' => 'Unknown action'], 404);
@@ -292,9 +295,9 @@ function badPassword(string $password): ?string {
     return strlen($password) < 8 || strlen($password) > 200 ? 'Use a password of at least 8 characters.' : null;
 }
 
-function signedIn(PDO $db, array $user): never {
+function signedIn(PDO $db, array $user, bool $fresh = false): never {
     startSession($db, (int)$user['id']);
-    respond(['user' => ['username' => $user['username']], 'save' => saveSummary($db, (int)$user['id'])]);
+    respond(['user' => ['username' => $user['username']], 'save' => saveSummary($db, (int)$user['id'])] + ($fresh ? ['fresh' => true] : []));
 }
 
 // A free username for a new Google account, made from the Google name or email
@@ -388,13 +391,26 @@ function handle(PDO $db, string $action): never {
                     respond(['error' => 'That email belongs to an account linked to another Google login.'], 409);
                 }
             }
-            if (!$row) {
+            $fresh = !$row;
+            if ($fresh) {
                 $username = freeUsername($db, $g['name'], $email);
                 $db->prepare('INSERT INTO lemon_users (username, email, google_sub) VALUES (?, ?, ?)')
                    ->execute([$username, $email === '' ? null : $email, $g['sub']]);
                 $row = ['id' => (int)$db->lastInsertId(), 'username' => $username];
             }
-            signedIn($db, $row);
+            signedIn($db, $row, $fresh);
+
+        case 'rename':
+            $user = requireUser($db);
+            $username = trim((string)(body()['username'] ?? ''));
+            if (!preg_match(USERNAME_PATTERN, $username)) respond(['error' => 'Pick a name of 3 to 20 letters, numbers or underscores.'], 400);
+            try {
+                $db->prepare('UPDATE lemon_users SET username = ? WHERE id = ?')->execute([$username, $user['id']]);
+            } catch (PDOException $e) {
+                if ($e->getCode() !== '23000') throw $e;
+                respond(['error' => 'That name is taken. Try another.'], 409);
+            }
+            respond(['user' => ['username' => $username]]);
 
         case 'forgot':
             $email = strtolower(trim((string)(body()['email'] ?? '')));
