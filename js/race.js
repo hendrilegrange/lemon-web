@@ -69,9 +69,15 @@
             }
         }
         function onButton(e) { e.preventDefault(); press(); }
+        // Turning a phone sideways mid-race: the page is sized to fit the screen again (CSS,
+        // body.racing), so bring the strip back to the top with the button under it
+        function onTurn() { canvas.scrollIntoView({ block: 'start' }); }
 
         document.addEventListener('keydown', onKey);
         button.addEventListener('pointerdown', onButton);
+        canvas.addEventListener('pointerdown', onButton);      // a tap on the strip works too
+        window.addEventListener('resize', onTurn);
+        document.body.classList.add('racing');
         L.sound.begin();        // the click that started the race lets the audio start
         L.sound.engineOn();
 
@@ -79,6 +85,9 @@
             state.stopped = true;
             document.removeEventListener('keydown', onKey);
             button.removeEventListener('pointerdown', onButton);
+            canvas.removeEventListener('pointerdown', onButton);
+            window.removeEventListener('resize', onTurn);
+            document.body.classList.remove('racing');
             L.sound.engineOff();
         }
 
