@@ -1333,15 +1333,27 @@
             var cond = L.shelfCondition(g, i), q = quickerWith(car, id, cond, nowEt);
             spares.push({ id: id, i: i, cond: cond, q: q });
         });
-        spares.sort(function (a, b) { return b.q - a.q || L.SLOTS.indexOf(L.PARTS[a.id].slot) - L.SLOTS.indexOf(L.PARTS[b.id].slot); });
+        // Grouped by slot like the garage's shelf, the slot with the biggest upgrade first, and
+        // in each the biggest upgrade first
+        var bySlot = {};
+        spares.forEach(function (it) { (bySlot[L.PARTS[it.id].slot] = bySlot[L.PARTS[it.id].slot] || []).push(it); });
+        var slots = Object.keys(bySlot);
+        slots.forEach(function (slot) { bySlot[slot].sort(function (a, b) { return b.q - a.q || b.cond - a.cond; }); });
+        slots.sort(function (a, b) { return bySlot[b][0].q - bySlot[a][0].q || L.SLOTS.indexOf(a) - L.SLOTS.indexOf(b); });
         var shelfPanel = !spares.length ? '' : '<div class="panel shelf"><h2>From your shelf <span class="sub">' + plural(spares.length, 'part') + ' that fit' + (spares.length === 1 ? 's' : '') + '</span></h2>' +
-            spares.map(function (it) {
-                var p = L.PARTS[it.id], fitted = L.PARTS[car.parts[p.slot]];
-                return '<div class="shelf-item">' +
-                    '<span class="shelf-name"><span class="slot">' + L.SLOT_NAMES[p.slot] + '</span> ' + partName(it.id) + ' <span class="shelf-cls t' + p.cls + '">' + L.CLASSES[p.cls] + '</span>' +
-                    vsFitted(it.id, car, p.cls >= fitted.cls ? it.q : 0, true) + '</span>' +
-                    '<span class="shelf-cond">' + (it.cond < 100 ? bar(it.cond, 'Condition') : '<span class="like-new">Like new</span>') + '</span>' +
-                    '<span class="shelf-acts"><button data-act="install" data-arg="' + it.i + '"' + off(L.canInstall(g, it.i)) + '>Install · ' + L.JOB_HOURS[p.slot] + ' h</button></span></div>';
+            slots.map(function (slot) {
+                var fitted = L.PARTS[car.parts[slot]];
+                return '<div class="shelf-group"><h3><span>' + L.SLOT_NAMES[slot] + ' <span class="count">' + bySlot[slot].length + '</span></span></h3>' +
+                    '<div class="shelf-item fitted"><span class="shelf-name">' + partName(car.parts[slot]) + ' <span class="shelf-cls t' + fitted.cls + '">' + L.CLASSES[fitted.cls] + '</span>' +
+                    vsFitted(car.parts[slot], car) + '</span><span class="shelf-cond">' + bar(L.partCondition(car, slot), 'Condition') + '</span></div>' +
+                    bySlot[slot].map(function (it) {
+                        var p = L.PARTS[it.id];
+                        return '<div class="shelf-item">' +
+                            '<span class="shelf-name">' + partName(it.id) + ' <span class="shelf-cls t' + p.cls + '">' + L.CLASSES[p.cls] + '</span>' +
+                            vsFitted(it.id, car, p.cls >= fitted.cls ? it.q : 0, true) + '</span>' +
+                            '<span class="shelf-cond">' + (it.cond < 100 ? bar(it.cond, 'Condition') : '<span class="like-new">Like new</span>') + '</span>' +
+                            '<span class="shelf-acts"><button data-act="install" data-arg="' + it.i + '"' + off(L.canInstall(g, it.i)) + '>Install · ' + L.JOB_HOURS[slot] + ' h</button></span></div>';
+                    }).join('') + '</div>';
             }).join('') + '</div>';
 
         render(
