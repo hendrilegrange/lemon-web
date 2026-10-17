@@ -722,6 +722,13 @@ canvas.scene {
 .shelf-cls.t0 { color: var(--muted); } .shelf-cls.t1 { color: #3bff6e; } .shelf-cls.t2 { color: #4fc3ff; }
 .shelf-cls.t3 { color: #d68cff; } .shelf-cls.t4 { color: #ff8c42; } .shelf-cls.t5 { color: #ffd23f; }
 .shelf-tag { font-size: 0.7rem; margin-left: 6px; white-space: nowrap; }
+/* How a part stacks up against what's on your car, in the shop and on the shelf */
+.vs { display: inline-block; font-size: 0.72rem; font-style: normal; margin-left: 6px; padding: 0 6px; border: 1px solid currentColor; border-radius: 3px; white-space: nowrap; vertical-align: 1px; }
+.vs.up { color: var(--good); background: rgba(59, 255, 110, 0.1); font-weight: bold; }
+.vs.on { color: var(--accent); }
+.vs.same, .vs.down { color: var(--muted); }
+.vs.no { color: var(--bad); white-space: normal; }
+.shelf-item.fitted { background: var(--bg); border-left: 4px solid var(--accent); }
 .shelf-tag.up { color: var(--good); }
 .shelf-tag.no { color: var(--bad); white-space: normal; }
 .row .fam { color: var(--muted); }

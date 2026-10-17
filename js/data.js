@@ -529,7 +529,7 @@
 
     // Chance a class is on the speed shop's shelf in a given week. Legendary parts don't come
     // in by the week: LEGEND_ODDS is the chance one turns up, at random.
-    L.IN_STOCK = [0, 0.8, 0.55, 0.3, 0.15, 0];
+    L.IN_STOCK = [0, 0.95, 0.8, 0.6, 0.15, 0];
     L.LEGEND_ODDS = 0.2;
 
     function stock(engine, classes) {
