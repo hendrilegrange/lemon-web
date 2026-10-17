@@ -733,6 +733,18 @@ canvas.scene {
 .shelf-cls { font-size: 0.65rem; letter-spacing: 1px; text-transform: uppercase; padding: 0 4px; margin-left: 2px; border: 1px solid currentColor; white-space: nowrap; vertical-align: 1px; }
 .shelf-cls.t0 { color: var(--muted); } .shelf-cls.t1 { color: #3bff6e; } .shelf-cls.t2 { color: #4fc3ff; }
 .shelf-cls.t3 { color: #d68cff; } .shelf-cls.t4 { color: #ff8c42; } .shelf-cls.t5 { color: #ffd23f; }
+/* A part's picture, framed in its class's colour; Legendary glows */
+.part-art { flex: 0 0 auto; width: 64px; height: 48px; image-rendering: auto; background: radial-gradient(ellipse at 50% 40%, #23233f, #0e0e22 75%);
+    border: 2px solid var(--line); border-radius: 4px; }
+.part-art.t1 { border-color: #2f9e4f; } .part-art.t2 { border-color: #2f7fd0; } .part-art.t3 { border-color: #9a4fd0; }
+.part-art.t4 { border-color: #e0662a; box-shadow: 0 0 6px rgba(255, 140, 66, 0.35); }
+.part-art.t5 { border-color: #ffd23f; box-shadow: 0 0 10px rgba(255, 210, 63, 0.6); animation: legend-glow 2.4s ease-in-out infinite; }
+@keyframes legend-glow { 50% { box-shadow: 0 0 18px rgba(255, 210, 63, 0.9); } }
+@media (prefers-reduced-motion: reduce) { .part-art.t5 { animation: none; } }
+.shelf-item > .part-art + .shelf-name { flex-basis: calc(100% - 78px); }
+.row > .part-art + span { flex: 1 1 180px; }
+.legend-find .part-art { width: 80px; height: 60px; }
+@media (max-width: 600px) { .part-art { width: 52px; height: 39px; } .shelf-item > .part-art + .shelf-name { flex-basis: calc(100% - 66px); } }
 .shelf-tag { font-size: 0.7rem; margin-left: 6px; white-space: nowrap; }
 /* How a part stacks up against what's on your car, in the shop and on the shelf */
 .vs { display: inline-block; font-size: 0.72rem; font-style: normal; margin-left: 6px; padding: 0 6px; border: 1px solid currentColor; border-radius: 3px; white-space: nowrap; vertical-align: 1px; }
