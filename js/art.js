@@ -580,11 +580,44 @@
         box(29, 6, 29, 15, 'k'); box(43, 12, 43, 15, 'c'); box(42, 10, 42, 10, 'y'); box(2, 3, 2, 4, 'r');
         wheel(9, 17, 4, 2); wheel(19, 17, 4, 2); wheel(36, 17, 4, 2);
     });
+    // An ambulance: a tall box with a red stripe and cross, a cab up front with its lights
+    SHAPES.ambulance = build(function (box, wheel) {
+        box(1, 1, 30, 15, 'm'); box(2, 1, 29, 1, 'h'); box(1, 9, 30, 10, 'r'); box(13, 3, 15, 7, 'r'); box(11, 4, 17, 6, 'r'); box(25, 2, 28, 8, 'd');
+        box(31, 5, 42, 15, 'm'); box(32, 5, 41, 5, 'h'); box(34, 6, 40, 9, 'w'); box(36, 6, 36, 6, 'g'); box(31, 10, 42, 10, 'r');
+        box(32, 3, 34, 4, 'r'); box(35, 3, 37, 4, 'b'); box(0, 12, 0, 15, 'c'); box(43, 12, 43, 15, 'c'); box(42, 7, 42, 8, 'y'); box(1, 3, 1, 4, 'r');
+        wheel(9, 17, 4, 2); wheel(35, 17, 4, 2);
+    });
+    // A cop car: a sedan with white doors and a red and blue light bar on the roof
+    SHAPES.police = build(function (box, wheel) {
+        box(17, 2, 20, 3, 'r'); box(21, 2, 24, 3, 'b');
+        box(12, 4, 30, 9, 'm'); box(13, 4, 29, 4, 'h'); box(14, 5, 28, 8, 'w'); box(21, 5, 21, 8, 'm'); box(16, 5, 16, 5, 'g');
+        box(1, 8, 42, 15, 'm'); box(2, 8, 11, 8, 'l'); box(31, 8, 41, 8, 'l'); box(13, 9, 30, 13, 'W'); box(21, 9, 21, 13, 'd');
+        box(1, 15, 42, 16, 'd'); box(0, 12, 0, 14, 'c'); box(43, 12, 43, 14, 'c'); box(1, 9, 1, 10, 'r'); box(42, 9, 42, 10, 'y');
+        wheel(9, 17, 4, 2); wheel(35, 17, 4, 2);
+    });
+    // A fire truck: a ladder along the top, chrome lockers down the side, a cab and three wheels
+    SHAPES.firetruck = build(function (box, wheel) {
+        box(2, 4, 34, 4, 'c'); box(2, 6, 34, 6, 'c'); for (var x = 3; x <= 33; x += 3) box(x, 5, x, 5, 'C');
+        box(1, 7, 30, 15, 'm'); box(2, 7, 29, 7, 'l'); [3, 11, 19].forEach(function (x) { box(x, 9, x + 6, 12, 'C'); box(x + 1, 10, x + 5, 11, 'c'); });
+        box(31, 3, 42, 15, 'm'); box(32, 3, 41, 3, 'h'); box(34, 5, 40, 9, 'w'); box(36, 5, 36, 5, 'g'); box(31, 11, 42, 11, 'l');
+        box(34, 1, 36, 2, 'r'); box(37, 1, 39, 2, 'r'); box(0, 12, 0, 15, 'c'); box(43, 12, 43, 15, 'c'); box(42, 10, 42, 10, 'y');
+        wheel(9, 17, 4, 2); wheel(19, 17, 4, 2); wheel(36, 17, 4, 2);
+    });
+    // A school bus: long and tall, a row of windows, a door up front and a black stripe
+    SHAPES.bus = build(function (box, wheel) {
+        box(1, 2, 42, 15, 'm'); box(2, 2, 41, 2, 'h'); box(1, 15, 42, 15, 'd');
+        for (var x = 3; x <= 31; x += 5) { box(x, 4, x + 3, 8, 'w'); box(x, 4, x, 4, 'g'); }
+        box(36, 4, 39, 13, 'w'); box(37, 4, 37, 4, 'g'); box(40, 4, 41, 8, 'w');
+        box(1, 10, 35, 10, 'k'); box(1, 12, 35, 12, 'k'); box(0, 13, 0, 15, 'c'); box(43, 13, 43, 15, 'c');
+        box(1, 4, 1, 5, 'r'); box(42, 10, 42, 11, 'y'); box(2, 2, 2, 2, 'r'); box(41, 2, 41, 2, 'r');
+        wheel(8, 17, 4, 2); wheel(34, 17, 4, 2);
+    });
     L.CAR_SHAPES = Object.keys(SHAPES);
     L.carSprite = function (shape) { return SHAPES[shape] || SHAPES.coupe; };
     // How many rows lower than the 40s coupe a shape's body sits
     L.shapeDrop = function (shape) { return SHAPES[shape] && SHAPES[shape] !== CAR ? DROP : 0; };
-    var GLASS = { w: '#4a7aa8', g: '#cfe8ff', c: '#d8d8e0', C: '#7a7a86', t: '#141414', T: '#3a3a3a', k: '#060606', r: '#e02020', y: '#fff3b0' };
+    var GLASS = { w: '#4a7aa8', g: '#cfe8ff', c: '#d8d8e0', C: '#7a7a86', t: '#141414', T: '#3a3a3a', k: '#060606', r: '#e02020', y: '#fff3b0',
+        b: '#2f7fff', W: '#f2f2ea' };     // b: a police light, W: white panels whatever the paint
     var PAINT = { o: 0, d: 1, m: 2, l: 3, h: 4 };
 
     // Liveries from the paint shop, laid over the paint (and, for a racing number, the chrome).
