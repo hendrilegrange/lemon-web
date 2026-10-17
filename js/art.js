@@ -679,9 +679,29 @@
     // A car's look: a paint colour, or { color, livery, trim } from L.carLook
     L.lookColor = function (look) { return typeof look === 'string' ? look : look.color; };
 
+    // A sprite's wheels, found once per shape: each black hub with chrome all round it, and how
+    // far the chrome reaches to its right (the rim's radius)
+    // The hand-drawn 40s coupe's wheels have no hub pixel: its small hubcaps are given here, and
+    // the spokes go over the tire round them too (any)
+    var WHEELS = { coupe: [{ cx: 11, cy: 17, r: 2, any: true }, { cx: 36, cy: 17, r: 2, any: true }] };
+    function wheelsOf(name, CAR) {
+        if (WHEELS[name]) return WHEELS[name];
+        var found = [];
+        function at(col, row) { return (CAR[row] || '')[col] || '.'; }
+        for (var row = 10; row < CAR.length; row++) for (var col = 0; col < CAR[row].length; col++) {
+            if (at(col, row) !== 'k' || ![[1, 0], [-1, 0], [0, 1], [0, -1]].every(function (d) { return 'cC'.indexOf(at(col + d[0], row + d[1])) >= 0; })) continue;
+            var r = 0;
+            while ('cC'.indexOf(at(col + r + 1, row)) >= 0) r++;
+            found.push({ cx: col, cy: row, r: r });
+        }
+        return (WHEELS[name] = found);
+    }
+    L.wheelsOf = function (name) { return wheelsOf(name, SHAPES[name] || SHAPES.coupe); };
+
     // Draws a car with its roof at (x, y). look: a paint colour or { color, livery, trim, shape }.
     // opts: smoke, scale (whole pixels per car pixel), clip (only the part left of this x),
-    // shape (the body's sprite, when look is only a colour)
+    // shape (the body's sprite, when look is only a colour), spin (the wheels' turn in radians:
+    // their chrome is redrawn as two spokes at that angle, so the wheels roll in a race)
     L.drawCar = function (ctx, x, y, look, opts) {
         opts = opts || {};
         var s = opts.scale || 1;
@@ -708,6 +728,20 @@
                 ctx.fillStyle = fill;
                 ctx.fillRect(px, y + row * s, s, s);
             }
+        }
+        if (opts.spin !== undefined) {
+            wheelsOf(name in SHAPES ? name : 'coupe', CAR).forEach(function (w) {
+                for (var dy = -w.r; dy <= w.r; dy++) for (var dx = -w.r; dx <= w.r; dx++) {
+                    var d = Math.sqrt(dx * dx + dy * dy);
+                    if (d < 0.5 || d > w.r + 0.45 || (w.any ? 'tTcC' : 'cC').indexOf((CAR[w.cy + dy] || '')[w.cx + dx]) < 0) continue;
+                    var px = x + (w.cx + dx) * s;
+                    if (opts.clip !== undefined && px + s > opts.clip) continue;
+                    // Two spokes: bright chrome near the line at the spin's angle, dark between
+                    var a = Math.atan2(dy, dx) - opts.spin;
+                    ctx.fillStyle = Math.abs(Math.cos(a)) > 0.7 ? GLASS.c : '#4a4a54';
+                    ctx.fillRect(px, y + (w.cy + dy) * s, s, s);
+                }
+            });
         }
         if (opts.smoke) {
             for (var i = 0; i < 4; i++) {
