@@ -1,7 +1,8 @@
 // The kids' garage: an easy mode for little ones, from the title screen. No account and no
 // money: pick a car, race it, fix it. Nothing wears out. Every fix bolts on a shinier part that
 // makes the car quicker, and the race shifts by itself, so all there is to do is press GO on
-// green. The player's name and car last for the browser session (sessionStorage); the ten
+// green; a big kid's race (kid.gears) has them change gear too, pressing GO each time it lights
+// green, with a top ten of its own. The player's name and car last for the browser session (sessionStorage); the ten
 // quickest times go on the kids' own leaderboard (api.php's kids and kid_time), or this
 // browser's own top ten when the server doesn't answer.
 (function (L) {
@@ -99,8 +100,8 @@
     };
 
     // This browser's own top ten, kept for when the server doesn't answer
-    L.kidLocalTop = function () {
-        try { var list = JSON.parse(localStorage.getItem(LOCAL_TOP) || '[]'); return Array.isArray(list) ? list : []; } catch (e) { return []; }
+    L.kidLocalTop = function (gears) {
+        try { var list = JSON.parse(localStorage.getItem(LOCAL_TOP + (gears ? '_gears' : '')) || '[]'); return Array.isArray(list) ? list : []; } catch (e) { return []; }
     };
     // Adds a time to a top ten (one row per name, its best); returns the new list
     L.kidAddTime = function (list, entry) {
@@ -233,7 +234,7 @@
                 race: kidRaceReady,
                 fix: function () { kidFix(); },
                 paint: kidPaint,
-                top: function () { kidTop(); },
+                top: function () { kidTop(kid.gears); },
                 pick: kidPick,
                 name: function () { kidName(); },
                 back: function () { L.showTitle(); }
@@ -306,21 +307,26 @@
     }
 
     // Before the race: the one thing to know, in big letters
+    // Little kids press GO once; big kids change gear too, pressing GO each time it goes green
     function kidRaceReady() {
+        function pick(gears) { kid.gears = gears; save(); kidRace(); }
         screen(
             '<div class="panel kid-panel"><h2>Ready to race?</h2>' +
-            '<ol class="kid-steps"><li>Watch the lights at the top.</li><li>When the light turns <b class="green">GREEN</b>, press <b>GO!</b></li><li>Your car changes gears by itself.</li></ol>' +
+            '<ol class="kid-steps"><li>Watch the traffic light.</li><li>When it turns <b class="green">GREEN</b>, press <b>GO!</b></li></ol>' +
             '<p class="kid-say">You race Mac in his grey car.</p>' +
-            '<button data-act="go" class="kid-big go-race">I\'m ready!</button></div>' +
+            '<div class="kid-buttons kid-modes">' +
+            '<button data-act="easy" class="kid-big go-race' + (kid.gears ? '' : ' picked') + '">🚗 Easy race<small>The car changes gears by itself</small></button>' +
+            '<button data-act="gears" class="kid-big go-gears' + (kid.gears ? ' picked' : '') + '">🏎️ Big kid race<small>Press GO again each time it turns green, to change gear</small></button>' +
+            '</div></div>' +
             U.backBar('Back to my garage'),
-            { go: kidRace, back: function () { kidHub(); } }
+            { easy: function () { pick(false); }, gears: function () { pick(true); }, back: function () { kidHub(); } }
         );
     }
 
     function kidRace() {
-        var kc = kid.car;
+        var kc = kid.car, gears = !!kid.gears;
         U.render('<div class="race-controls kids"><button class="go kid-go" id="go">GO!</button>' +
-            '<p class="kid-say">Press GO when the light turns green!</p></div>', {});
+            '<p class="kid-say">' + (gears ? 'Press GO when it turns green, then each time it\'s green again to change gear!' : 'Press GO when the light turns green!') + '</p></div>', {});
         L.titleScreen(false);
         L.showCanvas(true);
         L.sound.scene('race');
@@ -330,20 +336,20 @@
                 L.showCanvas(false);
                 var t = sum.et;
                 var entry = t ? { name: kid.name, car: L.kidCarName(kc), t: Math.round(t * 1000) / 1000 } : null;
-                var before = L.kidLocalTop(), after = entry ? L.kidAddTime(before, entry) : before;
+                var before = L.kidLocalTop(gears), after = entry ? L.kidAddTime(before, entry) : before;
                 var localTop = entry && after.indexOf(entry) >= 0;
                 kidResult(result, t);
                 if (!entry) return;
-                try { localStorage.setItem(LOCAL_TOP, JSON.stringify(after)); } catch (e) { /* no storage: the server still counts it */ }
+                try { localStorage.setItem(LOCAL_TOP + (gears ? '_gears' : ''), JSON.stringify(after)); } catch (e) { /* no storage: the server still counts it */ }
                 // On the board? The server's says, or this browser's when it doesn't answer
                 var shown = document.querySelector('.kid-result');
-                var sent = L.account && L.account.kidTime ? L.account.kidTime(entry) : Promise.resolve({ error: 'offline' });
+                var sent = L.account && L.account.kidTime ? L.account.kidTime(gears ? Object.assign({ gears: true }, entry) : entry) : Promise.resolve({ error: 'offline' });
                 sent.then(function (res) {
                     var onBoard = res.error ? localTop : !!res.rank;
                     var spot = document.getElementById('kid-top');
                     if (onBoard && spot && document.querySelector('.kid-result') === shown) spot.hidden = false;
                 });
-            }, { kids: true });
+            }, { kids: true, gears: gears });
     }
 
     function kidResult(result, t) {
@@ -362,14 +368,15 @@
             {
                 again: kidRace,
                 fix: function () { kidFix(); },
-                top: function () { kidTop(); },
+                top: function () { kidTop(kid.gears); },
                 back: function () { kidHub(); }
             }
         );
     }
 
     // The top ten: the server's, or this browser's when it doesn't answer
-    function kidTop() {
+    function kidTop(gears) {
+        gears = !!gears;
         function rows(list) {
             if (!list.length) return '<p class="kid-say">Nobody yet. Race and be the first!</p>';
             var me = (kid.name || '').toLowerCase();
@@ -380,17 +387,19 @@
         }
         function show(list, local) {
             screen(
-                '<div class="panel kid-panel"><h2>🏆 Top 10 kids</h2>' +
+                '<div class="panel kid-panel"><h2>🏆 Top 10 ' + (gears ? 'big kids' : 'kids') + '</h2>' +
+                '<div class="kid-tabs"><button data-act="easy"' + (gears ? '' : ' class="on"') + '>🚗 Easy</button>' +
+                '<button data-act="gears"' + (gears ? ' class="on"' : '') + '>🏎️ Big kids</button></div>' +
                 '<p class="kid-say">The fastest times. Fix your car to get on it!</p>' + rows(list) +
                 (local ? '<p class="sub">These are the times on this computer.</p>' : '') + '</div>' +
                 U.backBar('Back to my garage'),
-                { back: function () { kidHub(); } }
+                { easy: function () { kidTop(false); }, gears: function () { kidTop(true); }, back: function () { kidHub(); } }
             );
         }
-        show(L.kidLocalTop(), true);
+        show(L.kidLocalTop(gears), true);
         if (!L.account || !L.account.available || !L.account.kids) return;
         var shown = document.querySelector('.kids');
-        L.account.kids().then(function (res) {
+        L.account.kids(gears).then(function (res) {
             if (res.error || document.querySelector('.kids') !== shown) return;     // offline, or they moved on
             show(res.top, false);
         });

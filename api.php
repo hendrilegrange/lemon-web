@@ -17,9 +17,10 @@
  *                                 records in it that beat the player's best
  *   GET  api.php?action=leaders   the top 10 on each leaderboard; &board=et|rt|streak|cash for
  *                                 that board's top 100
- *   GET  api.php?action=kids      the kids' garage's top 10: [{ name, car, t }], no account needed
- *   POST api.php?action=kid_time  { name, car, t }  a kids' garage time; keeps each name's best,
- *                                 answers its rank when it's in the top 10
+ *   GET  api.php?action=kids      the kids' garage's top 10: [{ name, car, t }], no account needed;
+ *                                 &gears=1 for the big kids' races, who change gear themselves
+ *   POST api.php?action=kid_time  { name, car, t, gears }  a kids' garage time; keeps each name's
+ *                                 best, answers its rank when it's in the top 10
  *
  * Google sign-in, email resets, the mailer and the CA bundle in certs/ are copied from dnd-web.
  * Every response is JSON through respond(). POSTs must carry X-Requested-With: XMLHttpRequest;
@@ -157,15 +158,18 @@ function createTables(PDO $db): void {
         KEY board_t (board, t),
         FOREIGN KEY (user_id) REFERENCES lemon_users (id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-    // The kids' garage's times: each name's best (names compare without case)
-    $db->exec("CREATE TABLE IF NOT EXISTS lemon_kids (
-        name VARCHAR(12) NOT NULL,
-        car VARCHAR(20) NOT NULL,
-        t DECIMAL(6,3) NOT NULL,
-        t_at DATETIME NOT NULL,
-        PRIMARY KEY (name),
-        KEY t (t)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+    // The kids' garage's times: each name's best (names compare without case), the big kids'
+    // races, where they change gear themselves, on a board of their own
+    foreach (['lemon_kids', 'lemon_kids_gears'] as $table) {
+        $db->exec("CREATE TABLE IF NOT EXISTS $table (
+            name VARCHAR(12) NOT NULL,
+            car VARCHAR(20) NOT NULL,
+            t DECIMAL(6,3) NOT NULL,
+            t_at DATETIME NOT NULL,
+            PRIMARY KEY (name),
+            KEY t (t)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+    }
     $db->exec("CREATE TABLE IF NOT EXISTS lemon_rate_limits (
         ip VARCHAR(45) NOT NULL,
         action VARCHAR(20) NOT NULL,
@@ -315,9 +319,12 @@ function freeUsername(PDO $db, string $name, string $email): string {
     return 'driver' . bin2hex(random_bytes(4));
 }
 
-// The kids' garage's ten quickest
-function kidsTop(PDO $db): array {
-    $rows = $db->query('SELECT name, car, t FROM lemon_kids ORDER BY t, t_at, name LIMIT 10')->fetchAll();
+// The kids' garage's ten quickest, the easy races' or the big kids' (gears)
+function kidsTable(bool $gears): string {
+    return $gears ? 'lemon_kids_gears' : 'lemon_kids';
+}
+function kidsTop(PDO $db, bool $gears = false): array {
+    $rows = $db->query('SELECT name, car, t FROM ' . kidsTable($gears) . ' ORDER BY t, t_at, name LIMIT 10')->fetchAll();
     return array_map(fn($row) => ['name' => $row['name'], 'car' => $row['car'], 't' => (float)$row['t']], $rows);
 }
 
@@ -499,7 +506,7 @@ function handle(PDO $db, string $action): never {
             respond(['boards' => $boards]);
 
         case 'kids':
-            respond(['top' => kidsTop($db)]);
+            respond(['top' => kidsTop($db, !empty($_GET['gears']))]);
 
         case 'kid_time':
             $in = body();
@@ -509,13 +516,14 @@ function handle(PDO $db, string $action): never {
             if (!preg_match(KID_NAME_PATTERN, $name) || !in_array($car, KID_CARS, true) || !is_numeric($t)
                 || (float)$t < KID_TIMES[0] || (float)$t > KID_TIMES[1]) respond(['error' => 'That time doesn\'t look right.'], 400);
             $t = round((float)$t, 3);
+            $gears = !empty($in['gears']);
             // A name's best stays: a slower time changes nothing
-            $db->prepare('INSERT INTO lemon_kids (name, car, t, t_at) VALUES (?, ?, ?, NOW())
+            $db->prepare('INSERT INTO ' . kidsTable($gears) . ' (name, car, t, t_at) VALUES (?, ?, ?, NOW())
                           ON DUPLICATE KEY UPDATE car = IF(VALUES(t) < t, VALUES(car), car),
                                                   t_at = IF(VALUES(t) < t, VALUES(t_at), t_at),
                                                   t = LEAST(t, VALUES(t))')->execute([$name, $car, $t]);
             $rank = null;
-            foreach (kidsTop($db) as $i => $row) {
+            foreach (kidsTop($db, $gears) as $i => $row) {
                 if (strcasecmp($row['name'], $name) === 0 && abs($row['t'] - $t) < 0.0005) $rank = $i + 1;
             }
             respond(['ok' => true, 'rank' => $rank]);
