@@ -263,6 +263,8 @@
             (saved ? '<button data-act="cont">' + (saved.over ? 'Continue (game over, week ' + saved.over.week + ')' : 'Continue (week ' + saved.week + ', ' + money(saved.cash) + ')') + '</button>' : '') +
             '<button data-act="new">New game</button>' +
             '<p class="hint">Summer, 1963. You have ' + money(L.START_CASH) + ' and a driver\'s license.</p>' +
+            '<button data-act="kids" class="kids-way">🧒 Kids\' garage</button>' +
+            '<p class="hint">Easy mode for little racers: pick a car, fix it, race it.</p>' +
             '<div class="toggles"><button data-act="sound" class="minor" id="sound">Sound: ' + (L.sound.on ? 'on' : 'off') + '</button>' +
             '<button data-act="music" class="minor" id="music">Music: ' + (L.sound.music ? 'on' : 'off') + '</button></div>' +
             leadersBlock() +
@@ -271,6 +273,7 @@
             '</div>',
             {
                 leaders: function () { L.showLeaders(); },
+                kids: function () { L.showKids(); },
                 sound: function () { document.getElementById('sound').textContent = 'Sound: ' + (L.sound.toggle() ? 'on' : 'off'); },
                 music: function () { document.getElementById('music').textContent = 'Music: ' + (L.sound.toggleMusic() ? 'on' : 'off'); },
                 login: function () { showAccount('login'); },
@@ -1816,4 +1819,6 @@
     }
 
     L.initUi = function (root) { app = root; };
+    // What the kids' garage (kids.js) builds its screens with
+    L.ui = { render: render, esc: esc, backBar: backBar, bench: bench, toast: toast };
 })(window.Lemon = window.Lemon || {});

@@ -1149,3 +1149,37 @@ test('a dearer part is never slower: every class in the speed shop beats the one
         }
     }
 });
+
+test("kids' garage: fixing makes the car quicker up to the best part, and the top ten keeps each name's best", () => {
+    for (const c of L.KID_CARS) {
+        const kc = L.kidNewCar(c.body);
+        let et = L.estimate(L.spec(L.kidCar(kc))).et;
+        const stars = L.kidStars(kc);
+        for (let round = 0; round < 4; round++) {
+            for (const [slot] of L.KID_JOBS) {
+                if (!L.kidUpgrade(kc, slot)) { assert.ok(L.kidMaxed(kc, slot)); continue; }
+                const now = L.estimate(L.spec(L.kidCar(kc))).et;
+                assert.ok(now <= et + 0.003, `${c.body} ${slot}: ${now} after ${et}`);
+                et = Math.min(et, now);
+                assert.ok(L.fits(kc.parts[slot], kc.parts.engine));
+            }
+        }
+        L.KID_JOBS.forEach(([slot]) => assert.ok(L.kidMaxed(kc, slot)));
+        assert.strictEqual(L.kidStars(kc), 5);
+        assert.ok(stars < 5);
+        // A fully fixed car beats Mac
+        assert.ok(L.estimate(L.spec(L.kidCar(kc))).et < L.estimate(L.kidRival(kc).spec).et);
+    }
+    assert.strictEqual(L.kidName('  Sam!!  <b>the   Great</b> '), 'Sam bthe Gre');
+    let top = [];
+    top = L.kidAddTime(top, { name: 'Sam', car: 'Hot Rod', t: 15 });
+    top = L.kidAddTime(top, { name: 'sam', car: 'Cruiser', t: 16 });
+    assert.deepStrictEqual(top, [{ name: 'Sam', car: 'Hot Rod', t: 15 }]);
+    top = L.kidAddTime(top, { name: 'SAM', car: 'Cruiser', t: 14 });
+    assert.deepStrictEqual(top, [{ name: 'SAM', car: 'Cruiser', t: 14 }]);
+    for (let i = 0; i < 12; i++) top = L.kidAddTime(top, { name: 'Kid' + i, car: 'Hot Rod', t: 10 + i });
+    assert.strictEqual(top.length, 10);
+    assert.strictEqual(top[0].t, 10);
+    assert.ok(top.some((r) => r.name === 'SAM'));
+    assert.ok(!top.some((r) => r.name === 'Kid11'));
+});

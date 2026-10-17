@@ -160,6 +160,21 @@
         });
     };
 
+    // The kids' garage's top ten, no account needed. kids() resolves { top: [{ name, car, t }] }
+    // or { error }; kidTime({ name, car, t }) sends a time and resolves { rank } (1-10 when it's
+    // on the board, else null) or { error }.
+    A.kids = function () {
+        return call('kids').then(function (res) {
+            return res.ok && Array.isArray(res.data.top) ? { top: res.data.top } : { error: res.data.error || 'Couldn\'t reach the server.' };
+        });
+    };
+    A.kidTime = function (entry) {
+        if (!A.available) return Promise.resolve({ error: 'offline' });
+        return call('kid_time', entry).then(function (res) {
+            return res.ok ? { rank: res.data.rank || null } : { error: res.data.error || 'Couldn\'t reach the server.' };
+        });
+    };
+
     // After a conflict: keep 'local' (this browser's game goes to the account) or 'remote'
     A.choose = function (which) {
         if (which === 'local') { pending = L.load(); return push(); }
