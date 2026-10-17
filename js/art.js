@@ -612,6 +612,32 @@
         box(1, 4, 1, 5, 'r'); box(42, 10, 42, 11, 'y'); box(2, 2, 2, 2, 'r'); box(41, 2, 41, 2, 'r');
         wheel(8, 17, 4, 2); wheel(34, 17, 4, 2);
     });
+    // A little 90s sedan: a short boot, four doors and a rounded roof
+    SHAPES.corolla = build(function (box, wheel) {
+        for (var r = 4; r <= 9; r++) { box(16 - (r - 4), r, 27 + (r - 4), r, 'm'); if (r > 4 && r < 9) box(18 - (r - 4), r, 25 + (r - 4), r, 'w'); }
+        box(17, 4, 26, 4, 'h'); box(21, 5, 21, 8, 'm'); box(16, 5, 16, 5, 'g');
+        box(1, 9, 42, 15, 'm'); box(2, 9, 9, 9, 'l'); box(34, 10, 41, 10, 'l'); box(1, 11, 42, 11, 'l');
+        box(21, 10, 21, 14, 'd'); box(31, 10, 31, 14, 'd'); box(1, 15, 42, 16, 'd');
+        box(0, 12, 0, 14, 'c'); box(43, 12, 43, 14, 'c'); box(1, 9, 1, 10, 'r'); box(42, 11, 42, 12, 'y');
+        wheel(9, 17, 4, 2); wheel(35, 17, 4, 2);
+    });
+    // A double-cab bakkie: four doors, a short bed with a chrome sports bar, big tires, sitting high
+    SHAPES.ranger = build(function (box, wheel) {
+        box(12, 1, 31, 8, 'm'); box(13, 1, 30, 1, 'h'); box(14, 3, 20, 7, 'w'); box(22, 3, 30, 7, 'w'); box(16, 3, 16, 3, 'g'); box(24, 3, 24, 3, 'g');
+        box(10, 3, 11, 8, 'C'); box(2, 3, 11, 4, 'C');
+        box(1, 7, 11, 14, 'm'); box(2, 7, 10, 7, 'l'); box(12, 8, 42, 14, 'm'); box(32, 7, 42, 7, 'l'); box(12, 10, 42, 10, 'l');
+        box(21, 8, 21, 13, 'd'); box(31, 8, 31, 13, 'd'); box(1, 14, 42, 15, 'd');
+        box(0, 10, 0, 13, 'c'); box(43, 10, 43, 13, 'c'); box(1, 8, 1, 9, 'r'); box(42, 8, 42, 9, 'y');
+        wheel(9, 16, 5, 2); wheel(35, 16, 5, 2);
+    });
+    // A little single-cab bakkie with a canopy over the bed, low and long
+    SHAPES.bakkie = build(function (box, wheel) {
+        box(2, 4, 22, 9, 'm'); box(3, 4, 21, 4, 'h'); box(5, 6, 10, 8, 'w'); box(13, 6, 20, 8, 'w'); box(6, 6, 6, 6, 'g');
+        box(24, 3, 33, 10, 'm'); box(25, 3, 32, 3, 'h'); box(26, 5, 32, 8, 'w'); box(28, 5, 28, 5, 'g');
+        box(1, 10, 23, 15, 'm'); box(24, 11, 42, 15, 'm'); box(34, 10, 42, 10, 'l'); box(1, 12, 42, 12, 'l'); box(23, 10, 23, 15, 'd');
+        box(1, 15, 42, 16, 'd'); box(0, 13, 0, 15, 'c'); box(43, 13, 43, 15, 'c'); box(1, 11, 1, 11, 'r'); box(42, 11, 42, 11, 'y');
+        wheel(8, 17, 4, 2); wheel(36, 17, 4, 2);
+    });
     L.CAR_SHAPES = Object.keys(SHAPES);
     L.carSprite = function (shape) { return SHAPES[shape] || SHAPES.coupe; };
     // How many rows lower than the 40s coupe a shape's body sits
