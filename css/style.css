@@ -64,6 +64,9 @@ canvas {
 }
 #screen { box-shadow: 0 0 0 1px #000, 0 12px 32px rgba(0, 0, 0, 0.55); }
 canvas[hidden] { display: none; }
+/* In a race the strip and the GO button both fit on the screen, a phone turned sideways too */
+body.racing canvas { width: min(100%, 968px, calc((100dvh - 9.5rem) * 1.6)); touch-action: manipulation; }
+body.racing main { padding-block: 8px; gap: 8px; }
 
 #app { width: min(100%, 720px); }
 
@@ -712,12 +715,20 @@ canvas.scene {
 }
 .shelf-item:nth-child(odd) { background: var(--panel-hi); }
 .shelf-item:last-child { border-bottom: 0; }
-.shelf-item.nofit { opacity: 0.6; }
+/* A part that doesn't fit this car: its name dims, its Sell and Rebuild buttons stay bright */
+.shelf-item.nofit .shelf-name, .shelf-item.nofit .shelf-cond { opacity: 0.6; }
 .shelf-name { flex: 1 1 100%; min-width: 0; line-height: 1.5; }
 .shelf-cls { font-size: 0.65rem; letter-spacing: 1px; text-transform: uppercase; padding: 0 4px; margin-left: 2px; border: 1px solid currentColor; white-space: nowrap; vertical-align: 1px; }
 .shelf-cls.t0 { color: var(--muted); } .shelf-cls.t1 { color: #3bff6e; } .shelf-cls.t2 { color: #4fc3ff; }
 .shelf-cls.t3 { color: #d68cff; } .shelf-cls.t4 { color: #ff8c42; } .shelf-cls.t5 { color: #ffd23f; }
 .shelf-tag { font-size: 0.7rem; margin-left: 6px; white-space: nowrap; }
+/* How a part stacks up against what's on your car, in the shop and on the shelf */
+.vs { display: inline-block; font-size: 0.72rem; font-style: normal; margin-left: 6px; padding: 0 6px; border: 1px solid currentColor; border-radius: 3px; white-space: nowrap; vertical-align: 1px; }
+.vs.up { color: var(--good); background: rgba(59, 255, 110, 0.1); font-weight: bold; }
+.vs.on { color: var(--accent); }
+.vs.same, .vs.down { color: var(--muted); }
+.vs.no { color: var(--bad); white-space: normal; }
+.shelf-item.fitted { background: var(--bg); border-left: 4px solid var(--accent); }
 .shelf-tag.up { color: var(--good); }
 .shelf-tag.no { color: var(--bad); white-space: normal; }
 .row .fam { color: var(--muted); }

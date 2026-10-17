@@ -242,6 +242,28 @@
     }
 
     // A part's name in its class's colour, the same as the speed shop's class badges
+    // How a part stacks up against what's on your car in its slot, as a tag: on your car, an
+    // upgrade (with the seconds it takes off, when given), the same class, not an upgrade, or
+    // not for this engine. spare: it's a part on the shelf, so the same part is another one
+    function vsFitted(id, car, secs, spare) {
+        if (!car) return '';
+        var p = L.PARTS[id], on = L.PARTS[car.parts[p.slot]];
+        if (car.parts[p.slot] === id && !spare) return '<span class="vs on">✔ On your car</span>';
+        if (!L.fits(id, car.parts.engine)) return '<span class="vs no">✖ Doesn\'t fit your engine</span>';
+        var quicker = secs >= 0.005 ? ' · −' + secs.toFixed(2) + ' s' : '';
+        if (p.cls > on.cls) return '<span class="vs up">▲ Upgrade' + quicker + '</span>';
+        if (p.cls === on.cls) return '<span class="vs same">= Same as yours' + (quicker ? ', but fresh' + quicker : '') + '</span>';
+        return '<span class="vs down">▼ Not an upgrade</span>';
+    }
+    // The seconds a part takes off your quarter mile fitted at this condition (100: new); base
+    // is the car's quarter mile as it is, when it's already worked out
+    function quickerWith(car, id, cond, base) {
+        var p = L.PARTS[id], c = JSON.parse(JSON.stringify(car));
+        c.parts[p.slot] = id;
+        if (p.slot === 'engine') c.engineCondition = cond; else (c.partCondition = c.partCondition || {})[p.slot] = cond;
+        return (base || L.estimate(L.spec(car)).et) - L.estimate(L.spec(c)).et;
+    }
+
     function partName(id) {
         var p = L.PARTS[id];
         return '<span class="tier t' + p.cls + '" title="' + (L.CLASSES[p.cls] || '') + '">' + esc(p.name) + '</span>';
@@ -820,19 +842,14 @@
         function gain(x) {
             var p = L.PARTS[x.id];
             if (!car || !x.fits || car.parts[p.slot] === x.id) return null;
-            var c = JSON.parse(JSON.stringify(car));
-            c.parts[p.slot] = x.id;
-            if (p.slot === 'engine') c.engineCondition = 100; else (c.partCondition = c.partCondition || {})[p.slot] = 100;
-            return nowEt - L.estimate(L.spec(c)).et;
+            return quickerWith(car, x.id, 100, nowEt);
         }
         function row(x) {
             var p = L.PARTS[x.id], d = gain(x);
             var owned = g.inventory.filter(function (id) { return id === x.id; }).length;
-            var fitted = car && car.parts[p.slot] === x.id;
             return '<div class="row' + (x.inStock ? '' : ' out') + '"><span><span class="cls cls' + p.cls + '">' + L.CLASSES[p.cls] + '</span> ' + esc(p.name) +
                 (p.legend ? ' <em class="legend-note">· widens your green shift zone</em>' : '') +
-                (fitted ? ' <em>· on your car</em>' : '') + (owned ? ' <em>· ' + owned + ' on your shelf</em>' : '') +
-                (d === null ? '' : d >= 0.005 ? ' <em class="gain">−' + d.toFixed(2) + ' s</em>' : ' <em class="gain none">no quicker</em>') + '</span>' +
+                (owned ? ' <em>· ' + owned + ' on your shelf</em>' : '') + ' ' + vsFitted(x.id, car, d) + '</span>' +
                 '<span class="price">' + money(p.price) + '</span>' +
                 (x.inStock
                     ? '<button data-act="buy" data-arg="' + x.id + '"' + off(g.cash < p.price ? 'It costs ' + money(p.price) + ' and you have ' + money(g.cash) + '.' : '') + '>Buy</button>'
@@ -1032,26 +1049,31 @@
     // doesn't fit your engine says what it fits instead of offering to install.
     function shelfGroups(car) {
         if (!g.inventory.length) return '<p>Nothing on the shelf. Parts you buy and parts you take off land here.</p>';
+        var nowEt = car && L.estimate(L.spec(car)).et;
         return L.SLOTS.map(function (slot) {
             var items = [];
             g.inventory.forEach(function (id, i) { if (L.PARTS[id].slot === slot) items.push({ id: id, i: i, cls: L.PARTS[id].cls, cond: L.shelfCondition(g, i) }); });
             if (!items.length) return '';
             items.sort(function (a, b) { return b.cls - a.cls || b.cond - a.cond; });
             var fitted = car && L.PARTS[car.parts[slot]];
+            // What's on the car comes first, so you can see it next to what could replace it
+            var onCar = fitted ? '<div class="shelf-item fitted"><span class="shelf-name">' + partName(car.parts[slot]) +
+                ' <span class="shelf-cls t' + fitted.cls + '">' + L.CLASSES[fitted.cls] + '</span>' + vsFitted(car.parts[slot], car) + '</span>' +
+                '<span class="shelf-cond">' + bar(L.partCondition(car, slot), 'Condition') + '</span></div>' : '';
             // What a rebuild adds to a part's value, less its cost, when that's a profit
             function rebuildGain(i, cost) {
                 var up = L.partValue(g, i, 100) - L.partValue(g, i) - cost;
                 return up > 0 ? ' · +' + money(up) + ' value' : '';
             }
             return '<div class="shelf-group"><h3><span>' + L.SLOT_NAMES[slot] + ' <span class="count">' + items.length + '</span></span>' +
-                (fitted ? '<span class="on-car">On your car: ' + partName(car.parts[slot]) + '</span>' : '') + '</h3>' +
+                '</h3>' + onCar +
                 items.map(function (it) {
                     var fits = !car || L.fits(it.id, car.parts.engine);
                     var reb = L.shelfRebuild(g, it.i), value = L.partValue(g, it.i);
                     var others = fits ? [] : L.carsItFits(g, it.id);
-                    var tag = !fits ? '<span class="shelf-tag no">Fits a ' + esc(L.FAMILIES[L.PARTS[it.id].fam].name.toLowerCase()) +
+                    var tag = !fits ? '<span class="vs no">✖ Fits a ' + esc(L.FAMILIES[L.PARTS[it.id].fam].name.toLowerCase()) +
                             (others.length ? ', like your ' + esc(L.carName(others[0])) + (others.length > 1 ? ' and ' + (others.length - 1) + ' more' : '') : '') + '</span>'
-                        : fitted && it.cls > fitted.cls ? '<span class="shelf-tag up">▲ Upgrade</span>' : '';
+                        : vsFitted(it.id, car, fitted && it.cls >= fitted.cls ? quickerWith(car, it.id, it.cond, nowEt) : 0, true);
                     return '<div class="shelf-item' + (fits ? '' : ' nofit') + '">' +
                         '<span class="shelf-name">' + partName(it.id) + ' <span class="shelf-cls t' + it.cls + '">' + L.CLASSES[it.cls] + '</span>' + tag + '</span>' +
                         '<span class="shelf-cond">' + (it.cond < 100 ? bar(it.cond, 'Condition') : '<span class="like-new">Like new</span>') + '</span>' +
@@ -1099,7 +1121,9 @@
             status('garage') + flash(msg) + coach('garage') + closedBanner() +
             '<div class="panel"><h2>Your cars <span class="sub">' + g.cars.length + ' of ' + L.maxCars(g) + '</span></h2>' + cars + '</div>' + detail +
             '<div class="panel shelf"><h2>Shelf' + (g.inventory.length ? ' <span class="sub">' + plural(g.inventory.length, 'part') +
-                ' · worth ' + money(g.inventory.reduce(function (sum, id, i) { return sum + L.partValue(g, i); }, 0)) + '</span>' : '') + '</h2>' + shelf + '</div>' +
+                ' · worth ' + money(g.inventory.reduce(function (sum, id, i) { return sum + L.partValue(g, i); }, 0)) + '</span>' : '') + '</h2>' +
+                (g.inventory.length && car ? '<p class="hint">Each group starts with the part on your car, then your spares for that slot. <span class="vs up">▲ Upgrade</span> means it\'s a better class and would make this car quicker.</p>' : '') +
+                shelf + '</div>' +
             backBar('Back'),
             closedActions({
                 drive: act(L.showGarage, function (i) { g.active = +i; }),
