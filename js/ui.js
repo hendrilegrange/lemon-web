@@ -300,6 +300,7 @@
                 music: function () { document.getElementById('music').textContent = 'Music: ' + (L.sound.toggleMusic() ? 'on' : 'off'); },
                 login: function () { showAccount('login'); },
                 register: function () { showAccount('register'); },
+                rename: function () { showName(); },
                 signout: function () {
                     L.account.signOut().then(function (r) {
                         L.showTitle(r.cleared ? 'Signed out. Your game is safe in your account.' : 'Signed out. Your game is still saved in this browser.');
@@ -427,7 +428,8 @@
         if (A.user) {
             return '<p class="account">Signed in as <b>' + esc(A.user.username) + '</b>. Your game saves to your account.' +
                 (A.error ? '<br><span class="shot">' + esc(A.error) + '</span>' : '') + '</p>' +
-                '<button data-act="signout" class="minor">Sign out</button>';
+                '<div class="toggles"><button data-act="rename" class="minor">Change name</button>' +
+                '<button data-act="signout" class="minor">Sign out</button></div>';
         }
         return '<p class="account">Sign in to keep your game on any computer or phone.</p>' +
             '<div class="toggles"><button data-act="login" class="minor">Sign in</button>' +
@@ -466,6 +468,7 @@
     function wireGoogle(mode) {
         L.account.googleButton(document.getElementById('google-button'), function (credential) {
             L.account.signIn('google', { credential: credential }).then(function (res) {
+                if (!res.error && L.account.fresh) return showName(null, true);
                 signedIn(res, function () { return 'Signed in with Google as ' + L.account.user.username + '.'; },
                     function (err) { showAccount(mode, err); });
             });
@@ -509,6 +512,33 @@
             });
         });
         wireGoogle(mode);
+    }
+
+    // Choose the name on the leaderboards: straight after a new Google account (fresh), which
+    // starts with one made from the Google name, or from the title's Change name
+    function showName(msg, fresh, typed) {
+        var now = L.account.user.username;
+        render(
+            flash(msg) +
+            '<div class="panel account-form"><h2>' + (fresh ? 'Pick your name' : 'Change your name') + '</h2>' +
+            (fresh ? '<p>You\'re signed in with Google. This is the name other drivers see on the leaderboards.</p>' : '') +
+            '<form id="name-form">' +
+            '<label>Name <input name="username" autocomplete="username" maxlength="20" required value="' + esc(typed || now) + '"></label>' +
+            '<p class="hint">3 to 20 letters, numbers or underscores.</p>' +
+            '<button type="submit">Save name</button>' +
+            '</form></div>' +
+            '<button data-act="back" class="minor">' + (fresh ? 'Keep ' + esc(now) : 'Back') + '</button>',
+            { back: function () { L.account.fresh = false; L.showTitle(fresh ? 'Signed in with Google as ' + now + '.' : undefined); } }
+        );
+        var form = onSubmit('name-form', 'Saving...', function (form) {
+            var name = form.username.value.trim();
+            if (name === now) return L.showTitle(fresh ? 'Signed in with Google as ' + now + '.' : undefined);
+            L.account.rename(name).then(function (res) {
+                if (res.error) return showName(res.error, fresh, name);
+                L.showTitle((fresh ? 'Signed in with Google as ' : 'Your name is now ') + L.account.user.username + '.');
+            });
+        });
+        form.username.select();
     }
 
     // Ask for a reset link by email
