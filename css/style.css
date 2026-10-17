@@ -31,6 +31,10 @@ html, body {
 }
 /* Keep room for the scrollbar always, so the page doesn't shift sideways when it appears */
 html { scrollbar-color: var(--line) var(--bg); scrollbar-gutter: stable; }
+/* No grey flash over whatever a phone taps, no double-tap zoom, no long-press text selection or
+   callout on the game, and dark built-in controls, so a tap never lights up the screen */
+html { color-scheme: dark; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+canvas, button { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 /* A night sky: a faint neon glow over the top of the page */
 body {
     background:
@@ -859,6 +863,7 @@ button.kid-swatch.here { border-color: var(--accent); box-shadow: 0 0 16px rgba(
 .kid-time { font-size: clamp(2.4rem, 10vw, 3.4rem); font-weight: 700; color: var(--accent); margin: 6px 0; }
 .kid-time small { font-size: 1.1rem; color: var(--text); }
 .kid-result.lose h2 { color: #ff7a2f; }
-.race-controls.kids .kid-go { font-size: 2rem; padding: 24px; background: var(--good); color: #0b0b1a; border-bottom-color: #1f9a45; }
+.race-controls.kids .kid-go { font-size: 2rem; padding: 24px; background: var(--panel-hi); color: var(--muted); border-bottom-color: var(--line); transition: background 0.1s; }
+.race-controls.kids .kid-go.ready { background: var(--good); color: #0b0b1a; border-bottom-color: #1f9a45; box-shadow: 0 0 24px rgba(59, 255, 110, 0.55); }
 .kid-board .name { font-size: 1.1rem; }
 .kids .kid-board { text-align: left; }

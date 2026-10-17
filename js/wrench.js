@@ -65,6 +65,8 @@
     // Starts a job on the canvas. opts: { job, oldName, newName, title, share, onLine(text) }.
     // done(true) when the part is on and bolted down; returns a function that cancels.
     L.startWrench = function (canvas, opts, done) {
+        // opts.big: bolts twice the size, easier to hit (the kids' garage)
+        var k = opts.big ? 2 : 1, hit = opts.big ? 22 : HIT;
         var ctx = canvas.getContext('2d');
         var job = L.WRENCH[opts.job];
         // opts.share (0-1): how much of the job a repair needs, so a lightly worn part only
@@ -93,7 +95,7 @@
         function onPointer(e) {
             if (st.phase !== 'off' && st.phase !== 'on') return;
             var pt = canvasPoint(canvas, e), x = pt.x, y = pt.y;
-            var best = null, bestD = HIT;
+            var best = null, bestD = hit;
             bolts.forEach(function (b) {
                 var d = Math.hypot(b.x - x, b.y - y);
                 if (d < bestD) { best = b; bestD = d; }
@@ -146,17 +148,17 @@
                 var p = Math.min(1, (st.clock - b.anim.at) / SPIN);
                 if (b.anim.dir === 'in') p = 1 - p;
                 turn = Math.floor(p * 12);
-                lift = Math.round(p * 8);
+                lift = Math.round(p * 8 * k);
                 show = true;
             }
-            if (!b.reason && (b.out || b.anim)) L.drawHole(ctx, b.x, b.y);
+            if (!b.reason && (b.out || b.anim)) L.drawHole(ctx, b.x, b.y, k);
             // Orange ring on the bolts that still need doing
-            if (!b.reason && !b.snug && !b.anim && holding && (st.phase === 'off' || st.phase === 'on')) L.drawTarget(ctx, b.x, b.y, 8, st.clock);
+            if (!b.reason && !b.snug && !b.anim && holding && (st.phase === 'off' || st.phase === 'on')) L.drawTarget(ctx, b.x, b.y, 8 + 6 * (k - 1), st.clock);
             if (!show) return;
             var wrong = b.wrong !== null && st.clock - b.wrong < 0.5;
             var dx = wrong ? Math.round(Math.sin(st.clock * 60) * 2) : 0;
-            L.drawBolt(ctx, b.x + dx, b.y - lift, wrong ? 'wrong' : b.reason ? 'other' : 'steel', turn);
-            if (b.snug) tick(b.x + 6, b.y - 9);
+            L.drawBolt(ctx, b.x + dx, b.y - lift, wrong ? 'wrong' : b.reason ? 'other' : 'steel', turn, k);
+            if (b.snug) tick(b.x + 6 * k, b.y - 9 * k);
         }
 
         // A little green tick by a bolt that's still tight

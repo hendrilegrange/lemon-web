@@ -187,6 +187,8 @@
             if (kids && state.phase === 'tree' && state.clock > state.greenAt + 3) press();      // off it goes anyway
             if (!solo && them.launchedAt === null && state.clock >= state.greenAt + them.reaction) them.launchedAt = state.clock;
             if (state.phase === 'racing' && state.clock > state.greenAt + 0.6) state.message = '';
+            // The kids' GO button is only green while a press does something: from green until launch
+            if (kids) button.classList.toggle('ready', state.phase === 'tree' && state.clock >= state.greenAt);
             var before = me.run.rpm, gear = me.run.gear;
             stepCar(me, player.spec, false, player.condition);
             // Smooth the climb rate; a shift or the launch clutch resets it
