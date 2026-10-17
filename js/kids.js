@@ -245,7 +245,7 @@
     function kidJob(slot) {
         var word = L.KID_JOBS.filter(function (j) { return j[0] === slot; })[0][1].toLowerCase();
         U.bench(function (canvas, onLine, done) {
-            return L.startWrench(canvas, { job: slot, title: 'Fixing the ' + word, oldName: 'old ' + word, newName: 'shiny new ' + word, share: 0.3, onLine: onLine }, done);
+            return L.startWrench(canvas, { job: slot, title: 'Fixing the ' + word, oldName: 'old ' + word, newName: 'shiny new ' + word, share: 0.3, big: true, onLine: onLine }, done);
         }, function () {
             var faster = L.kidUpgrade(kid.car, slot);
             save();

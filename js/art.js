@@ -869,23 +869,24 @@
     };
 
     // A bolt head centred on (x, y); frame 0 or 1 turns it a twelfth, for spinning
-    L.drawBolt = function (ctx, x, y, kind, frame) {
-        var sprite = BOLT[frame % 2], pal = BOLT_COLORS[kind];
-        x = Math.round(x) - 4; y = Math.round(y) - 4;
+    L.drawBolt = function (ctx, x, y, kind, frame, scale) {
+        var sprite = BOLT[frame % 2], pal = BOLT_COLORS[kind], k = scale || 1;
+        x = Math.round(x) - 4 * k; y = Math.round(y) - 4 * k;
         for (var r = 0; r < 9; r++) {
             for (var c = 0; c < 9; c++) {
                 var ch = sprite[r][c];
                 if (ch === '.' || !ch) continue;
                 ctx.fillStyle = pal[ch];
-                ctx.fillRect(x + c, y + r, 1, 1);
+                ctx.fillRect(x + c * k, y + r * k, k, k);
             }
         }
     };
 
     // The empty hole a bolt came out of
-    L.drawHole = function (ctx, x, y) {
-        disc(ctx, x, y, 2.5, '#050505');
-        rect(ctx, x + 1, y + 2, 2, 1, '#555560');
+    L.drawHole = function (ctx, x, y, scale) {
+        var k = scale || 1;
+        disc(ctx, x, y, 2.5 * k, '#050505');
+        rect(ctx, x + k, y + 2 * k, 2 * k, k, '#555560');
     };
 
     // The pulsing ring around a bolt or spot that still needs doing
