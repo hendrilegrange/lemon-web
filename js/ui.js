@@ -1584,14 +1584,14 @@
 
     // Your chances as a ten-light meter from red to green
     function chances(p) {
-        var pct = Math.round(p * 100);
+        var pct = Math.min(99, Math.max(1, Math.round(p * 100)));    // a red light can still lose it
         var label = p >= 0.7 ? 'Easy money' : p >= 0.45 ? 'Even race' : p >= 0.2 ? 'Tough' : 'Long shot';
         var hue = Math.round(p * 120);   // 0 red, 60 amber, 120 green
         var lit = Math.max(1, Math.round(p * 10));
         var lights = '';
         for (var k = 0; k < 10; k++) lights += '<span' + (k < lit ? ' style="background:hsl(' + hue + ',85%,50%)"' : '') + '></span>';
         return '<p class="odds"><span class="odds-bar" aria-hidden="true">' + lights + '</span> ' +
-            '<strong style="color:hsl(' + hue + ',85%,60%)">' + label + '</strong> · about ' + pct + '% to win</p>';
+            '<strong style="color:hsl(' + hue + ',85%,60%)">' + label + '</strong> <span class="odds-sep">·</span> <span class="odds-pct">about ' + pct + '% to win</span></p>';
     }
 
     function race(i, stake, bet) {
