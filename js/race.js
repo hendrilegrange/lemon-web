@@ -239,6 +239,15 @@
             var me = state.me, them = state.them;
             var camX = me.run.x;
             var toScreen = function (x) { return 70 + (x - camX) * PX_PER_M; };
+            // A car's wheels turn with the distance it covers (a tire is about 4 pixels across
+            // the middle), faster still while the tires spin; at most 0.9 rad a frame, so the
+            // spokes still read as rolling forward at speed
+            var spin = function (c) {
+                var step = (c.run.x - (c.lastX || 0)) * PX_PER_M / 4 + (c.run.spinning && c.run.v > 0 ? 0.6 : 0);
+                c.lastX = c.run.x;
+                c.wheel = (c.wheel || 0) + Math.min(step, 0.9);
+                return c.wheel;
+            };
 
             // Sky and horizon
             ctx.fillStyle = '#0b0b1a';
@@ -284,8 +293,8 @@
                 }
             }
 
-            if (!solo) L.drawCar(ctx, toScreen(them.run.x), LANE_Y[0], rival.color, { smoke: them.run.spinning && them.run.v > 0 });
-            L.drawCar(ctx, toScreen(me.run.x), LANE_Y[1], player.color, { smoke: (me.run.spinning && me.run.v > 0) || me.blown });
+            if (!solo) L.drawCar(ctx, toScreen(them.run.x), LANE_Y[0], rival.color, { smoke: them.run.spinning && them.run.v > 0, spin: spin(them) });
+            L.drawCar(ctx, toScreen(me.run.x), LANE_Y[1], player.color, { smoke: (me.run.spinning && me.run.v > 0) || me.blown, spin: spin(me) });
 
             drawTree();
             drawDash();

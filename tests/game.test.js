@@ -1208,3 +1208,7 @@ test('a car lost for pink slips can be bought back from Lemon Motors, as it was,
     assert.strictEqual(g.lost.length, 0);
     assert.ok(!L.dealerOpen(g));
 });
+
+test('every car sprite has at least two wheels for the race to roll', () => {
+    L.CAR_SHAPES.forEach(name => assert.ok(L.wheelsOf(name).length >= 2, name + ' has ' + L.wheelsOf(name).length + ' wheels'));
+});
